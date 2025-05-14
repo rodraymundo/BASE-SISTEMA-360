@@ -1,0 +1,52 @@
+body {
+    background-color: #f8f9fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+.login-container {
+    text-align: center;
+}
+
+.logo img {
+    max-width: 300px;
+    margin-bottom: 2rem;
+}
+
+.subtitle {
+    font-size: 1.5rem;
+    color: #212529;
+    margin-bottom: 2rem;
+}
+
+.input-group {
+    margin-bottom: 1rem;
+    width: 300px;
+}
+
+.input-group-text {
+    background-color: #fff;
+    border-right: none;
+    border-top-left-radius: 25px;
+    border-bottom-left-radius: 25px;
+}
+
+.form-control {
+    border-left: none;
+    border-top-right-radius: 25px;
+    border-bottom-right-radius: 25px;
+}
+
+.btn-ingresar {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 2rem;
+    border-radius: 25px;
+    font-size: 1.2rem;
+    width: 150px;
+}
