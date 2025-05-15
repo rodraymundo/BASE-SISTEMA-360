@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Balmoral-Evaluaciones</title>
+  <link rel="icon" type="image/x-icon" href="assets/img/favicon.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      overflow-x: hidden; /* Evita desplazamiento horizontal en toda la página */
+    }
+    .navbar {
+      background-color: #fff;
+      padding: 5px 10px; /* Reducido el padding vertical a 5px */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .navbar-brand img {
+      height: 65px; /* Tamaño deseado del logo */
+      max-height: 65px; /* Limita la altura máxima */
+      object-fit: contain; /* Asegura que el logo mantenga proporciones */
+      vertical-align: middle; /* Alinea verticalmente */
+    }
+    .navbar-brand {
+      padding: 0; /* Elimina padding interno para reducir espacio */
+      margin-left: -10px;
+    }
+    .navbar-nav {
+      flex: 1;
+      justify-content: space-between;
+      max-width: 70%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .nav-link {
+      color: #dc3545 !important;
+      font-family: 'Roboto', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      margin: 0 10px;
+      transition: color 0.3s, transform 0.3s;
+    }
+    .nav-link:hover {
+      color: #ff0000 !important;
+      transform: scale(1.1);
+    }
+    .nav-link.active {
+      color: #dc3545 !important;
+    }
+    .dropdown-toggle::after {
+      display: none;
+    }
+    .dropdown-toggle i {
+      color: #000;
+      font-size: 28px;
+      transition: color 0.3s, transform 0.3s;
+    }
+    .dropdown-toggle:hover i {
+      color: #dc3545;
+      transform: scale(1.2);
+    }
+    .dropdown-menu {
+      border: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .dropdown-item {
+      font-family: 'Roboto', sans-serif;
+      color: #dc3545;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .dropdown-item:hover {
+      background-color: #f8f9fa;
+      color: #ff0000;
+    }
+    .dropdown {
+      margin-right: -10px;
+    }
+    .filter-btn {
+      margin: 20px;
+      padding: 10px 20px;
+      background-color: #e9ecef;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .filter-btn:hover {
+      background-color: #dee2e6;
+    }
+    .content-row {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0 15px;
+      box-sizing: border-box;
+    }
+    .card-container {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      max-width: 60%;
+      padding-right: 20px;
+    }
+    .profile-card {
+      width: 200px;
+      height: 300px;
+      background-color: #e3f2fd;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      text-align: center;
+      padding: 20px;
+      position: relative;
+    }
+    .profile-img {
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle, #ffd700, #4169e1);
+      border-radius: 50%;
+      margin: 0 auto 10px;
+    }
+    .card-title {
+      background-color: #dc3545;
+      color: white;
+      padding: 5px;
+      margin-bottom: 10px;
+    }
+    .chart-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      max-width: 40%;
+    }
+    .pie-chart {
+      width: 200px;
+      height: 200px;
+      background: conic-gradient(#ff69b4 0% 33%, #87ceeb 33% 66%, #98fb98 66% 100%);
+      border-radius: 50%;
+    }
+    .bar-chart {
+      width: 200px;
+      height: 200px;
+      background-color: #fff;
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-end;
+    }
+    .bar {
+      width: 30px;
+      background-color: #32cd32;
+    }
+    .bar:nth-child(2) { background-color: #ffa500; height: 120px; }
+    .bar:nth-child(3) { background-color: #ff4500; height: 80px; }
+    .bar:nth-child(4) { background-color: #4682b4; height: 150px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <a class="navbar-brand" href="#">
+        <img src="assets/img/logo_balmoral.png" alt="Logo Balmoral">
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegación">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="#">Personal</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#">Alumnos</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Grupos</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Resultados</a></li>
+        </ul>
+
+        <div class="dropdown">
+          <a class="dropdown-toggle" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-user-circle"></i>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
+            <li><a class="dropdown-item" href="/perfil">Ver mi perfil</a></li>
+            <li><a class="dropdown-item" href="/mis-evaluaciones">Mis evaluaciones</a></li>
+            <li><a class="dropdown-item" href="#" onclick="logout()">Cerrar Sesión</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid">
+    <div class="dropdown">
+      <button class="filter-btn dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        Filtrar Resultados
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="filterDropdown">
+        <li><a class="dropdown-item" href="#">Por Área</a></li>
+        <li><a class="dropdown-item" href="#">Por Calificación</a></li>
+        <li><a class="dropdown-item" href="#">Por Fecha</a></li>
+      </ul>
+    </div>
+
+    <div class="content-row">
+      <div class="card-container">
+        <div class="profile-card">
+          <div class="profile-img"></div>
+          <div class="card-title">Juan Pérez</div>
+          <p>Puntuación: 95%</p>
+        </div>
+        <div class="profile-card">
+          <div class="profile-img"></div>
+          <div class="card-title">María Gómez</div>
+          <p>Puntuación: 90%</p>
+        </div>
+        <div class="profile-card">
+          <div class="profile-img"></div>
+          <div class="card-title">Carlos López</div>
+          <p>Puntuación: 88%</p>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="pie-chart"></div>
+        <div class="bar-chart">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function logout() {
+      alert("Cerrando sesión...");
+    }
+  </script>
+</body>
+</html>
