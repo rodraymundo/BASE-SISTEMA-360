@@ -3,27 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bal Moral Evaluaciones</title>
-    <!-- Bootstrap CSS -->
+    <title>Balmoral-Evaluaciones</title>
+    <link rel="icon" type="image/x-icon" href="assets/img/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="Login.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/Login.css">
 </head>
 <body>
     <div class="login-container">
         <div class="logo">
-            <img src="assets/img/BalmoralEscocesLOGO.png" alt="Balmoral Escocés Logo">
+            <img src="assets/img/logo_balmoral.png" alt="Balmoral Escocés Logo">
         </div>
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-            <input type="email" class="form-control" placeholder="correo electrónico">
-        </div>
-        <div class="input-group">
-            <span class="input-group-text"><i class="bi bi-lock"></i></span>
-            <input type="password" class="form-control" placeholder="contraseña">
-        </div>
-        <button class="btn btn-ingresar">Ingresar</button>
+        <form class="login-form" onsubmit="validateLogin(event)">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                <input type="email" class="form-control" id="email" placeholder="correo electrónico">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                <input type="password" class="form-control" id="password" placeholder="contraseña">
+            </div>
+            <button type="submit" class="btn btn-ingresar">Ingresar</button>
+        </form>
     </div>
+    <script>
+        function validateLogin(event) {
+            event.preventDefault(); // Evita que el formulario se envíe de forma predeterminada
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            // Validación de credenciales
+            if (email === 'admin@gmail.com' && password === 'admin') {
+                // Redirige al dashboard (ajusta la ruta según tu estructura)
+                window.location.href = 'Mis-Evaluaciones.html';
+            } else {
+                alert('Credenciales incorrectas. Usa "admin" para correo y contraseña.');
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
