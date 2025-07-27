@@ -11,19 +11,15 @@ export function renderHeader(user) {
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav mb-2 mb-lg-0">
-          <li class="nav-item"><a class="nav-link" href="#">Personal</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">Alumnos</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">Grupos</a></li>
-          <li class="nav-item"><a class="nav-link" href="#">Resultados</a></li>
         </ul>
         <div class="dropdown ms-auto">
           <a class="dropdown-toggle d-flex align-items-center text-decoration-none text-dark" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="fas fa-user-circle me-2" id="userIcon"></i>
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
-            <li><a class="dropdown-item" href="/Mi-Perfil.html">Ver mi perfil</a></li>
-            <li><a class="dropdown-item" href="/Mis-Evaluaciones.html">Evaluar KPIs</a></li>
-            <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Captacion.html" style="display: none;">Gestión de alumnos</a></li>
+            <li><a class="dropdown-item" href="/Mi-Perfil">Ver mi perfil</a></li>
+            <li><a class="dropdown-item" href="/Mis-KPIs-Pendientes">Evaluar KPIs</a></li>
+            <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Alumnos" style="display: none;">Gestión de alumnos</a></li>
             <li><a class="dropdown-item" id="logout-btn" href="#">Cerrar Sesión</a></li>
           </ul>
         </div>
@@ -58,6 +54,26 @@ export function renderHeader(user) {
               <h6 class="text-muted mb-1">Roles</h6>
               <div id="modalUserRoles" class="d-flex justify-content-center flex-wrap gap-1"></div>
             </div>
+            <!-- NUEVO: Formulario para cambiar contraseña -->
+            <hr>
+            <h5 class="text-center mb-3">Cambiar contraseña</h5>
+            <form id="changePasswordForm">
+              <div class="mb-3">
+                <label for="currentPassword" class="form-label">Contraseña actual</label>
+                <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+              </div>
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">Nueva contraseña</label>
+                <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+              </div>
+              <div class="mb-3">
+                <label for="confirmNewPassword" class="form-label">Confirmar nueva contraseña</label>
+                <input type="password" class="form-control" id="confirmNewPassword" name="confirmNewPassword" required>
+              </div>
+              <div id="passwordChangeError" class="text-danger mb-2" style="display:none;"></div>
+              <button type="submit" class="btn btn-danger w-100">Actualizar contraseña</button>
+            </form>
+
           </div>
           <div class="modal-footer bg-light rounded-bottom-4 justify-content-center">
             <button type="button" class="btn btn-outline-dark px-4" data-bs-dismiss="modal">Cerrar</button>
@@ -117,20 +133,39 @@ export function renderHeader(user) {
   }
 
   // Mostrar modal al dar clic en "Ver mi perfil"
-  const verPerfilLink = header.querySelector('a.dropdown-item[href="/Mi-Perfil.html"]');
+  const verPerfilLink = header.querySelector('a.dropdown-item[href="/Mi-Perfil"]');
   // Ocultar botón de Evaluar KPIs si es alumno
-  if (user.userType === 'alumno') {
-    const evaluarKPIs = header.querySelector('a[href="/Mis-Evaluaciones.html"]');
-    if (evaluarKPIs) evaluarKPIs.style.display = 'none';
+    const evaluarKPIs = header.querySelector('a[href="/Mis-KPIs-Pendientes"]');
+
+  if (evaluarKPIs) {
+    if (user.userType === 'alumno') {
+      evaluarKPIs.style.display = 'none';
+    } else {
+      // Para personal: verificar si tiene evaluaciones pendientes
+      (async () => {
+        try {
+          const response = await fetch('/tiene-evaluaciones-pendientes', { credentials: 'include' });
+          const data = await response.json();
+          if (!data.success || !data.tieneEvaluaciones) {
+            evaluarKPIs.style.display = 'none';
+          }
+        } catch (err) {
+          console.error('Error al verificar KPIs pendientes:', err);
+          evaluarKPIs.style.display = 'none'; // Por precaución, ocultar si algo falla
+        }
+      })();
+    }
   }
+
 
   // Mostrar botón de Gestión de alumnos si tiene rol de Captación
   const gestionCaptacionBtn = header.querySelector('#gestion-captacion-btn');
   if (gestionCaptacionBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
-    const tieneRolCaptacion = user.roles.some(r =>
-      r.nombre_rol === 'CAPTACIÓN' || r.nombre_rol === 'ENLACE ADMINISTRATIVO DE CAPTACIÓN'
-    );
-    if (tieneRolCaptacion) {
+    const tieneRolCaptacionOSubdirector = user.roles.some(r => {
+      const rol = r.nombre_rol.toLowerCase();
+      return rol.includes('subdirector');
+    });
+    if (tieneRolCaptacionOSubdirector) {
       gestionCaptacionBtn.style.display = 'block';
     }
   }
@@ -141,6 +176,65 @@ export function renderHeader(user) {
       new bootstrap.Modal(header.querySelector('#userInfoModal')).show();
     });
   }
+
+  const changePasswordForm = header.querySelector('#changePasswordForm');
+const passwordChangeError = header.querySelector('#passwordChangeError');
+
+changePasswordForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  passwordChangeError.style.display = 'none';
+
+  const currentPassword = changePasswordForm.currentPassword.value.trim();
+  const newPassword = changePasswordForm.newPassword.value.trim();
+  const confirmNewPassword = changePasswordForm.confirmNewPassword.value.trim();
+
+  if (newPassword !== confirmNewPassword) {
+    passwordChangeError.textContent = 'Las nuevas contraseñas no coinciden.';
+    passwordChangeError.style.display = 'block';
+    return;
+  }
+
+  try {
+    // Obtener token CSRF
+    const csrfResponse = await fetch('/csrf-token', { credentials: 'include' });
+    const csrfData = await csrfResponse.json();
+
+    const response = await fetch('/cambiar-contrasena-perfil', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'CSRF-Token': csrfData.csrfToken
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Contraseña actualizada',
+        text: data.message,
+        timer: 2000,
+        showConfirmButton: false
+      });
+      changePasswordForm.reset();
+      // Opcional: cerrar modal
+      const modal = bootstrap.Modal.getInstance(header.querySelector('#userInfoModal'));
+      modal.hide();
+    } else {
+      passwordChangeError.textContent = data.message || 'Error al actualizar contraseña.';
+      passwordChangeError.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    passwordChangeError.textContent = 'Error al conectar con el servidor.';
+    passwordChangeError.style.display = 'block';
+  }
+});
+
+
 
   return header;
 }

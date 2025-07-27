@@ -29,6 +29,7 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? 'https://preparatoria-evaluaciones.com' : 'http://localhost:3000',
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -42,19 +43,29 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
     maxAge: 24 * 60 * 60 * 1000
   }
 }));
-app.use(csrf());
 
-// Middleware to protect routes
-const authMiddleware = (req, res, next) => {
-  if (!req.session.user) {
-    return res.status(403).json({ success: false, message: 'No autenticado. Por favor, inicia sesión.' });
+const csrfProtection = csrf();
+
+const csrfExcluded = [
+  { method: 'POST', path: '/solicitar-recuperacion' },
+  { method: 'POST', path: '/cambiar-contraseña' },
+];
+
+app.use((req, res, next) => {
+  const isExcluded = csrfExcluded.some(
+    route => route.method === req.method && route.path === req.path
+  );
+
+  if (isExcluded) {
+    return next(); // no aplicar CSRF aquí
   }
-  next();
-};
+
+  return csrfProtection(req, res, next);
+});
 
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
