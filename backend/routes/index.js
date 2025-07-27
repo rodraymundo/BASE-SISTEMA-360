@@ -164,6 +164,10 @@ router.get('/Restablecer-contrasena', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Restablecer-contrasena.html'));
 });
 
+//YA TE DEJO AQUI LA RUTA LISTA PARA LAS EVALUACIONES DE DIRECTOR GENERAL ARMANDOO, el botón ya está en el header, nomas pones el archivo en la ruta de public/html y ya
+router.get('/Mis-Evaluaciones-Dir-General', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, '../../public/html/Mis-Evaluaciones-Dir-General.html'));
+});
 
 //CSRF TOKEN 
 router.get('/csrf-token', (req, res) => {

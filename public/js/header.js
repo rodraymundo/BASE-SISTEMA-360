@@ -19,6 +19,7 @@ export function renderHeader(user) {
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
             <li><a class="dropdown-item" href="/Mi-Perfil">Ver mi perfil</a></li>
             <li><a class="dropdown-item" href="/Mis-KPIs-Pendientes">Evaluar KPIs</a></li>
+            <li><a class="dropdown-item" id="mis-evaluaciones-btn" href="/Mis-Evaluaciones-Dir-General" style="display: none;">Mis Evaluaciones</a></li>
             <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Alumnos" style="display: none;">Gestión de alumnos</a></li>
             <li><a class="dropdown-item" id="logout-btn" href="#">Cerrar Sesión</a></li>
           </ul>
@@ -54,9 +55,31 @@ export function renderHeader(user) {
               <h6 class="text-muted mb-1">Roles</h6>
               <div id="modalUserRoles" class="d-flex justify-content-center flex-wrap gap-1"></div>
             </div>
-            <!-- NUEVO: Formulario para cambiar contraseña -->
-            <hr>
-            <h5 class="text-center mb-3">Cambiar contraseña</h5>
+            <div class="text-center">
+              <button type="button" class="btn btn-danger btn-sm mx-auto" style="min-width: 150px;" id="openChangePasswordModalBtn">
+                <i class="fas fa-key me-2"></i> Cambiar contraseña
+              </button>
+            </div>
+          </div>
+          <hr style="border-color: #dee2e6; margin: 0;">
+
+          <div class="modal-footer bg-light rounded-bottom-4 justify-content-center">
+            <button type="button" class="btn btn-outline-dark px-4" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  // Agregar modal de cambio de contraseña al body
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title w-100 text-center" id="changePasswordModalLabel">Cambiar contraseña</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body bg-light">
             <form id="changePasswordForm">
               <div class="mb-3">
                 <label for="currentPassword" class="form-label">Contraseña actual</label>
@@ -71,17 +94,17 @@ export function renderHeader(user) {
                 <input type="password" class="form-control" id="confirmNewPassword" name="confirmNewPassword" required>
               </div>
               <div id="passwordChangeError" class="text-danger mb-2" style="display:none;"></div>
-              <button type="submit" class="btn btn-danger w-100">Actualizar contraseña</button>
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-danger">Actualizar contraseña</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              </div>
             </form>
-
-          </div>
-          <div class="modal-footer bg-light rounded-bottom-4 justify-content-center">
-            <button type="button" class="btn btn-outline-dark px-4" data-bs-dismiss="modal">Cerrar</button>
           </div>
         </div>
       </div>
     </div>
-  `;
+  `);
+
 
   // Logout con CSRF
   header.querySelector('#logout-btn').addEventListener('click', async (e) => {
@@ -121,15 +144,18 @@ export function renderHeader(user) {
   header.querySelector('#modalUserName').textContent = user.nombre_completo || 'N/A';
   header.querySelector('#modalUserEmail').textContent = user.email || 'N/A';
 
-  const rolesContainer = header.querySelector('#modalUserRoles');
+  const rolesSection = header.querySelector('#modalUserRoles').closest('.mb-3'); 
   if (user.userType === 'alumno') {
-    rolesContainer.innerHTML = '<span class="text-muted">No aplica</span>';
-  } else if (user.roles && user.roles.length > 0) {
-    rolesContainer.innerHTML = user.roles.map(r =>
-      `<span class="badge bg-dark text-white">${r.nombre_rol}</span>`
-    ).join('');
+    rolesSection.style.display = 'none';
   } else {
-    rolesContainer.innerHTML = `<span class="badge bg-secondary">Ninguno</span>`;
+    const rolesContainer = header.querySelector('#modalUserRoles');
+    if (user.roles && user.roles.length > 0) {
+      rolesContainer.innerHTML = user.roles.map(r =>
+        `<span class="badge bg-dark text-white">${r.nombre_rol}</span>`
+      ).join('');
+    } else {
+      rolesContainer.innerHTML = `<span class="badge bg-secondary">Ninguno</span>`;
+    }
   }
 
   // Mostrar modal al dar clic en "Ver mi perfil"
@@ -177,13 +203,47 @@ export function renderHeader(user) {
     });
   }
 
-  const changePasswordForm = header.querySelector('#changePasswordForm');
-const passwordChangeError = header.querySelector('#passwordChangeError');
+  const openChangePasswordModalBtn = header.querySelector('#openChangePasswordModalBtn');
+  if (openChangePasswordModalBtn) {
+    openChangePasswordModalBtn.addEventListener('click', () => {
+      const perfilModal = bootstrap.Modal.getInstance(header.querySelector('#userInfoModal'));
+      if (perfilModal) perfilModal.hide();
 
-changePasswordForm.addEventListener('submit', async (e) => {
+      const changeModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+      changeModal.show();
+    });
+  }
+
+
+  const misEvaluacionesBtn = header.querySelector('#mis-evaluaciones-btn');
+  if (misEvaluacionesBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
+    const esDirectorGeneral = user.roles.some(r => {
+      const rol = r.nombre_rol.toLowerCase();
+      return rol === 'director general';
+    });
+    if (esDirectorGeneral) {
+      misEvaluacionesBtn.style.display = 'block';
+    }
+  }
+
+  const changePasswordForm = document.querySelector('#changePasswordForm');
+  const passwordChangeError = document.querySelector('#passwordChangeError');
+
+  // Al cerrar el modal de cambio de contraseña, limpiar formulario y reabrir modal de perfil
+  document.getElementById('changePasswordModal').addEventListener('hidden.bs.modal', () => {
+    changePasswordForm.reset();
+    passwordChangeError.style.display = 'none';
+
+    // Mostrar nuevamente el modal de perfil
+    const perfilModal = new bootstrap.Modal(header.querySelector('#userInfoModal'));
+    setTimeout(() => perfilModal.show(), 300);
+  });
+
+  changePasswordForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   passwordChangeError.style.display = 'none';
-
+  
+  
   const currentPassword = changePasswordForm.currentPassword.value.trim();
   const newPassword = changePasswordForm.newPassword.value.trim();
   const confirmNewPassword = changePasswordForm.confirmNewPassword.value.trim();
@@ -221,8 +281,14 @@ changePasswordForm.addEventListener('submit', async (e) => {
       });
       changePasswordForm.reset();
       // Opcional: cerrar modal
-      const modal = bootstrap.Modal.getInstance(header.querySelector('#userInfoModal'));
+      const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
       modal.hide();
+
+      // Reabrir modal de información de usuario
+      const perfilModal = new bootstrap.Modal(header.querySelector('#userInfoModal'));
+      setTimeout(() => perfilModal.show(), 300); // Espera 300ms para evitar conflicto visual
+
+
     } else {
       passwordChangeError.textContent = data.message || 'Error al actualizar contraseña.';
       passwordChangeError.style.display = 'block';
