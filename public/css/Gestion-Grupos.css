@@ -1,0 +1,132 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+h2 {
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: #cb2e2e; /* Negro para énfasis */
+  margin-bottom: 1.5rem;
+}
+
+
+.container {
+  flex: 1;
+  max-width: 1200px;
+  padding: 1rem 0;
+  overflow: hidden;
+}
+
+.row.mt-3 {
+  height: 70vh; /* Altura fija para el contenido */
+  display: flex;
+}
+
+/* Columna izquierda */
+.col-md-8.d-flex.flex-column {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+h5 {
+  margin: 0 0 0.5rem 0;
+}
+
+#buscadorAlumnos {
+  margin-bottom: 0.5rem;
+  height: 2.2rem;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.5rem;
+}
+
+#listaAlumnos {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow-y: auto;
+  /* Calculamos la altura restando lo que ocupan h5 y buscador */
+  height: calc(70vh - 2.7rem - 2.5rem); /* Ajusta según altura real de h5 y buscador */
+  min-height: 410px;
+}
+
+/* Columna derecha */
+.col-md-4 {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: visible; /* Sin scroll */
+  padding-left: 1rem;
+}
+
+/* Parte superior: filtros y botón adelantar ciclo */
+.acciones-superiores {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.acciones-superiores > * {
+  margin-bottom: 0;
+}
+
+/* Parte inferior: cambiar grado y grupo */
+.acciones-inferiores {
+  margin-top: 1rem;
+  flex-shrink: 0;
+}
+
+.acciones-inferiores > * {
+  margin-bottom: 0.5rem;
+}
+
+/* Ajustes para selects e inputs */
+select.form-select,
+input.form-control {
+  height: 2.2rem;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.5rem;
+}
+
+/* Botones más compactos */
+.btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Márgenes reducidos para títulos */
+h5, h6 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .row.mt-3 {
+    height: auto;             /* altura automática para que no limite */
+    flex-direction: column;   /* columna vertical en móviles */
+    gap: 1rem;                /* espacio entre secciones */
+  }
+
+  .col-md-8.d-flex.flex-column,
+  .col-md-4 {
+    height: auto;             /* altura automática */
+    padding-left: 0;          /* quitar padding izquierdo para espacio */
+  }
+
+  #listaAlumnos {
+    height: 300px;            /* altura fija menor para listado en móvil */
+    max-height: 300px;
+    overflow-y: auto;         /* scroll vertical para lista */
+  }
+}

@@ -4,13 +4,19 @@ export function renderHeader(user) {
   header.innerHTML = `
     <div class="container-fluid d-flex justify-content-between align-items-center">
       <a class="navbar-brand" href="/">
-        <img src="/assets/img/logo_balmoral.png" alt="Logo Balmoral" style="height: 40px;">
+        <img src="/assets/img/logo_balmoral.png" alt="Logo Balmoral" style="height: 45px;">
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegación">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav mb-2 mb-lg-0">
+      <div class="collapse navbar-collapse d-flex justify-content-center" id="navbarNav">
+        <ul class="navbar-nav mb-2 mb-lg-0 justify-content-center">
+          <li><a class="nav-link" id="nav-materias" href="/Gestion-Materias-Permisos" style="display: none;">Materias</a></li>
+          <li><a class="nav-link" id="nav-kpis" href="/Gestion-Kpis-Permisos" style="display: none;">KPIs</a></li>
+          <li><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos-Permisos" style="display: none;">Grupos</a></li>
+          <li><a class="nav-link" id="nav-personal" href="/GestionPersonal-Permisos" style="display: none;">Personal</a></li>
+          <li><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
+          <li><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos-Permisos" style="display: none;">Alumnos</a></li>
         </ul>
         <div class="dropdown ms-auto">
           <a class="dropdown-toggle d-flex align-items-center text-decoration-none text-dark" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
@@ -21,6 +27,7 @@ export function renderHeader(user) {
             <li><a class="dropdown-item" href="/Mis-KPIs-Pendientes">Evaluar KPIs</a></li>
             <li><a class="dropdown-item" id="mis-evaluaciones-btn" href="/Mis-Evaluaciones-Dir-General" style="display: none;">Mis Evaluaciones</a></li>
             <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Alumnos" style="display: none;">Gestión de alumnos</a></li>
+            <li><a class="dropdown-item" id="gestion-grupos-btn" href="/Gestion-Grupos" style="display: none;">Gestión de grupos</a></li>
             <li><a class="dropdown-item" id="logout-btn" href="#">Cerrar Sesión</a></li>
           </ul>
         </div>
@@ -70,6 +77,7 @@ export function renderHeader(user) {
       </div>
     </div>
   `;
+
   // Agregar modal de cambio de contraseña al body
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
@@ -203,6 +211,18 @@ export function renderHeader(user) {
     });
   }
 
+    //NUEVOOOO
+  const gestionGruposBtn = header.querySelector('#gestion-grupos-btn');
+  if (gestionGruposBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
+    const tieneRolCaptacionOSubdirector = user.roles.some(r => {
+      const rol = r.nombre_rol.toLowerCase();
+      return rol.includes('subdirector');
+    });
+    if (tieneRolCaptacionOSubdirector) {
+      gestionGruposBtn.style.display = 'block';
+    }
+  }
+
   const openChangePasswordModalBtn = header.querySelector('#openChangePasswordModalBtn');
   if (openChangePasswordModalBtn) {
     openChangePasswordModalBtn.addEventListener('click', () => {
@@ -298,9 +318,27 @@ export function renderHeader(user) {
     passwordChangeError.textContent = 'Error al conectar con el servidor.';
     passwordChangeError.style.display = 'block';
   }
+
 });
 
+(async () => {
+  try {
+    const response = await fetch('/permisos-usuario', { credentials: 'include' });
+    const data = await response.json();
 
+    if (data.success && data.permisos) {
+      const p = data.permisos;
 
+      if (p.permiso_materias) header.querySelector('#nav-materias')?.style.removeProperty('display');
+      if (p.permiso_kpis) header.querySelector('#nav-kpis')?.style.removeProperty('display');
+      if (p.permiso_grupos) header.querySelector('#nav-grupos')?.style.removeProperty('display');
+      if (p.permiso_personal) header.querySelector('#nav-personal')?.style.removeProperty('display');
+      if (p.permiso_talleres) header.querySelector('#nav-talleres')?.style.removeProperty('display');
+      if (p.permiso_alumnos) header.querySelector('#nav-alumnos')?.style.removeProperty('display');
+    }
+  } catch (err) {
+    console.error('Error al cargar permisos:', err);
+  }
+})();
   return header;
 }

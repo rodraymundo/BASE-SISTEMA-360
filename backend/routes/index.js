@@ -164,6 +164,10 @@ router.get('/Restablecer-contrasena', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Restablecer-contrasena.html'));
 });
 
+router.get('/Gestion-Grupos', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
+});
+
 //YA TE DEJO AQUI LA RUTA LISTA PARA LAS EVALUACIONES DE DIRECTOR GENERAL ARMANDOO, el botón ya está en el header, nomas pones el archivo en la ruta de public/html y ya
 router.get('/Mis-Evaluaciones-Dir-General', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, '../../public/html/Mis-Evaluaciones-Dir-General.html'));
@@ -789,6 +793,172 @@ router.post('/dar-baja-alumno', authMiddleware, async (req, res) => {
     connection.release();
   }
 });
+
+//GESTIÓN MASIVA DE GRUPOS
+
+//Traer todos los alumnos 
+router.get('/alumnos-todos', async (req, res) => {
+  try {
+    const sql = `
+      SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, a.id_grado_grupo
+      FROM Alumno a
+      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+      WHERE a.estado_alumno = 1
+      ORDER BY a.apaterno_alumno, a.nombre_alumno
+    `;
+    const [rows] = await db.query(sql);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error en la consulta' });
+  }
+});
+
+
+// Obtener todos los grados disponibles
+router.get('/grados', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT DISTINCT grado FROM Grado_grupo ORDER BY grado');
+    const grados = rows.map(r => r.grado);
+    res.json(grados);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error en la consulta' });
+  }
+});
+
+// Obtener grupos por grado
+router.get('/grupos-por-grado/:grado', async (req, res) => {
+  try {
+    const { grado } = req.params;
+    const [rows] = await db.query('SELECT id_grado_grupo, grupo FROM Grado_grupo WHERE grado = ?', [grado]);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error en la consulta' });
+  }
+});
+
+// Alumnos por grado
+router.get('/alumnos-por-grado/:grado', async (req, res) => {
+  try {
+    const { grado } = req.params;
+    const sql = `
+    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, a.id_grado_grupo
+    FROM Alumno a
+    JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+    WHERE g.grado = ? AND a.estado_alumno = 1
+  `;
+    const [rows] = await db.query(sql, [grado]);
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error en la consulta' });
+  }
+});
+
+// Asignar grupo a varios alumnos
+router.post('/asignar-grupo-a-varios', async (req, res) => {
+  const { id_grado_grupo, alumnos } = req.body;
+
+  if (!id_grado_grupo || !Array.isArray(alumnos)) {
+    return res.status(400).json({ success: false, message: 'Datos incompletos' });
+  }
+
+  try {
+    // Usa Promise.all para ejecutar las actualizaciones en paralelo
+    await Promise.all(alumnos.map(id => 
+      db.query('UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?', [id_grado_grupo, id])
+    ));
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Error al asignar alumnos' });
+  }
+});
+
+// Adelantar ciclo escolar
+router.post('/adelantar-ciclo', authMiddleware, async (req, res) => {
+  try {
+    // Obtener todos los alumnos con su grupo y grado actual
+    const [alumnos] = await db.query(`
+      SELECT a.id_alumno, g.id_grado_grupo, CAST(g.grado AS UNSIGNED) AS grado, UPPER(g.grupo) AS grupo
+      FROM Alumno a
+      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+    `);
+
+    // Obtener todos los grupos posibles
+    const [todosGrupos] = await db.query(`
+      SELECT id_grado_grupo, CAST(grado AS UNSIGNED) AS grado, UPPER(grupo) AS grupo
+      FROM Grado_grupo
+    `);
+
+    // Crear mapa de grupo destino por clave "grado_grupo"
+    const mapaNuevo = {};
+    todosGrupos.forEach(g => {
+      const clave = `${g.grado}_${g.grupo}`;
+      mapaNuevo[clave] = g.id_grado_grupo;
+    });
+
+    let alumnosActualizados = 0;
+
+    for (const alumno of alumnos) {
+      if (alumno.grado >= 6) {
+        console.log(`No se adelanta a alumno ${alumno.id_alumno} de grado ${alumno.grado}_${alumno.grupo}`);
+        continue;
+      }
+
+      const gradoNuevo = alumno.grado + 1;
+      const claveNuevo = `${gradoNuevo}_${alumno.grupo}`;
+      const idNuevo = mapaNuevo[claveNuevo];
+
+      if (!idNuevo) {
+        console.log(`No existe grupo destino para: ${claveNuevo} (alumno ${alumno.id_alumno})`);
+        continue;
+      }
+
+      const [resultado] = await db.query(
+        `UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?`,
+        [idNuevo, alumno.id_alumno]
+      );
+
+      alumnosActualizados += resultado.affectedRows;
+      console.log(`Actualizado alumno ${alumno.id_alumno} de ${alumno.grado}_${alumno.grupo} a ${claveNuevo}`);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Ciclo adelantado correctamente. ${alumnosActualizados} alumnos actualizados.`
+    });
+
+  } catch (error) {
+    console.error('Error al adelantar el ciclo:', error);
+    res.status(500).json({ success: false, message: 'Error al adelantar ciclo.' });
+  }
+});
+
+//PERMISOS PARA OPCIONES DEL HEADER
+router.get('/permisos-usuario', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ success: false, message: 'No estás autenticado.' });
+  }
+
+  try {
+    const usuario = req.session.user;
+    const [rows] = await db.query('SELECT * FROM Permisos WHERE id_usuario = ?', [usuario.id_usuario]);
+
+    if (rows.length === 0) {
+      return res.json({ success: true, permisos: null });
+    }
+
+    res.json({ success: true, permisos: rows[0] }); // Aquí está el cambio importante
+  } catch (err) {
+    console.error('Error al obtener permisos:', err);
+    res.status(500).json({ success: false, message: 'Error del servidor.' });
+  }
+});
+
+
 
 //RUTA PARA PRUEBA NADAMÁS
 router.get('/debug', (req, res) => {
