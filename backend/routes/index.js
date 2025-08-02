@@ -150,6 +150,28 @@ router.get('/redirigir-a-recuperar', (req, res) => {
   res.redirect('/Recuperar-enviar-email');
 });
 
+// ALUMNOS
+router.get('/DashboardAlumno', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/DashboardAlumno.html'));
+});
+
+router.get('/EvaluacionProfesores', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionProfesores.html'));
+});
+
+router.get('/EvaluacionServicios', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionServicios.html'));
+});
+
+router.get('/EvaluacionTalleres', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionTalleres.html'));
+});
+
+router.get('/EvaluacionCounselor', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionCounselor.html'));
+});
+
+// PERSONAL
 router.get('/DashboardPersonal', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/DashboardPersonal.html'));
 });
@@ -172,6 +194,10 @@ router.get('/EvaluacionJefe', authMiddleware, (req, res) => {
 
 router.get('/EvaluacionSubordinados', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionSubordinados.html'));
+});
+
+router.get('/Mis-Evaluaciones-Dir-General', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Evaluaciones360.html'));
 });
 
 //RUTA PROTEGIDA: SOLO SI VIENE DESDE LOGIN
@@ -991,6 +1017,325 @@ router.get('/permisos-usuario', async (req, res) => {
 
 
 
+
+
+
+
+// OBTENER LOS SERVICIOS PARA EVALUARLOS
+router.get('/getServicios', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const query = "SELECT s.id_servicio ,s.nombre_servicio, s.img_servicio, sa.estado_evaluacion_servicio FROM Servicio s, Alumno_Servicio sa WHERE s.id_servicio=sa.id_servicio AND sa.id_alumno=?"; // OBTENER LOS SERVICIOS
+  try {
+    const [servicios] = await db.query(query,id_alumno);
+    const cantidadServicios = servicios.length;
+    res.json({ success: true, servicios, cantidadServicios });
+  } catch (error) {
+    console.error('Error al obtener servicios:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DEL SERVICIO
+router.get('/getPreguntasServicio/:id_servicio', authMiddleware, async (req, res) => {
+  const id_servicio = req.params.id_servicio;
+  const query = "SELECT s.nombre_servicio, p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM servicio s,pregunta p WHERE s.id_servicio=p.id_servicio AND p.id_servicio=?"; // OBTENER LAS PREGUNTAS
+  const query2 = "SELECT s.nombre_servicio, p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM servicio s,pregunta p, respuesta r WHERE s.id_servicio=p.id_servicio AND p.id_servicio=? AND p.id_grupo_respuesta=r.id_grupo_respuesta;"; // OBTENER LAS POSIBLES RESPUETAS A LAS PREGUNTAS / SE HACE POR SEPARADO PORQUE SI SE PONE QUE EN UNA SOLA CONULTA SE TRAIGA TODO LA MISMA PREGUNTA SE REPETIRA LA MISMA CANTIDAD DE VECES QUE SUS POSIBLES RESPUESTAS Y EL FOREACH NO S EPODRIA HACER BIEN
+  try {
+    const [preguntas] = await db.query(query,id_servicio);
+    const [respuestas] = await db.query(query2,id_servicio);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A SERVICIO POR PARTE DE ALUMNOS 
+router.post('/postRespuestasServicio', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_servicio,respuestas,comentarios} = req.body;
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_servicio,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_servicio,
+    comentario.tipo_comentario,
+    comentario.comentario_servicio
+  ]);
+  const query = "INSERT INTO Respuesta_Alumno_Servicio (id_alumno, id_servicio, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+  const query2 = "INSERT INTO Comentario_Servicio (id_alumno, id_servicio, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try { 
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
+    await db.query(query3,[id_alumno,id_servicio]);
+    res.json({ success: true , message:'Servicio evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER LOS TALLERES PARA EVALUARLOS
+router.get('/getTalleres', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const query = "SELECT t.id_taller, t.nombre_taller, t.img_taller, ta.estado_evaluacion_taller, p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Taller t, Alumno_Taller ta, Personal p, Personal_taller pt WHERE p.id_personal=pt.id_taller AND pt.id_taller=ta.id_taller AND t.id_taller=ta.id_taller AND ta.id_alumno=?"; // OBTENER LOS TALLERES A LOS QUE ESTA INSCRITO
+  try {
+    const [talleres] = await db.query(query,id_alumno);
+    const cantidadTalleres = talleres.length;
+    res.json({ success: true, talleres, cantidadTalleres });
+  } catch (error) {
+    console.error('Error al obtener talleres:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DEL TALLER
+router.get('/getPreguntasTaller/:id_taller', authMiddleware, async (req, res) => {
+  const id_taller = req.params.id_taller;
+  const query = "SELECT t.nombre_taller, p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Taller t,Pregunta p WHERE p.id_tipo_pregunta=9 AND t.id_taller=?"; // 9 ES ('TALLERES EXTRA CLASE'),
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=9"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query,id_taller);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A TALLER POR PARTE DE ALUMNOS 
+router.post('/postRespuestasTaller', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_taller,id_personal,respuestas,comentarios} = req.body;
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_taller,
+    id_personal,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_taller,
+    id_personal,
+    comentario.tipo_comentario,
+    comentario.comentario_taller
+  ]);
+  const query = "INSERT INTO Respuesta_Alumno_Taller (id_alumno, id_taller, id_personal, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+  const query2 = "INSERT INTO Comentario_Taller (id_alumno, id_taller, id_personal, tipo_comentario, comentario_taller) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Alumno_Taller set estado_evaluacion_taller=1 WHERE id_alumno=? AND id_taller=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
+    await db.query(query3,[id_alumno,id_taller]);
+    res.json({ success: true , message:'Taller evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER EL COUNSELOR PARA EVALUARLO
+router.get('/getCounselor', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const id_personal = req.session.user.id_personal; // SU COUNSELOR
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, a.estado_evaluacion_counselor FROM Personal p, Alumno a WHERE a.id_alumno=? AND p.id_personal=?"; // OBTENER EL COUNSELOR QUE TIENE EL ALUMNO
+  try {
+    const [counselor] = await db.query(query,[id_alumno,id_personal]);
+    res.json({ success: true, counselor });
+  } catch (error) {
+    console.error('Error al obtener talleres:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE COUNSELOR
+router.get('/getPreguntasCounselor', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=2"; // 2 ES COUNSELOR
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=2"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A COUNSELOR POR PARTE DE ALUMNOS 
+router.post('/postRespuestasCounselor', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_personal,respuestas,comentarios} = req.body;
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_personal,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_alumno,
+    id_personal,
+    comentario.tipo_comentario,
+    comentario.comentario_counselor
+  ]);
+  const query = "INSERT INTO Respuesta_Alumno_Counselor (id_alumno, id_personal, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+  const query2 = "INSERT INTO Comentario_Counselor (id_alumno,id_personal, tipo_comentario, comentario_counselor) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Alumno set estado_evaluacion_counselor=1 WHERE id_alumno=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
+    await db.query(query3,[id_alumno]);
+    res.json({ success: true , message:'Counselor evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+//OBTENER LOS PROFESORES QUE DEBE DE EVALUAR CADA ALUMNO
+router.get('/getDocentes', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, m.id_materia, m.nombre_materia, am.estado_evaluacion_materia  FROM Personal p, Alumno_Materia am, Materia m WHERE am.id_materia=m.id_materia AND p.id_personal=am.id_personal AND am.id_alumno=?"; // OBTENER PROFESORES DE MATERIAS "NORMALES"
+  const query2 = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, m.id_materia, m.nombre_materia, ni.id_nivel_ingles,ni.nombre_nivel_ingles ,ani.estado_evaluacion_nivel_ingles  FROM Personal p, Materia m, Nivel_Ingles ni, Alumno_Nivel_Ingles ani WHERE ani.id_materia=m.id_materia AND p.id_personal=ani.id_personal AND ni.id_nivel_ingles=ani.id_nivel_ingles AND ani.id_alumno=?"; // OBTENER PROFESOR DE INGLES
+  const query3 = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, m.id_materia, m.nombre_materia, ae.id_arte_especialidad, ae.nombre_arte_especialidad ,aae.estado_evaluacion_arte_especialidad  FROM Personal p, Materia m, Arte_Especialidad ae, Alumno_Arte_Especialidad aae WHERE aae.id_materia=m.id_materia AND p.id_personal=aae.id_personal AND ae.id_arte_especialidad=aae.id_arte_especialidad AND aae.id_alumno=?"; // OBTENER PROFESOR DE ARTE
+  try {
+    const [profesores] = await db.query(query,id_alumno);
+    const [ingles] = await db.query(query2,id_alumno);
+    const [arte] = await db.query(query3,id_alumno);
+    res.json({ success: true, profesores, ingles, arte });
+  } catch (error) {
+    console.error('Error al obtener profesores:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE DOCENTE
+router.get('/getPreguntasDocente', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=1"; // 1 ES DOCENTE
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=1"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A DOCENTE POR PARTE DE ALUMNOS 
+router.post('/postRespuestasDocente', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_personal,id_materia,id_nivel_ingles,id_arte_especialidad,respuestas,comentarios} = req.body;
+  let valoresRespuestas = [];
+  let valoresComentarios = [];
+  let query = '';
+  let query2 = '';
+  let query3 = '';
+
+  if (id_nivel_ingles!=null) { // EN CASO DE QUE LA MATERIA SEA INGLES / QUIERE DECIR QUE SE MANDO EL NIVEL DE INGLES DESDE EL CLIENTE
+      valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_nivel_ingles,
+      respuesta.id_pregunta,
+      respuesta.id_respuesta
+    ]);
+    valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_nivel_ingles,
+      comentario.tipo_comentario,
+      comentario.comentario_docente_ingles
+    ]);
+    query = "INSERT INTO Respuesta_Alumno_Docente_Ingles (id_alumno, id_personal, id_nivel_ingles,id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+    query2 = "INSERT INTO Comentario_Docente_Ingles (id_alumno,id_personal, id_nivel_ingles,tipo_comentario, comentario_docente_ingles) VALUES ?"; // AGREGAR EL COMENTARIO
+    query3 = "UPDATE Alumno_Nivel_Ingles set estado_evaluacion_nivel_ingles=1 WHERE id_alumno=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  } else if (id_arte_especialidad != null) { // EN CASO DE QUE LA MATERIA SEA ARTE
+    valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_arte_especialidad,
+      respuesta.id_pregunta,
+      respuesta.id_respuesta
+    ]);
+    valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_arte_especialidad,
+      comentario.tipo_comentario,
+      comentario.comentario_docente_arte
+    ]);
+    query = "INSERT INTO Respuesta_Alumno_Docente_Arte (id_alumno, id_personal, id_arte_especialidad,id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+    query2 = "INSERT INTO Comentario_Docente_Arte (id_alumno,id_personal, id_arte_especialidad,tipo_comentario, comentario_docente_arte) VALUES ?"; // AGREGAR EL COMENTARIO
+    query3 = "UPDATE Alumno_Arte_Especialidad set estado_evaluacion_arte_especialidad=1 WHERE id_alumno=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  } else { // MATERIA "NORMAL"
+    valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_materia,
+      respuesta.id_pregunta,
+      respuesta.id_respuesta
+    ]);
+    valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_personal,
+      id_materia,
+      comentario.tipo_comentario,
+      comentario.comentario_docente
+    ]);
+    query = "INSERT INTO Respuesta_Alumno_Docente (id_alumno, id_personal, id_materia, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+    query2 = "INSERT INTO Comentario_Docente (id_alumno, id_personal, id_materia, tipo_comentario, comentario_docente) VALUES ?"; // AGREGAR EL COMENTARIO
+    query3 = `UPDATE Alumno_Materia set estado_evaluacion_materia=1 WHERE id_alumno=? AND id_materia=${id_materia}` // ACTUALIZAR EL ESTADO DE EVALUACION / SE METIO ASI MATERIA PORQUE EN LAS OTRAS QUERY 3 NO LLEVABA ESA CONDICION 
+  }
+
+  try {
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
+    await db.query(query3,[id_alumno]);
+    res.json({ success: true , message:'Materia evaluada correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER INFO DE ALUMNO
+router.get('/getInfoAlumno', authMiddleware, async (req, res) => { 
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno FROM Alumno a WHERE id_alumno=?"; // OBTENER SUBORDINADOS A EVALUAR
+  try {
+    const [alumno] = await db.query(query,id_alumno);
+    res.json({ success: true, alumno});
+  } catch (error) {
+    console.error('Error al obtener alumno:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+
+
 // OBTENER COORDINADORES A EVALUAR
 router.get('/getCoordinadores', authMiddleware, async (req, res) => { // DE MOMENTO NO HAY DOCENTES QUE TENGAN 2 O MAS COORDINADORES PERO SE HACE PENSANDO EN UN CASO HIPOTETICO
   const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
@@ -1045,7 +1390,9 @@ router.post('/postRespuestasCoordinador', authMiddleware, async (req, res) => {
   const query3 = "UPDATE Personal_Coordinador set estado_evaluacion_coordinador=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
   try {
     await db.query(query,[valoresRespuestas]);
-    await db.query(query2,[valoresComentarios]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
     await db.query(query3,[id_evaluador, id_personal]);
     res.json({ success: true , message:'Coordinador evaluado correctamente'});
   } catch (error) {
@@ -1058,7 +1405,7 @@ router.post('/postRespuestasCoordinador', authMiddleware, async (req, res) => {
 router.get('/getPares', authMiddleware, async (req, res) => { 
   const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
 
-  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pp.estado_evaluacion_par, pp.id_evaluador FROM Personal p, Personal_par pp WHERE p.id_personal=pp.id_personal AND p.id_personal<>pp.id_evaluador AND pp.id_evaluador=?"; // OBTENER PARES A EVALUAR
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pp.estado_evaluacion_par, pp.id_evaluador, pu.nombre_puesto FROM Personal p, Personal_par pp, Puesto pu WHERE p.id_personal=pp.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>pp.id_evaluador AND pp.id_evaluador=?"; // OBTENER PARES A EVALUAR
   try {
     const [pares] = await db.query(query,id_personal);
     const cantidadPares = pares.length;
@@ -1108,7 +1455,9 @@ router.post('/postRespuestasPar', authMiddleware, async (req, res) => {
   const query3 = "UPDATE Personal_Par set estado_evaluacion_par=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
   try {
     await db.query(query,[valoresRespuestas]);
-    await db.query(query2,[valoresComentarios]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
     await db.query(query3,[id_evaluador, id_personal]);
     res.json({ success: true , message:'Par evaluado correctamente'});
   } catch (error) {
@@ -1121,7 +1470,7 @@ router.post('/postRespuestasPar', authMiddleware, async (req, res) => {
 router.get('/get360', authMiddleware, async (req, res) => { 
   const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
 
-  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, p3.estado_evaluacion_360, p3.id_evaluador FROM Personal p, Personal_360 p3 WHERE p.id_personal=p3.id_personal AND p.id_personal<>p3.id_evaluador AND p3.id_evaluador=?"; // OBTENER 360 A EVALUAR
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, p3.estado_evaluacion_360, p3.id_evaluador, pu.nombre_puesto FROM Personal p, Personal_360 p3, Puesto pu WHERE p.id_personal=p3.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>p3.id_evaluador AND p3.id_evaluador=?"; // OBTENER 360 A EVALUAR
   try {
     const [todos] = await db.query(query,id_personal);
     const cantidad360 = todos.length;
@@ -1171,7 +1520,9 @@ router.post('/postRespuestas360', authMiddleware, async (req, res) => {
   const query3 = "UPDATE Personal_360 set estado_evaluacion_360=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
   try {
     await db.query(query,[valoresRespuestas]);
-    await db.query(query2,[valoresComentarios]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
     await db.query(query3,[id_evaluador, id_personal]);
     res.json({ success: true , message:'Personal evaluado correctamente'});
   } catch (error) {
@@ -1184,7 +1535,7 @@ router.post('/postRespuestas360', authMiddleware, async (req, res) => {
 router.get('/getJefes', authMiddleware, async (req, res) => { 
   const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
 
-  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pj.estado_evaluacion_jefe, pj.id_evaluador FROM Personal p, Personal_Jefe pj WHERE p.id_personal=pj.id_personal AND p.id_personal<>pj.id_evaluador AND pj.id_evaluador=?"; // OBTENER JEFES A EVALUAR
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pj.estado_evaluacion_jefe, pj.id_evaluador, pu.nombre_puesto FROM Personal p, Personal_Jefe pj, Puesto pu WHERE p.id_personal=pj.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>pj.id_evaluador AND pj.id_evaluador=?"; // OBTENER JEFES A EVALUAR
   try {
     const [jefes] = await db.query(query,id_personal);
     const cantidadJefes = jefes.length;
@@ -1234,7 +1585,9 @@ router.post('/postRespuestasJefe', authMiddleware, async (req, res) => {
   const query3 = "UPDATE Personal_Jefe set estado_evaluacion_jefe=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
   try {
     await db.query(query,[valoresRespuestas]);
-    await db.query(query2,[valoresComentarios]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
     await db.query(query3,[id_evaluador, id_personal]);
     res.json({ success: true , message:'Jefe evaluado correctamente'});
   } catch (error) {
@@ -1297,7 +1650,9 @@ router.post('/postRespuestasSubordinado', authMiddleware, async (req, res) => {
   const query3 = "UPDATE Personal_Subordinado set estado_evaluacion_subordinado=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
   try {
     await db.query(query,[valoresRespuestas]);
-    await db.query(query2,[valoresComentarios]);
+      if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
     await db.query(query3,[id_evaluador, id_personal]);
     res.json({ success: true , message:'Subordinado evaluado correctamente'});
   } catch (error) {
@@ -1305,6 +1660,21 @@ router.post('/postRespuestasSubordinado', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
   }
 });
+
+// OBTENER INFO DE PERSONA
+router.get('/getInfoPersona', authMiddleware, async (req, res) => { 
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Personal p WHERE id_personal=?"; // OBTENER SUBORDINADOS A EVALUAR
+  try {
+    const [persona] = await db.query(query,id_personal);
+    res.json({ success: true, persona});
+  } catch (error) {
+    console.error('Error al obtener persona:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
 
 //RUTA PARA PRUEBA NADAMÁS
 router.get('/debug', (req, res) => {
