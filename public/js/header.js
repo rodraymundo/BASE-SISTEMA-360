@@ -1,9 +1,20 @@
 export function renderHeader(user) {
+  let  Dashboard = '';
+  if (user.userType == 'alumno') {
+    Dashboard = '/DashboardAlumno';
+  } else {
+    if (user.id_puesto==35) {
+      Dashboard = '/Dashboard';
+    }else{
+      Dashboard = '/DashboardPersonal';
+    }
+  }
+
   const header = document.createElement('nav');
   header.className = 'navbar navbar-expand-lg';
   header.innerHTML = `
     <div class="container-fluid d-flex justify-content-between align-items-center">
-      <a class="navbar-brand" href="/">
+      <a class="navbar-brand" href="${Dashboard}">
         <img src="/assets/img/logo_balmoral.png" alt="Logo Balmoral" style="height: 45px;">
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegación">

@@ -150,6 +150,30 @@ router.get('/redirigir-a-recuperar', (req, res) => {
   res.redirect('/Recuperar-enviar-email');
 });
 
+router.get('/DashboardPersonal', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/DashboardPersonal.html'));
+});
+
+router.get('/EvaluacionCoordinador', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionCoordinador.html'));
+});
+
+router.get('/EvaluacionPares', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionPares.html'));
+});
+
+router.get('/Evaluacion360', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Evaluacion360.html'));
+});
+
+router.get('/EvaluacionJefe', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionJefe.html'));
+});
+
+router.get('/EvaluacionSubordinados', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/EvaluacionSubordinados.html'));
+});
+
 //RUTA PROTEGIDA: SOLO SI VIENE DESDE LOGIN
 router.get('/Recuperar-enviar-email', (req, res) => {
   if (req.session.puedeRecuperar) {
@@ -201,7 +225,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Correo o contraseña incorrectos.' });
     }
     const [personal] = await db.query('SELECT id_personal, id_puesto, nombre_personal, apaterno_personal, amaterno_personal FROM Personal WHERE id_usuario = ?', [user.id_usuario]);
-    const [alumno] = await db.query('SELECT id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno FROM Alumno WHERE id_usuario = ?', [user.id_usuario]);
+    const [alumno] = await db.query('SELECT id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_personal FROM Alumno WHERE id_usuario = ?', [user.id_usuario]);
     let userType, roles = [], id_personal = null, id_puesto = null, nombre_completo = null, id_alumno = null;
     if (personal.length > 0) {
       userType = 'personal';
@@ -226,10 +250,16 @@ router.post('/login', async (req, res) => {
         roles,
         nombre_completo
       };
-      res.json({ success: true , userType, redirect: '/Dashboard' });
+      if (id_puesto == 35){
+        res.json({ success: true , userType, redirect: '/Dashboard' });
+      }else {
+        res.json({ success: true , userType, redirect: '/DashboardPersonal' });
+      }
+
     } else if (alumno.length > 0) {
         userType = 'alumno'; 
         id_alumno = alumno[0].id_alumno; 
+        id_personal = alumno[0].id_personal; // SU COUNSELOR
         nombre_completo = `${alumno[0].nombre_alumno} ${alumno[0].apaterno_alumno} ${alumno[0].amaterno_alumno || ''}`.trim();
 
         req.session.user = {
@@ -237,7 +267,8 @@ router.post('/login', async (req, res) => {
           email: user.correo_usuario,
           userType,
           id_alumno,
-          nombre_completo
+          nombre_completo,
+          id_personal 
         };
         res.json({ success: true , userType, redirect: '/DashboardAlumno' });
     } else {
@@ -959,6 +990,321 @@ router.get('/permisos-usuario', async (req, res) => {
 });
 
 
+
+// OBTENER COORDINADORES A EVALUAR
+router.get('/getCoordinadores', authMiddleware, async (req, res) => { // DE MOMENTO NO HAY DOCENTES QUE TENGAN 2 O MAS COORDINADORES PERO SE HACE PENSANDO EN UN CASO HIPOTETICO
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, a.nombre_academia, pc.estado_evaluacion_coordinador, pc.id_evaluador FROM Personal p, Academia a, Personal_Coordinador pc WHERE a.id_personal=pc.id_personal AND p.id_personal=pc.id_personal AND p.id_personal<>pc.id_evaluador AND pc.id_evaluador=?"; // OBTENER COORDINADOR A EVALUAR
+  try {
+    const [coordinadores] = await db.query(query,id_personal);
+    const cantidadCoordinadores = coordinadores.length;
+    res.json({ success: true, coordinadores, cantidadCoordinadores});
+  } catch (error) {
+    console.error('Error al obtener coordinadores:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE COORDINADOR
+router.get('/getPreguntasCoordinador', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=3"; // 3 ES COORDINADOR
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=3"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A COORDINADOR 
+router.post('/postRespuestasCoordinador', authMiddleware, async (req, res) => {
+  const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
+  const {id_personal,respuestas,comentarios} = req.body;
+  const tipo_pregunta = 3; // EL TIPO DE PREGUNTA DE COOORDINADOR
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    comentario.tipo_comentario,
+    comentario.comentario_personal
+  ]);
+  const query = "INSERT INTO Respuesta_Personal (id_evaluador, id_personal, id_tipo_pregunta, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA 
+  const query2 = "INSERT INTO Comentario_Personal (id_evaluador, id_personal, id_tipo_pregunta, tipo_comentario, comentario_personal) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Personal_Coordinador set estado_evaluacion_coordinador=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    await db.query(query2,[valoresComentarios]);
+    await db.query(query3,[id_evaluador, id_personal]);
+    res.json({ success: true , message:'Coordinador evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER PARES A EVALUAR
+router.get('/getPares', authMiddleware, async (req, res) => { 
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pp.estado_evaluacion_par, pp.id_evaluador FROM Personal p, Personal_par pp WHERE p.id_personal=pp.id_personal AND p.id_personal<>pp.id_evaluador AND pp.id_evaluador=?"; // OBTENER PARES A EVALUAR
+  try {
+    const [pares] = await db.query(query,id_personal);
+    const cantidadPares = pares.length;
+    res.json({ success: true, pares, cantidadPares});
+  } catch (error) {
+    console.error('Error al obtener pares:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE PAR
+router.get('/getPreguntasPar', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=6"; // 6 ES PARES
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=6"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A PAR 
+router.post('/postRespuestasPar', authMiddleware, async (req, res) => {
+  const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
+  const {id_personal,respuestas,comentarios} = req.body;
+  const tipo_pregunta = 6; // EL TIPO DE PREGUNTA DE PAR
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    comentario.tipo_comentario,
+    comentario.comentario_personal
+  ]);
+  const query = "INSERT INTO Respuesta_Personal (id_evaluador, id_personal, id_tipo_pregunta, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA 
+  const query2 = "INSERT INTO Comentario_Personal (id_evaluador, id_personal, id_tipo_pregunta, tipo_comentario, comentario_personal) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Personal_Par set estado_evaluacion_par=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    await db.query(query2,[valoresComentarios]);
+    await db.query(query3,[id_evaluador, id_personal]);
+    res.json({ success: true , message:'Par evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER 360 A EVALUAR
+router.get('/get360', authMiddleware, async (req, res) => { 
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, p3.estado_evaluacion_360, p3.id_evaluador FROM Personal p, Personal_360 p3 WHERE p.id_personal=p3.id_personal AND p.id_personal<>p3.id_evaluador AND p3.id_evaluador=?"; // OBTENER 360 A EVALUAR
+  try {
+    const [todos] = await db.query(query,id_personal);
+    const cantidad360 = todos.length;
+    res.json({ success: true, todos, cantidad360});
+  } catch (error) {
+    console.error('Error al obtener 360:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE 360
+router.get('/getPreguntas360', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=5"; // 5 ES 360
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=5"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A PAR 
+router.post('/postRespuestas360', authMiddleware, async (req, res) => {
+  const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
+  const {id_personal,respuestas,comentarios} = req.body;
+  const tipo_pregunta = 5; // EL TIPO DE PREGUNTA DE PAR
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    comentario.tipo_comentario,
+    comentario.comentario_personal
+  ]);
+  const query = "INSERT INTO Respuesta_Personal (id_evaluador, id_personal, id_tipo_pregunta, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA 
+  const query2 = "INSERT INTO Comentario_Personal (id_evaluador, id_personal, id_tipo_pregunta, tipo_comentario, comentario_personal) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Personal_360 set estado_evaluacion_360=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    await db.query(query2,[valoresComentarios]);
+    await db.query(query3,[id_evaluador, id_personal]);
+    res.json({ success: true , message:'Personal evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER JEFES A EVALUAR
+router.get('/getJefes', authMiddleware, async (req, res) => { 
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pj.estado_evaluacion_jefe, pj.id_evaluador FROM Personal p, Personal_Jefe pj WHERE p.id_personal=pj.id_personal AND p.id_personal<>pj.id_evaluador AND pj.id_evaluador=?"; // OBTENER JEFES A EVALUAR
+  try {
+    const [jefes] = await db.query(query,id_personal);
+    const cantidadJefes = jefes.length;
+    res.json({ success: true, jefes, cantidadJefes});
+  } catch (error) {
+    console.error('Error al obtener jefes:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE JEFE
+router.get('/getPreguntasJefe', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=7"; // 7 ES JEFE
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=7"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A JEFE 
+router.post('/postRespuestasJefe', authMiddleware, async (req, res) => {
+  const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
+  const {id_personal,respuestas,comentarios} = req.body;
+  const tipo_pregunta = 5; // EL TIPO DE PREGUNTA DE PAR
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    comentario.tipo_comentario,
+    comentario.comentario_personal
+  ]);
+  const query = "INSERT INTO Respuesta_Personal (id_evaluador, id_personal, id_tipo_pregunta, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA 
+  const query2 = "INSERT INTO Comentario_Personal (id_evaluador, id_personal, id_tipo_pregunta, tipo_comentario, comentario_personal) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Personal_Jefe set estado_evaluacion_jefe=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    await db.query(query2,[valoresComentarios]);
+    await db.query(query3,[id_evaluador, id_personal]);
+    res.json({ success: true , message:'Jefe evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
+
+// OBTENER SUBORDINADOS A EVALUAR
+router.get('/getSubordinados', authMiddleware, async (req, res) => { 
+  const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+
+  const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, ps.estado_evaluacion_subordinado,pu.nombre_puesto, ps.id_evaluador  FROM Personal p, Personal_Subordinado ps, Puesto pu WHERE p.id_personal=ps.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>ps.id_evaluador AND ps.id_evaluador=?"; // OBTENER SUBORDINADOS A EVALUAR
+  try {
+    const [subordinados] = await db.query(query,id_personal);
+    const cantidadSubordinados = subordinados.length;
+    res.json({ success: true, subordinados, cantidadSubordinados});
+  } catch (error) {
+    console.error('Error al obtener subordinados:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER PREGUNTAS DE JEFE
+router.get('/getPreguntasSubordinado', authMiddleware, async (req, res) => {
+  const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=4"; // 7 ES SUBORDINADO
+  const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=4"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+  try {
+    const [preguntas] = await db.query(query);
+    const [respuestas] = await db.query(query2);
+    const cantidadPreguntas = preguntas.length;
+    res.json({ success: true, preguntas, cantidadPreguntas, respuestas});
+  } catch (error) {
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// GUARDAR RESPUESTA A SUBORDINADO 
+router.post('/postRespuestasSubordinado', authMiddleware, async (req, res) => {
+  const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
+  const {id_personal,respuestas,comentarios} = req.body;
+  const tipo_pregunta = 4; // EL TIPO DE PREGUNTA DE PAR
+  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_evaluador,
+    id_personal,
+    tipo_pregunta,
+    comentario.tipo_comentario,
+    comentario.comentario_personal
+  ]);
+  const query = "INSERT INTO Respuesta_Personal (id_evaluador, id_personal, id_tipo_pregunta, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA 
+  const query2 = "INSERT INTO Comentario_Personal (id_evaluador, id_personal, id_tipo_pregunta, tipo_comentario, comentario_personal) VALUES ?"; // AGREGAR EL COMENTARIO
+  const query3 = "UPDATE Personal_Subordinado set estado_evaluacion_subordinado=1 WHERE id_evaluador=? AND id_personal=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  try {
+    await db.query(query,[valoresRespuestas]);
+    await db.query(query2,[valoresComentarios]);
+    await db.query(query3,[id_evaluador, id_personal]);
+    res.json({ success: true , message:'Subordinado evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+});
 
 //RUTA PARA PRUEBA NADAMÁS
 router.get('/debug', (req, res) => {
