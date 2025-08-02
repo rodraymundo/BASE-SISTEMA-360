@@ -13,10 +13,10 @@ export function renderHeader(user) {
         <ul class="navbar-nav mb-2 mb-lg-0 justify-content-center">
           <li><a class="nav-link" id="nav-materias" href="/Gestion-Materias-Permisos" style="display: none;">Materias</a></li>
           <li><a class="nav-link" id="nav-kpis" href="/Gestion-Kpis-Permisos" style="display: none;">KPIs</a></li>
-          <li><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos-Permisos" style="display: none;">Grupos</a></li>
+          <li><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos" style="display: none;">Grupos</a></li>
           <li><a class="nav-link" id="nav-personal" href="/GestionPersonal-Permisos" style="display: none;">Personal</a></li>
           <li><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
-          <li><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos-Permisos" style="display: none;">Alumnos</a></li>
+          <li><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos" style="display: none;">Alumnos</a></li>
         </ul>
         <div class="dropdown ms-auto">
           <a class="dropdown-toggle d-flex align-items-center text-decoration-none text-dark" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
@@ -26,8 +26,10 @@ export function renderHeader(user) {
             <li><a class="dropdown-item" href="/Mi-Perfil">Ver mi perfil</a></li>
             <li><a class="dropdown-item" href="/Mis-KPIs-Pendientes">Evaluar KPIs</a></li>
             <li><a class="dropdown-item" id="mis-evaluaciones-btn" href="/Mis-Evaluaciones-Dir-General" style="display: none;">Mis Evaluaciones</a></li>
+            <!--
             <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Alumnos" style="display: none;">Gestión de alumnos</a></li>
             <li><a class="dropdown-item" id="gestion-grupos-btn" href="/Gestion-Grupos" style="display: none;">Gestión de grupos</a></li>
+            -->
             <li><a class="dropdown-item" id="logout-btn" href="#">Cerrar Sesión</a></li>
           </ul>
         </div>

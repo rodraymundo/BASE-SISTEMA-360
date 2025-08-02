@@ -138,9 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   btnCambiar.addEventListener('click', async () => {
-    const nuevoIdGradoGrupo = nuevoGrupoSelect.value;
-
-    if (!nuevoIdGradoGrupo) {
+    if (!nuevoGrupoSelect.value) {
       Swal.fire('Advertencia', 'Selecciona un nuevo grado y grupo válidos.', 'warning');
       return;
     }
@@ -149,6 +147,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       Swal.fire('Advertencia', 'Selecciona al menos un alumno para cambiar grado y grupo.', 'warning');
       return;
     }
+
+    // Confirmación antes de cambiar
+    const confirmacion = await Swal.fire({
+      title: '¿Confirmar cambio?',
+      text: '¿Quieres cambiar el grado y grupo de los alumnos seleccionados?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, cambiar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
 
     const csrfToken = await obtenerCsrfToken();
 
@@ -159,7 +169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'X-CSRF-Token': csrfToken
       },
       credentials: 'include',
-      body: JSON.stringify({ id_grado_grupo: parseInt(nuevoIdGradoGrupo), alumnos: Array.from(seleccionadosSet) })
+      body: JSON.stringify({ id_grado_grupo: parseInt(nuevoGrupoSelect.value), alumnos: Array.from(seleccionadosSet) })
     });
 
     if (res.ok) {
@@ -173,6 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Swal.fire('Error', 'Error al cambiar grado y grupo.', 'error');
     }
   });
+
 
   btnAdelantar.addEventListener('click', async () => {
     const confirmacion = await Swal.fire({
