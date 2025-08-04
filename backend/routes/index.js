@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('../config/db'); // Asegúrate de que esta importación sea correcta
 const authMiddleware = require('../middleware/auth');
 const bcrypt = require('bcrypt');
+const { permisoMiddleware } = require('../middleware/permisosMiddleware'); 
 
 //PRUEBA RECUPERACIÓN CONTRASEÑA
 const nodemailer = require('nodemailer');
@@ -140,10 +141,6 @@ router.get('/Mis-KPIs-Pendientes', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Mis-KPIs-Pendientes.html'));
 });
 
-router.get('/Gestion-Alumnos', authMiddleware, (req, res) => {
-    res.sendFile(path.join(__dirname, '../../public/html/Gestion-Alumnos.html'));
-});
-
 //RUTA INTERMEDIA PARA REDIRECCIONAR A RECUPERACIÓN
 router.get('/redirigir-a-recuperar', (req, res) => {
   req.session.puedeRecuperar = true;
@@ -169,6 +166,24 @@ router.get('/EvaluacionTalleres', authMiddleware, (req, res) => {
 
 router.get('/EvaluacionCounselor', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionCounselor.html'));
+});
+
+//ADMINISTRACIÓN
+//(RAYMUNDO)
+router.get('/Gestion-Alumnos', authMiddleware, permisoMiddleware('permiso_alumnos'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Alumnos.html'));
+});
+
+router.get('/Gestion-Grupos', authMiddleware, permisoMiddleware('permiso_grupos'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
+});
+//(ARMANDO)
+router.get('/Gestion-Personal-Permisos', authMiddleware, permisoMiddleware ('permiso_personal'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Permisos.html'));
+});
+
+router.get('/Gestion-Talleres-Permisos', authMiddleware, permisoMiddleware ('permiso_talleres'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Talleres-Permisos.html'));
 });
 
 // PERSONAL
@@ -212,10 +227,6 @@ router.get('/Recuperar-enviar-email', (req, res) => {
 
 router.get('/Restablecer-contrasena', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Restablecer-contrasena.html'));
-});
-
-router.get('/Gestion-Grupos', authMiddleware, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
 });
 
 //YA TE DEJO AQUI LA RUTA LISTA PARA LAS EVALUACIONES DE DIRECTOR GENERAL ARMANDOO, el botón ya está en el header, nomas pones el archivo en la ruta de public/html y ya
@@ -267,6 +278,12 @@ router.post('/login', async (req, res) => {
       `, [id_personal]);
       roles = personalRoles.map(role => ({ id_rol: role.id_rol, nombre_rol: role.nombre_rol }));
 
+      const [permisosRows] = await db.query(
+        'SELECT * FROM Permisos WHERE id_usuario = ?',
+        [id_personal]
+      );
+      const permisos = permisosRows[0] || {}; // Si no tiene, que sea objeto vacío
+
       req.session.user = {
         id_usuario: user.id_usuario,
         email: user.correo_usuario,
@@ -274,7 +291,8 @@ router.post('/login', async (req, res) => {
         id_personal,
         id_puesto,
         roles,
-        nombre_completo
+        nombre_completo,
+        permisos // AÑADIMOS LOS PERMISOS AQUÍ
       };
       if (id_puesto == 35){
         res.json({ success: true , userType, redirect: '/Dashboard' });
@@ -641,21 +659,47 @@ router.get('/talleres-por-alumno/:id_alumno', authMiddleware, async (req, res) =
 
 //ACTUALIZAR LOS TALLERES DEL ALUMNO
 router.post('/actualizar-talleres-alumno', authMiddleware, async (req, res) => {
-  const { id_alumno, talleres } = req.body; // talleres: array de { id_taller, estado_evaluacion_taller }
+  const { id_alumno, talleres } = req.body;
+  const nuevosIds = talleres.map(t => t.id_taller);
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    // Eliminar talleres anteriores
-    await connection.query('DELETE FROM Alumno_Taller WHERE id_alumno = ?', [id_alumno]);
-
-    // Insertar los nuevos talleres
-    for (const taller of talleres) {
+    // 1. Eliminar talleres que ya no están en la lista
+    if (nuevosIds.length > 0) {
       await connection.query(`
-        INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller)
-        VALUES (?, ?, ?)
-      `, [id_alumno, taller.id_taller, taller.estado_evaluacion_taller]);
+        DELETE FROM Alumno_Taller
+        WHERE id_alumno = ? AND id_taller NOT IN (?)
+      `, [id_alumno, nuevosIds]);
+    } else {
+      await connection.query(`
+        DELETE FROM Alumno_Taller
+        WHERE id_alumno = ?
+      `, [id_alumno]);
+    }
+
+    // 2. Insertar nuevos talleres
+    for (const taller of talleres) {
+      const [rows] = await connection.query(`
+        SELECT 1 FROM Alumno_Taller
+        WHERE id_alumno = ? AND id_taller = ?
+      `, [id_alumno, taller.id_taller]);
+
+      if (rows.length === 0) {
+        // Revisar si ya hay respuestas del alumno en ese taller
+        const [respuestas] = await connection.query(`
+          SELECT COUNT(*) AS total FROM Respuesta_Alumno_Taller
+          WHERE id_alumno = ? AND id_taller = ?
+        `, [id_alumno, taller.id_taller]);
+
+        const yaEvaluado = respuestas[0].total > 0 ? 1 : taller.estado_evaluacion_taller;
+
+        await connection.query(`
+          INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller)
+          VALUES (?, ?, ?)
+        `, [id_alumno, taller.id_taller, yaEvaluado]);
+      }
     }
 
     await connection.commit();
@@ -669,15 +713,44 @@ router.post('/actualizar-talleres-alumno', authMiddleware, async (req, res) => {
   }
 });
 
+
 //ACTUALIZAR COUNSELOR DEL ALUMNO
 router.post('/actualizar-counselor-alumno', authMiddleware, async (req, res) => {
   const { id_alumno, id_personal } = req.body;
+
+  const connection = await db.getConnection();
   try {
-    await db.query('UPDATE Alumno SET id_personal = ? WHERE id_alumno = ?', [id_personal, id_alumno]);
+    await connection.beginTransaction();
+
+    // 1. Actualizar el counselor del alumno
+    await connection.query(
+      'UPDATE Alumno SET id_personal = ? WHERE id_alumno = ?',
+      [id_personal, id_alumno]
+    );
+
+    // 2. Verificar si ya hay respuestas del alumno para ese counselor
+    const [respuestas] = await connection.query(
+      `SELECT COUNT(*) AS total FROM Respuesta_Alumno_Counselor
+       WHERE id_alumno = ? AND id_personal = ?`,
+      [id_alumno, id_personal]
+    );
+
+    const estado = respuestas[0].total > 0 ? 1 : 0;
+
+    // 3. Actualizar estado_evaluacion_counselor
+    await connection.query(
+      'UPDATE Alumno SET estado_evaluacion_counselor = ? WHERE id_alumno = ?',
+      [estado, id_alumno]
+    );
+
+    await connection.commit();
     res.json({ success: true });
   } catch (error) {
+    await connection.rollback();
     console.error('Error al actualizar counselor:', error);
     res.status(500).json({ success: false });
+  } finally {
+    connection.release();
   }
 });
 
@@ -1014,12 +1087,6 @@ router.get('/permisos-usuario', async (req, res) => {
     res.status(500).json({ success: false, message: 'Error del servidor.' });
   }
 });
-
-
-
-
-
-
 
 // OBTENER LOS SERVICIOS PARA EVALUARLOS
 router.get('/getServicios', authMiddleware, async (req, res) => {
@@ -1673,6 +1740,484 @@ router.get('/getInfoPersona', authMiddleware, async (req, res) => {
     console.error('Error al obtener persona:', error);
     res.status(500).json({ success: false, message: 'Error en el servidor.' });
   }
+});
+
+//RUTAS DE ARMANDO
+
+// Obtener todos los personales
+router.get('/personal', authMiddleware, async (req, res) => {
+  try {
+    const [personal] = await db.query(`
+      SELECT p.id_personal, 
+             p.nombre_personal, 
+             p.apaterno_personal,
+             p.amaterno_personal, 
+             p.fecha_nacimiento_personal, 
+             p.telefono_personal, 
+             p.estado_personal,
+             pu.id_puesto, 
+             pu.nombre_puesto, 
+             GROUP_CONCAT(r.nombre_rol) AS roles,
+             u.correo_usuario
+      FROM Personal p
+      LEFT JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+      LEFT JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+      LEFT JOIN Rol r ON pr.id_rol = r.id_rol
+      LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+      GROUP BY p.id_personal
+    `);
+    res.json(personal.map(p => ({
+      ...p,
+      estado_personal: p.estado_personal === 1 ? 'Activo' : 'Inactivo'
+    })));
+  } catch (error) {
+    console.error('Error al obtener personal:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener personal' });
+  }
+});
+
+// Obtener un personal específico por ID
+router.get('/personal/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [personal] = await db.query(`
+      SELECT p.id_personal, 
+             p.nombre_personal, 
+             p.apaterno_personal, 
+             p.amaterno_personal, 
+             p.fecha_nacimiento_personal, 
+             p.telefono_personal, 
+             p.estado_personal,
+             pu.id_puesto, 
+             pu.nombre_puesto, 
+             GROUP_CONCAT(r.nombre_rol) AS roles,
+             u.correo_usuario
+      FROM Personal p
+      LEFT JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+      LEFT JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+      LEFT JOIN Rol r ON pr.id_rol = r.id_rol
+      LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+      WHERE p.id_personal = ?
+      GROUP BY p.id_personal
+    `, [id]);
+    if (personal.length === 0) {
+      return res.status(404).json({ success: false, message: 'Personal no encontrado' });
+    }
+    res.json({
+      ...personal[0],
+      estado_personal: personal[0].estado_personal === 1 ? 'Activo' : 'Inactivo'
+    });
+  } catch (error) {
+    console.error('Error al obtener personal:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener personal' });
+  }
+});
+
+// Obtener todos los puestos
+router.get('/puestos', authMiddleware, async (req, res) => {
+  try {
+    const [puestos] = await db.query('SELECT id_puesto, nombre_puesto FROM Puesto');
+    res.json(puestos);
+  } catch (error) {
+    console.error('Error al obtener puestos:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener puestos' });
+  }
+});
+
+// Obtener todos los roles
+router.get('/roles', authMiddleware, async (req, res) => {
+  try {
+    const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
+    res.json(roles);
+  } catch (error) {
+    console.error('Error al obtener roles:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener roles' });
+  }
+});
+
+// Agregar un nuevo personal
+router.post('/personal', authMiddleware, async (req, res) => {
+  const { nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado, id_puesto, roles, correo, contrasena } = req.body;
+  try {
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken || csrfToken !== req.csrfToken()) { // Ensure req.csrfToken() is a function
+      console.log('CSRF Token recibido:', csrfToken);
+      console.log('CSRF Token esperado:', req.csrfToken());
+      return res.status(403).json({ success: false, message: 'Token CSRF inválido' });
+    }
+
+    // Verificar si los roles coinciden con un puesto existente
+    const [existingPuestos] = await db.query(`
+      SELECT p.id_puesto, GROUP_CONCAT(pr.id_rol) AS role_ids
+      FROM Puesto p
+      LEFT JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+      GROUP BY p.id_puesto
+    `);
+    const roleIdsStr = roles.sort().join(',');
+    let selectedIdPuesto = id_puesto || null;
+    if (!selectedIdPuesto) {
+      const matchingPuesto = existingPuestos.find(p => 
+        p.role_ids && p.role_ids.split(',').sort().join(',') === roleIdsStr
+      );
+      selectedIdPuesto = matchingPuesto ? matchingPuesto.id_puesto : null;
+    }
+
+    // Crear nuevo puesto si no hay coincidencia y hay roles
+    let newIdPuesto = selectedIdPuesto;
+    if (!newIdPuesto && roles && roles.length > 0) {
+      const [result] = await db.query(
+        'INSERT INTO Puesto (nombre_puesto) VALUES (?)',
+        [`Puesto_${Date.now()}`]
+      );
+      newIdPuesto = result.insertId;
+      await Promise.all(roles.map(id_rol => 
+        db.query('INSERT INTO Puesto_Rol (id_puesto, id_rol) VALUES (?, ?)', [newIdPuesto, id_rol])
+      ));
+    }
+
+    // Insertar usuario y personal
+    const [userResult] = await db.query(
+      'INSERT INTO Usuario (correo_usuario, contraseña_usuario) VALUES (?, ?)',
+      [correo, await bcrypt.hash(contrasena, 10)]
+    );
+    const id_usuario = userResult.insertId;
+    const [personalResult] = await db.query(
+      'INSERT INTO Personal (nombre_personal, apaterno_personal, amaterno_personal, fecha_nacimiento_personal, telefono_personal, estado_personal, id_puesto, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado === 'Activo' ? 1 : 0, newIdPuesto || selectedIdPuesto, id_usuario]
+    );
+    const id_personal = personalResult.insertId;
+
+    // Insertar Evaluador
+    await db.query('INSERT INTO Evaluador (id_personal) VALUES (?)', [id_personal]);
+
+    // Poblar Jerarquia, Personal_Jefe, Personal_Subordinado y Personal_Par
+    const [jerarquia] = await db.query('SELECT id_rol, id_jefe FROM Jerarquia');
+    const roleMap = jerarquia.reduce((map, { id_rol, id_jefe }) => {
+      map[id_rol] = id_jefe;
+      return map;
+    }, {});
+
+    const personalRoles = await db.query(
+      'SELECT id_rol FROM Puesto_Rol WHERE id_puesto = ?',
+      [newIdPuesto || selectedIdPuesto]
+    );
+
+    await Promise.all(personalRoles[0].map(async ({ id_rol }) => {
+      if (!jerarquia.find(j => j.id_rol === id_rol)) {
+        await db.query('INSERT INTO Jerarquia (id_rol, id_jefe) VALUES (?, ?)', [id_rol, roleMap[id_rol] || null]);
+      }
+
+      const [otherPersonals] = await db.query(`
+        SELECT p.id_personal
+        FROM Personal p
+        JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+        JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+        WHERE pr.id_rol = ? AND p.id_personal != ?
+      `, [id_rol, id_personal]);
+
+      otherPersonals.forEach(async ({ id_personal: otherId }) => {
+        const otherEvaluator = (await db.query('SELECT id_evaluador FROM Evaluador WHERE id_personal = ?', [otherId]))[0][0]?.id_evaluador;
+
+        if (roleMap[id_rol]) {
+          await db.query(
+            'INSERT INTO Personal_Jefe (id_evaluador, id_personal, estado_evaluacion_jefe) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_jefe = 0',
+            [otherEvaluator, id_personal]
+          );
+        }
+
+        const [subordinates] = await db.query(
+          'SELECT id_rol FROM Jerarquia WHERE id_jefe = ?',
+          [id_rol]
+        );
+        if (subordinates.length > 0) {
+          await db.query(
+            'INSERT INTO Personal_Subordinado (id_evaluador, id_personal, estado_evaluacion_subordinado) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_subordinado = 0',
+            [otherEvaluator, id_personal]
+          );
+        }
+
+        await db.query(
+          'INSERT INTO Personal_Par (id_evaluador, id_personal, estado_evaluacion_par) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_par = 0',
+          [otherEvaluator, id_personal]
+        );
+      });
+    }));
+
+    res.json({ success: true, message: 'Personal agregado exitosamente', id_personal });
+  } catch (error) {
+    console.error('Error al agregar personal:', error);
+    res.status(500).json({ success: false, message: 'Error interno al agregar personal' });
+  }
+});
+
+// Actualizar un personal existente
+router.put('/personal/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado, id_puesto, roles, correo, contrasena } = req.body;
+  try {
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken || csrfToken !== req.csrfToken()) {
+      console.log('CSRF Token recibido:', csrfToken);
+      console.log('CSRF Token esperado:', req.csrfToken());
+      return res.status(403).json({ success: false, message: 'Token CSRF inválido' });
+    }
+
+    const [existingPersonal] = await db.query('SELECT id_usuario, id_puesto FROM Personal WHERE id_personal = ?', [id]);
+    if (!existingPersonal.length) {
+      return res.status(404).json({ success: false, message: 'Personal no encontrado' });
+    }
+    const { id_usuario, id_puesto: currentIdPuesto } = existingPersonal[0];
+
+    await db.query(
+      'UPDATE Usuario SET correo_usuario = ?' + (contrasena ? ', contraseña_usuario = ?' : '') + ' WHERE id_usuario = ?',
+      [correo, contrasena ? await bcrypt.hash(contrasena, 10) : null, id_usuario]
+    );
+
+    const [existingPuestos] = await db.query(`
+      SELECT p.id_puesto, GROUP_CONCAT(pr.id_rol) AS role_ids
+      FROM Puesto p
+      LEFT JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+      GROUP BY p.id_puesto
+    `);
+    const roleIdsStr = roles.sort().join(',');
+    let selectedIdPuesto = id_puesto || currentIdPuesto;
+    if (!selectedIdPuesto || (roles && roles.length > 0)) {
+      const matchingPuesto = existingPuestos.find(p => 
+        p.role_ids && p.role_ids.split(',').sort().join(',') === roleIdsStr
+      );
+      selectedIdPuesto = matchingPuesto ? matchingPuesto.id_puesto : null;
+    }
+
+    let newIdPuesto = selectedIdPuesto;
+    if (!newIdPuesto && roles && roles.length > 0) {
+      const [result] = await db.query(
+        'INSERT INTO Puesto (nombre_puesto) VALUES (?)',
+        [`Puesto_${Date.now()}`]
+      );
+      newIdPuesto = result.insertId;
+      await Promise.all(roles.map(id_rol => 
+        db.query('INSERT INTO Puesto_Rol (id_puesto, id_rol) VALUES (?, ?)', [newIdPuesto, id_rol])
+      ));
+    } else if (newIdPuesto && roles && roles.length > 0) {
+      await db.query('DELETE FROM Puesto_Rol WHERE id_puesto = ?', [newIdPuesto]);
+      await Promise.all(roles.map(id_rol => 
+        db.query('INSERT INTO Puesto_Rol (id_puesto, id_rol) VALUES (?, ?)', [newIdPuesto, id_rol])
+      ));
+    }
+
+    await db.query(
+      'UPDATE Personal SET nombre_personal = ?, apaterno_personal = ?, amaterno_personal = ?, fecha_nacimiento_personal = ?, telefono_personal = ?, estado_personal = ?, id_puesto = ? WHERE id_personal = ?',
+      [nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado === 'Activo' ? 1 : 0, newIdPuesto || selectedIdPuesto, id]
+    );
+
+    const [jerarquia] = await db.query('SELECT id_rol, id_jefe FROM Jerarquia');
+    const roleMap = jerarquia.reduce((map, { id_rol, id_jefe }) => {
+      map[id_rol] = id_jefe;
+      return map;
+    }, {});
+
+    const personalRoles = await db.query(
+      'SELECT id_rol FROM Puesto_Rol WHERE id_puesto = ?',
+      [newIdPuesto || selectedIdPuesto]
+    );
+
+    await Promise.all(personalRoles[0].map(async ({ id_rol }) => {
+      const [otherPersonals] = await db.query(`
+        SELECT p.id_personal
+        FROM Personal p
+        JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+        JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+        WHERE pr.id_rol = ? AND p.id_personal != ?
+      `, [id_rol, id]);
+
+      otherPersonals.forEach(async ({ id_personal: otherId }) => {
+        const otherEvaluator = (await db.query('SELECT id_evaluador FROM Evaluador WHERE id_personal = ?', [otherId]))[0][0]?.id_evaluador;
+
+        if (roleMap[id_rol]) {
+          await db.query(
+            'INSERT INTO Personal_Jefe (id_evaluador, id_personal, estado_evaluacion_jefe) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_jefe = 0',
+            [otherEvaluator, id]
+          );
+        }
+
+        const [subordinates] = await db.query(
+          'SELECT id_rol FROM Jerarquia WHERE id_jefe = ?',
+          [id_rol]
+        );
+        if (subordinates.length > 0) {
+          await db.query(
+            'INSERT INTO Personal_Subordinado (id_evaluador, id_personal, estado_evaluacion_subordinado) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_subordinado = 0',
+            [otherEvaluator, id]
+          );
+        }
+
+        await db.query(
+          'INSERT INTO Personal_Par (id_evaluador, id_personal, estado_evaluacion_par) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_par = 0',
+          [otherEvaluator, id]
+        );
+      });
+    }));
+
+    res.json({ success: true, message: 'Personal actualizado correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar personal:', error);
+    res.status(500).json({ success: false, message: 'Error interno al actualizar personal' });
+  }
+});
+
+// Eliminar un personal
+router.delete('/personal/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [personal] = await db.query('SELECT id_puesto, id_usuario FROM Personal WHERE id_personal = ?', [id]);
+    if (personal.length === 0) {
+      return res.status(404).json({ success: false, message: 'Personal no encontrado' });
+    }
+    await db.query('DELETE FROM Puesto_Rol WHERE id_puesto = ?', [personal[0].id_puesto]);
+    await db.query('DELETE FROM Usuario WHERE id_usuario = ?', [personal[0].id_usuario]);
+    await db.query('DELETE FROM Personal WHERE id_personal = ?', [id]);
+    res.json({ success: true, message: 'Personal eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar personal:', error);
+    res.status(500).json({ success: false, message: 'Error interno al eliminar personal' });
+  }
+});
+
+// RUTA PARA OBTENER TODOS LOS TALLERES CON PERSONAL Y ALUMNOS
+router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
+  try {
+    const [talleres] = await db.query(
+      'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
+      'FROM Taller t ' +
+      'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
+      'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
+      'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
+      'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal'
+    );
+    res.json({ success: true, talleres });
+  } catch (error) {
+    console.error('Error al obtener talleres:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA OBTENER DETALLES DE UN TALLER ESPECÍFICO
+router.get('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  try {
+    const [taller] = await db.query(
+      'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
+      'FROM Taller t ' +
+      'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
+      'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
+      'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
+      'WHERE t.id_taller = ? ' +
+      'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal',
+      [id_taller]
+    );
+    if (taller.length === 0) {
+      return res.status(404).json({ success: false, message: 'Taller no encontrado.' });
+    }
+    res.json({ success: true, taller: taller[0] });
+  } catch (error) {
+    console.error('Error al obtener taller:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA OBTENER LA LISTA DE ALUMNOS INSCRITOS EN UN TALLER ESPECÍFICO
+router.get('/talleres-personal-alumnos/:id_taller/alumnos', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  try {
+    const [taller] = await db.query('SELECT nombre_taller FROM Taller WHERE id_taller = ?', [id_taller]);
+    if (taller.length === 0) throw new Error('Taller no encontrado');
+    const [alumnos] = await db.query(
+      'SELECT a.id_alumno, CONCAT(a.nombre_alumno, " ", a.apaterno_alumno, " ", a.amaterno_alumno) AS nombre_completo, g.grado, g.grupo ' +
+      'FROM Alumno_Taller at ' +
+      'JOIN Alumno a ON at.id_alumno = a.id_alumno ' +
+      'JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo ' +
+      'WHERE at.id_taller = ? AND a.estado_alumno = 1',
+      [id_taller]
+    );
+    res.json({ success: true, taller_nombre: taller[0].nombre_taller, alumnos });
+  } catch (error) {
+    console.error('Error al obtener alumnos:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA CREAR UN NUEVO TALLER
+router.post('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
+  const { nombre_taller, id_personal } = req.body;
+  try {
+    const [result] = await db.query('INSERT INTO Taller (nombre_taller) VALUES (?)', [nombre_taller]);
+    await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [id_personal, result.insertId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al crear taller:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA ACTUALIZAR UN TALLER EXISTENTE
+router.put('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  const { nombre_taller, id_personal } = req.body;
+  try {
+    await db.query('UPDATE Taller SET nombre_taller = ? WHERE id_taller = ?', [nombre_taller, id_taller]);
+    await db.query('UPDATE Personal_taller SET id_personal = ? WHERE id_taller = ?', [id_personal, id_taller]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al actualizar taller:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA ELIMINAR UN TALLER
+router.delete('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  try {
+    await db.query('DELETE FROM Personal_taller WHERE id_taller = ?', [id_taller]);
+    await db.query('DELETE FROM Taller WHERE id_taller = ?', [id_taller]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error al eliminar taller:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA BUSCAR TALLERES POR NOMBRE O PROFESOR
+router.get('/talleres-personal-alumnos/buscar', authMiddleware, async (req, res) => {
+  const term = req.query.term?.toLowerCase() || '';
+  try {
+    const [talleres] = await db.query(
+      'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
+      'FROM Taller t ' +
+      'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
+      'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
+      'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
+      'WHERE LOWER(t.nombre_taller) LIKE ? OR LOWER(CONCAT(p.nombre_personal, " ", p.apaterno_personal)) LIKE ? ' +
+      'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal',
+      [`%${term}%`, `%${term}%`]
+    );
+    res.json({ success: true, talleres });
+  } catch (error) {
+    console.error('Error al buscar talleres:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
+});
+
+// RUTA PARA OBTENER LA LISTA DE PROFESORES
+router.get('/personal-profesores', authMiddleware, async (req, res) => {
+    try {
+        const [personal] = await db.query(
+            'SELECT id_personal, nombre_personal, apaterno_personal FROM Personal WHERE estado_personal = 1'
+        );
+        res.json({ success: true, personal });
+    } catch (error) {
+        console.error('Error al obtener personal:', error);
+        res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+    }
 });
 
 

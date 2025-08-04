@@ -25,7 +25,7 @@ export function renderHeader(user) {
           <li><a class="nav-link" id="nav-materias" href="/Gestion-Materias-Permisos" style="display: none;">Materias</a></li>
           <li><a class="nav-link" id="nav-kpis" href="/Gestion-Kpis-Permisos" style="display: none;">KPIs</a></li>
           <li><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos" style="display: none;">Grupos</a></li>
-          <li><a class="nav-link" id="nav-personal" href="/GestionPersonal-Permisos" style="display: none;">Personal</a></li>
+          <li><a class="nav-link" id="nav-personal" href="/Gestion-Personal-Permisos" style="display: none;">Personal</a></li>
           <li><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
           <li><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos" style="display: none;">Alumnos</a></li>
         </ul>

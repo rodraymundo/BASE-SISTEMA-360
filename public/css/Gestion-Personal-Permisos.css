@@ -1,0 +1,185 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.gestion-personal h2 {
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: #dc3545;
+  margin-bottom: 1.5rem;
+}
+
+.gestion-personal .container {
+  flex: 1;
+  max-width: 1200px;
+  padding: 1rem 0;
+  overflow: hidden;
+}
+
+.gestion-personal .input-group {
+  width: 100%;
+  max-width: 600px;
+}
+
+.gestion-personal #buscadorPersonal {
+  margin-bottom: 0;
+  height: 2.2rem;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.5rem;
+  border-color: #dc3545;
+}
+
+.gestion-personal #addPersonalBtn {
+  padding: 0.375rem 1rem;
+  font-size: 0.9rem;
+  height: 2.2rem;
+}
+
+.gestion-personal #listaPersonalContainer {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow-y: auto;
+  height: calc(80vh - 6rem); /* Increased height for better visibility */
+  min-height: 500px;
+  width: 100%;
+}
+
+.gestion-personal .table {
+  margin-bottom: 0;
+  font-size: 0.95rem; /* Slightly larger text for legibility */
+  width: 100%; /* Minimum 85% of available space */
+  table-layout: fixed;
+}
+
+.gestion-personal .table th {
+  background-color: #dc3547;
+  color: white;
+  font-weight: 600;
+  padding: 1rem; /* Increased padding for spacing */
+  text-align: left;
+  vertical-align: middle;
+}
+
+.gestion-personal .table th:nth-child(1) { width: 15%; } /* Nombre */
+.gestion-personal .table th:nth-child(2) { width: 15%; } /* Apellido Paterno */
+.gestion-personal .table th:nth-child(3) { width: 15%; } /* Apellido Materno */
+.gestion-personal .table th:nth-child(4) { width: 20%; } /* Puesto */
+.gestion-personal .table th:nth-child(5) { width: 47%; } /* Correo */
+.gestion-personal .table th:nth-child(6) { width: 25%; } /* Roles */
+.gestion-personal .table th:nth-child(7) { width: 12%; } /* Estado */
+.gestion-personal .table th:nth-child(8) { width: 12%; min-width: 50px; } /* Acciones, narrower */
+
+.gestion-personal .table td {
+  padding: 1rem; /* Increased padding for spacing */
+  vertical-align: middle;
+  border-top: 1px solid #dee2e6;
+  word-wrap: break-word; /* Allow wrapping for long text */
+}
+
+.gestion-personal .table td:nth-child(5) { /* Correo column */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+.gestion-personal .table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.gestion-personal .table-responsive {
+  overflow-x: hidden;
+}
+
+.gestion-personal .editBtn {
+  font-size: 0.9rem;
+  padding: 0.1rem;
+  transition: transform 0.2s;
+}
+
+.gestion-personal .editBtn:hover {
+  transform: scale(1.2);
+}
+
+.gestion-personal .modal-content {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.gestion-personal .modal-header {
+  background-color: #dc3545;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
+}
+
+.gestion-personal .modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.gestion-personal .modal-body {
+  padding: 1.5rem;
+}
+
+.gestion-personal .modal-footer {
+  border-top: none;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.gestion-personal .form-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.gestion-personal .form-control,
+.gestion-personal .form-select {
+  height: 2.5rem;
+  font-size: 0.9rem;
+  border-color: #dee2e6;
+}
+
+.gestion-personal .form-check-input {
+  margin-top: 0.3rem;
+}
+
+@media (max-width: 768px) {
+  .gestion-personal .table {
+    font-size: 0.85rem;
+    width: 100%; /* Full width on mobile */
+  }
+
+  .gestion-personal .table th,
+  .gestion-personal .table td {
+    padding: 0.5rem;
+    width: auto;
+  }
+
+  .gestion-personal #listaPersonalContainer {
+    height: 350px;
+    max-height: 350px;
+  }
+
+  .gestion-personal .input-group {
+    max-width: 100%;
+  }
+
+  .gestion-personal .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .gestion-personal .modal-body {
+    padding: 1rem;
+  }
+}
