@@ -816,7 +816,7 @@ router.get('/buscar-alumnos', authMiddleware, async (req, res) => {
   }
 });
 
-//AGREGAR NUEVO ALUMNO
+// AGREGAR NUEVO ALUMNO
 router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
   const { id_alumno, nombre, apaterno, amaterno, correo, password, id_grado_grupo, id_personal, talleres } = req.body;
 
@@ -824,20 +824,7 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    //HASHEAR CONTRASEÑA
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const [[{ maxId }]] = await connection.query('SELECT MAX(id_usuario) AS maxId FROM Usuario');
-    const id_usuario = (maxId || 0) + 1;
-
-    //INSERTAR MANUALMENTE
-    await connection.query(`
-      INSERT INTO Usuario (id_usuario, correo_usuario, contraseña_usuario)
-      VALUES (?, ?, ?)
-    `, [id_usuario, correo, hashedPassword]);
-
-    //VERIFICAR SI EXISTE UN ALUMNO CON ESA MATRICULA
+    // VERIFICAR SI YA EXISTE UN ALUMNO CON ESA MATRÍCULA
     const [alumnoExistente] = await connection.query(`
       SELECT 1 FROM Alumno WHERE id_alumno = ?
     `, [id_alumno]);
@@ -855,13 +842,27 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
       throw new Error(`Ya existe un usuario con el correo ${correo}`);
     }
 
-    //INSERTAR EN TABLA ALUMNO INCLUYENDO EL ID_USUARIO
-    const [result] = await connection.query(`
+    // HASHEAR CONTRASEÑA
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // GENERAR NUEVO ID_USUARIO
+    const [[{ maxId }]] = await connection.query('SELECT MAX(id_usuario) AS maxId FROM Usuario');
+    const id_usuario = (maxId || 0) + 1;
+
+    // INSERTAR EN USUARIO
+    await connection.query(`
+      INSERT INTO Usuario (id_usuario, correo_usuario, contraseña_usuario)
+      VALUES (?, ?, ?)
+    `, [id_usuario, correo, hashedPassword]);
+
+    // INSERTAR EN ALUMNO
+    await connection.query(`
       INSERT INTO Alumno (id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_grado_grupo, id_personal, id_usuario)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [id_alumno, nombre, apaterno, amaterno, id_grado_grupo, id_personal, id_usuario]);
 
-    //INSERTAR LA RELACIÓN CON TALLERES
+    // INSERTAR RELACIÓN CON TALLERES
     for (const id_taller of talleres) {
       await connection.query(`
         INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller)
@@ -869,7 +870,7 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
       `, [id_alumno, id_taller]);
     }
 
-    //INSERTAR RELACIÓN CON MATERIAS
+    // INSERTAR RELACIÓN CON MATERIAS DEL GRUPO
     const [materiasGrupo] = await connection.query(`
       SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?
     `, [id_grado_grupo]);
@@ -881,8 +882,9 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
       `, [id_alumno, m.id_materia, m.id_personal]);
     }
 
-    //INSERTAR RELACIÓN CON SERVICIOS
+    // INSERTAR RELACIÓN CON SERVICIOS
     const [servicios] = await connection.query('SELECT id_servicio FROM Servicio');
+
     for (const s of servicios) {
       await connection.query(`
         INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio)
