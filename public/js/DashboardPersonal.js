@@ -20,79 +20,122 @@ async function cargarBotones() {
         const jefes = await getJefes();
         const todos = await get360();
         const persona = await getInfoPersona();
-        let evaluacionesPendientes = 0;
+        let coordinadoresPendientesCantidad = 0;
+        let subordinadosPendienteCantidad = 0;
+        let jefesPendienteCantidad = 0;
+        let paresPendientesCantidad = 0;
+        let todosPendientesCantidad = 0;
 
         //DEPENDIENDO DE SI LAS EVALUACIONES QUE DEBEN DE HACER SUPERAN A 0 APARECE EL BOTON
         if(cordinadores.cantidadCoordinadores>0){
             const btnCordinador = document.createElement('a');
-            btnCordinador.className = 'btn btn-success px-4 py-2 m-1 fw-bold';
+            btnCordinador.className = 'btn btn-success px-4 py-2 m-1 fw-bold position-relative'; // EL POSITION-RELATIVE ES PARA QUE LA INSIGNIA DETECTE EL BOTON COMO EL ELEMENTO 
             btnCordinador.href = '/EvaluacionCoordinador';
             btnCordinador.innerText = 'COORDINADOR';
-            listaBotones.appendChild(btnCordinador);
 
             cordinadores.coordinadores.forEach(cordinador => {
                 if (cordinador.estado_evaluacion_coordinador == 0) {
-                    evaluacionesPendientes ++;
+                    coordinadoresPendientesCantidad ++;
                 }
             });
+
+            if (coordinadoresPendientesCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+                const coordinadoresPendientes = document.createElement('span');
+                coordinadoresPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+                coordinadoresPendientes.innerText = coordinadoresPendientesCantidad;
+                btnCordinador.appendChild(coordinadoresPendientes);
+            }
+            listaBotones.appendChild(btnCordinador);
         }
+
         if(subordinados.cantidadSubordinados>0){
             const btnSubordinado = document.createElement('a');
-            btnSubordinado.className = 'btn btn-primary px-4 py-2 m-1 fw-bold';
+            btnSubordinado.className = 'btn btn-primary px-4 py-2 m-1 fw-bold position-relative';
             btnSubordinado.href = '/EvaluacionSubordinados';
             btnSubordinado.innerText = 'SUBORDINADOS';
-            listaBotones.appendChild(btnSubordinado);
             
             subordinados.subordinados.forEach(subordinado => {
                 if (subordinado.estado_evaluacion_subordinado == 0) {
-                    evaluacionesPendientes ++;
+                    subordinadosPendienteCantidad ++;
                 }
             });
+            
+            if (subordinadosPendienteCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+                const subordinadosPendientes = document.createElement('span');
+                subordinadosPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+                subordinadosPendientes.innerText = subordinadosPendienteCantidad;
+                btnSubordinado.appendChild(subordinadosPendientes);
+            }
+            listaBotones.appendChild(btnSubordinado);
         }
+
         if(pares.cantidadPares>0){
             const btnPares = document.createElement('a');
-            btnPares.className = 'btn btn-warning text-white px-4 py-2 m-1 fw-bold';
+            btnPares.className = 'btn btn-warning text-white px-4 py-2 m-1 fw-bold position-relative';
             btnPares.href = '/EvaluacionPares';
             btnPares.innerText = 'PARES';
-            listaBotones.appendChild(btnPares);
 
             pares.pares.forEach(par => {
                 if (par.estado_evaluacion_par == 0) {
-                    evaluacionesPendientes ++;
+                    paresPendientesCantidad ++;
                 }
             });
+
+            if (paresPendientesCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+                const paresPendientes = document.createElement('span');
+                paresPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+                paresPendientes.innerText = paresPendientesCantidad;
+                btnPares.appendChild(paresPendientes);
+            }
+            listaBotones.appendChild(btnPares);
         }
+
         if(jefes.cantidadJefes>0){
             const btnJefes = document.createElement('a');
-            btnJefes.className = 'btn btn-info text-white px-4 py-2 m-1 fw-bold';
+            btnJefes.className = 'btn btn-info text-white px-4 py-2 m-1 fw-bold position-relative';
             btnJefes.href = '/EvaluacionJefe';
             btnJefes.innerText = 'JEFES';
-            listaBotones.appendChild(btnJefes);
             
             jefes.jefes.forEach(jefe => {
                 if (jefe.estado_evaluacion_jefe == 0) {
-                    evaluacionesPendientes ++;
+                    jefesPendienteCantidad ++;
                 }
             });
+
+            if (jefesPendienteCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+                const jefesPendientes = document.createElement('span');
+                jefesPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+                jefesPendientes.innerText = jefesPendienteCantidad;
+                btnJefes.appendChild(jefesPendientes);
+            }
+            listaBotones.appendChild(btnJefes);
         }
+
         if(todos.cantidad360>0){
             const btn360 = document.createElement('a');
-            btn360.className = 'btn btn-dark text-white px-4 py-2 m-1 fw-bold';
+            btn360.className = 'btn btn-dark text-white px-4 py-2 m-1 fw-bold position-relative';
             btn360.href = '/Evaluacion360';
             btn360.innerText = '360';
-            listaBotones.appendChild(btn360);
 
             todos.todos.forEach(personal => {
                 if (personal.estado_evaluacion_360 == 0) {
-                    evaluacionesPendientes ++;
+                    todosPendientesCantidad ++;
                 }
             });
+
+            if (todosPendientesCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+                const todosPendientes = document.createElement('span');
+                todosPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+                todosPendientes.innerText = todosPendientesCantidad;
+                btn360.appendChild(todosPendientes);
+            }
+            listaBotones.appendChild(btn360);
         }
 
         nombrePersona.innerText = `¡Bienvenido(a),${persona.persona[0].nombre_personal}!`
 
         // PONER LA CANTIDAD DE EVAKUACIONES FALTANTES
-        cantidadEvaluaciones.innerText = evaluacionesPendientes;
+        cantidadEvaluaciones.innerText = coordinadoresPendientesCantidad + subordinadosPendienteCantidad + jefesPendienteCantidad + paresPendientesCantidad + todosPendientesCantidad;
     } catch (error) {
         console.error('Error al cargar botones:', error);
     }
