@@ -19,6 +19,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cargarPreguntasModal(botonActivo.dataset.id_servicio);
             });
         });
+        document.querySelectorAll('.noUtilizado-btn').forEach(btn  => {//LE AGREGA A TODOS LOS BOTONES EL EVENTO 
+            btn.addEventListener('click', async (e) => {//CUANDO SE PRESIONA EL BOTON
+                botonActivo = e.currentTarget;
+                const resulado = await guardarRespuestasServicio(botonActivo.dataset.id_servicio);
+                if(resulado.success){
+                    await Swal.fire({
+                        icon: 'success',
+                        title: resulado.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    window.location.reload();
+                }else{
+                    await Swal.fire({
+                        icon: 'error',
+                        title: resulado.message,
+                        text: resulado.message,
+                    });
+                }
+            });
+        });
+
 
     } catch (error) {
         console.error('Error al iniciar la página:', error);
@@ -37,7 +59,10 @@ async function cargarServicios() {
             let estadoEvaluacion = '';
             switch (servicio.estado_evaluacion_servicio) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
                 case 0:
-                        estadoEvaluacion = `<button class="btn btn-success rounded-pill px-4 shadow evaluar-btn"  data-id_servicio="${servicio.id_servicio}">Evaluar</button>`;
+                        estadoEvaluacion = `
+                            <button class="btn btn-success rounded-pill px-4 shadow evaluar-btn"  data-id_servicio="${servicio.id_servicio}">Evaluar</button>
+                            <button class="btn btn-danger rounded-pill px-4 shadow noUtilizado-btn"  data-id_servicio="${servicio.id_servicio}">No lo utilice</button>
+                        `;
                     break;
                 case 1:
                         estadoEvaluacion = `<p class="fw-bold text-uppercase text-success">Servicio evaluado correctamente</p>`;
