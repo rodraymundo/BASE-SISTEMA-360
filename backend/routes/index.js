@@ -5,6 +5,7 @@ const db = require('../config/db'); // Asegúrate de que esta importación sea c
 const authMiddleware = require('../middleware/auth');
 const bcrypt = require('bcrypt');
 const { permisoMiddleware } = require('../middleware/permisosMiddleware'); 
+const { bloquearAlumnos } = require('../middleware/bloquearAlumnosMiddleware'); // Middleware para bloquear alumnos
 
 //PRUEBA RECUPERACIÓN CONTRASEÑA
 const nodemailer = require('nodemailer');
@@ -133,11 +134,29 @@ router.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Login.html'));
 });
 
+//DASHBOAR DIR.GENERAL
 router.get('/Dashboard', authMiddleware, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Dashboard.html'));
+  const user = req.session.user;
+
+  if (!user) {
+    return res.redirect('/'); // Por si acaso
+  }
+
+  if (user.userType === 'alumno') {
+    return res.redirect('/DashboardAlumno');
+  }
+
+  // Si es personal
+  const esDirectorGeneral = user.roles?.some(rol => rol.nombre_rol === 'Director General');
+
+  if (esDirectorGeneral) {
+    return res.sendFile(path.join(__dirname, '../../public/html/Dashboard.html'));
+  } else {
+    return res.sendFile(path.join(__dirname, '../../public/html/DashboardPersonal.html'));
+  }
 });
 
-router.get('/Mis-KPIs-Pendientes', authMiddleware, (req, res) => {
+router.get('/Mis-KPIs-Pendientes', authMiddleware, bloquearAlumnos, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Mis-KPIs-Pendientes.html'));
 });
 
@@ -170,48 +189,48 @@ router.get('/EvaluacionCounselor', authMiddleware, (req, res) => {
 
 //ADMINISTRACIÓN
 //(RAYMUNDO)
-router.get('/Gestion-Alumnos', authMiddleware, permisoMiddleware('permiso_alumnos'), (req, res) => {
+router.get('/Gestion-Alumnos', authMiddleware, bloquearAlumnos, permisoMiddleware ('permiso_alumnos'), (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Gestion-Alumnos.html'));
 });
 
-router.get('/Gestion-Grupos', authMiddleware, permisoMiddleware('permiso_grupos'), (req, res) => {
+router.get('/Gestion-Grupos', authMiddleware, bloquearAlumnos, permisoMiddleware('permiso_grupos'), (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
 });
 //(ARMANDO)
-router.get('/Gestion-Personal-Permisos', authMiddleware, permisoMiddleware ('permiso_personal'), (req, res) => {
+router.get('/Gestion-Personal-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_personal'), (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Permisos.html'));
 });
 
-router.get('/Gestion-Talleres-Permisos', authMiddleware, permisoMiddleware ('permiso_talleres'), (req, res) => {
+router.get('/Gestion-Talleres-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_talleres'), (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Gestion-Talleres-Permisos.html'));
 });
 
 // PERSONAL
-router.get('/DashboardPersonal', authMiddleware, (req, res) => {
+router.get('/DashboardPersonal', authMiddleware, bloquearAlumnos, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/DashboardPersonal.html'));
 });
 
-router.get('/EvaluacionCoordinador', authMiddleware, (req, res) => {
+router.get('/EvaluacionCoordinador', authMiddleware, bloquearAlumnos,(req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionCoordinador.html'));
 });
 
-router.get('/EvaluacionPares', authMiddleware, (req, res) => {
+router.get('/EvaluacionPares', authMiddleware, bloquearAlumnos, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionPares.html'));
 });
 
-router.get('/Evaluacion360', authMiddleware, (req, res) => {
+router.get('/Evaluacion360', authMiddleware, bloquearAlumnos, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Evaluacion360.html'));
 });
 
-router.get('/EvaluacionJefe', authMiddleware, (req, res) => {
+router.get('/EvaluacionJefe', authMiddleware, bloquearAlumnos, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionJefe.html'));
 });
 
-router.get('/EvaluacionSubordinados', authMiddleware, (req, res) => {
+router.get('/EvaluacionSubordinados', bloquearAlumnos, authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionSubordinados.html'));
 });
 
-router.get('/Mis-Evaluaciones-Dir-General', authMiddleware, (req, res) => {
+router.get('/Mis-Evaluaciones-Dir-General', bloquearAlumnos, authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Evaluaciones360.html'));
 });
 
@@ -227,11 +246,6 @@ router.get('/Recuperar-enviar-email', (req, res) => {
 
 router.get('/Restablecer-contrasena', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Restablecer-contrasena.html'));
-});
-
-//YA TE DEJO AQUI LA RUTA LISTA PARA LAS EVALUACIONES DE DIRECTOR GENERAL ARMANDOO, el botón ya está en el header, nomas pones el archivo en la ruta de public/html y ya
-router.get('/Mis-Evaluaciones-Dir-General', authMiddleware, (req, res) => {
-    res.sendFile(path.join(__dirname, '../../public/html/Mis-Evaluaciones-Dir-General.html'));
 });
 
 //CSRF TOKEN 
@@ -538,7 +552,7 @@ router.get('/grupos', authMiddleware, async (req, res) => {
 
 //OBTENER ALUMNOS POR GRUPO
 router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res) => {
-  const id_grado_grupo = req.params.id_grado_grupo;
+  const { id_grado_grupo } = req.params;
   try {
     const [alumnos] = await db.query(`
       SELECT 
@@ -546,25 +560,32 @@ router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res
         a.nombre_alumno,
         a.apaterno_alumno,
         a.amaterno_alumno,
-        p.id_personal,
-        u.correo_usuario AS correo_alumno,
+        a.id_grado_grupo,
+        a.id_personal,
+        g.grado,
+        g.grupo,
         p.nombre_personal AS nombre_counselor,
         p.apaterno_personal AS apaterno_counselor,
-        GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres
+        GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres,
+        ni.nombre_nivel_ingles,
+        ae.nombre_arte_especialidad
       FROM Alumno a
-      LEFT JOIN Usuario u ON a.id_usuario = u.id_usuario
+      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
       LEFT JOIN Personal p ON a.id_personal = p.id_personal
       LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
       LEFT JOIN Taller t ON at.id_taller = t.id_taller
+      LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
+      LEFT JOIN Nivel_Ingles ni ON ani.id_nivel_ingles = ni.id_nivel_ingles
+      LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
+      LEFT JOIN Arte_Especialidad ae ON aae.id_arte_especialidad = ae.id_arte_especialidad
       WHERE a.id_grado_grupo = ? AND a.estado_alumno = 1
       GROUP BY a.id_alumno
-      ORDER BY a.apaterno_alumno, a.nombre_alumno;
     `, [id_grado_grupo]);
 
     res.json({ success: true, alumnos });
   } catch (error) {
     console.error('Error al obtener alumnos por grupo:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    res.status(500).json({ success: false, message: 'Error al obtener alumnos' });
   }
 });
 
@@ -619,20 +640,38 @@ router.post('/asignar-taller', authMiddleware, async (req, res) => {
 router.get('/alumno/:id_alumno', authMiddleware, async (req, res) => {
   const { id_alumno } = req.params;
   try {
-    const [alumno] = await db.query(`
-      SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, a.telefono_alumno,
-             a.id_personal,
-             g.grado, g.grupo,
-             t.nombre_taller,
-             p.nombre_personal AS nombre_counselor, p.apaterno_personal AS apaterno_counselor
+    const [alumnos] = await db.query(`
+      SELECT 
+        a.id_alumno,
+        a.nombre_alumno,
+        a.apaterno_alumno,
+        a.amaterno_alumno,
+        a.telefono_alumno,
+        a.id_personal,
+        a.id_grado_grupo,
+        ani.id_nivel_ingles,
+        aae.id_arte_especialidad,
+        g.grado,
+        g.grupo,
+        p.nombre_personal AS nombre_counselor,
+        p.apaterno_personal AS apaterno_counselor,
+        GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres
       FROM Alumno a
       JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
-      LEFT JOIN Personal_taller pt ON a.id_personal = pt.id_personal
-      LEFT JOIN Taller t ON pt.id_taller = t.id_taller
+      LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
+      LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
       LEFT JOIN Personal p ON a.id_personal = p.id_personal
-      WHERE a.id_alumno = ?`, [id_alumno]);
+      LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
+      LEFT JOIN Taller t ON at.id_taller = t.id_taller
+      WHERE a.id_alumno = ? AND a.estado_alumno = 1
+      GROUP BY a.id_alumno
+    `, [id_alumno]);
 
-    res.json({ success: true, alumno: alumno[0] });
+    if (alumnos.length === 0) {
+      return res.status(404).json({ success: false, message: 'Alumno no encontrado' });
+    }
+
+    res.json({ success: true, alumno: alumnos[0] });
   } catch (error) {
     console.error('Error al obtener alumno:', error);
     res.status(500).json({ success: false, message: 'Error en el servidor.' });
@@ -772,20 +811,51 @@ router.get('/grupos-mismo-grado/:grado', authMiddleware, async (req, res) => {
 //ACTUALIZAR EL GRUPO DEL ALUMNO
 router.post('/actualizar-grupo-alumno', authMiddleware, async (req, res) => {
   const { id_alumno, id_grado_grupo } = req.body;
+
+  const connection = await db.getConnection();
   try {
-    await db.query('UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?', [id_grado_grupo, id_alumno]);
+    await connection.beginTransaction();
+
+    // 1. Actualizar grupo
+    await connection.query(
+      'UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?',
+      [id_grado_grupo, id_alumno]
+    );
+
+    // 2. Eliminar materias anteriores
+    await connection.query(
+      'DELETE FROM Alumno_Materia WHERE id_alumno = ?',
+      [id_alumno]
+    );
+
+    // 3. Insertar nuevas materias del grupo
+    const [materiasGrupo] = await connection.query(
+      'SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?',
+      [id_grado_grupo]
+    );
+
+    for (const m of materiasGrupo) {
+      await connection.query(
+        `INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia)
+         VALUES (?, ?, ?, 0)`,
+        [id_alumno, m.id_materia, m.id_personal]
+      );
+    }
+
+    await connection.commit();
     res.json({ success: true });
   } catch (error) {
+    await connection.rollback();
     console.error('Error al actualizar grupo:', error);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: 'Error al actualizar grupo del alumno' });
+  } finally {
+    connection.release();
   }
 });
 
 //BUSCAR ALUMNOS
 router.get('/buscar-alumnos', authMiddleware, async (req, res) => {
-  const nombre = req.query.nombre?.trim();
-  if (!nombre) return res.status(400).json({ success: false, message: 'Nombre vacío' });
-
+  const { nombre } = req.query;
   try {
     const [alumnos] = await db.query(`
       SELECT 
@@ -793,32 +863,39 @@ router.get('/buscar-alumnos', authMiddleware, async (req, res) => {
         a.nombre_alumno,
         a.apaterno_alumno,
         a.amaterno_alumno,
-        p.id_personal,
-        p.nombre_personal AS nombre_counselor,
-        p.apaterno_personal AS apaterno_counselor,
+        a.id_grado_grupo,
+        a.id_personal,
         g.grado,
         g.grupo,
-        GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres
+        p.nombre_personal AS nombre_counselor,
+        p.apaterno_personal AS apaterno_counselor,
+        GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres,
+        ni.nombre_nivel_ingles,
+        ae.nombre_arte_especialidad
       FROM Alumno a
+      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
       LEFT JOIN Personal p ON a.id_personal = p.id_personal
-      LEFT JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
       LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
       LEFT JOIN Taller t ON at.id_taller = t.id_taller
-      WHERE CONCAT_WS(' ', a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno) LIKE ? AND a.estado_alumno = 1
+      LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
+      LEFT JOIN Nivel_Ingles ni ON ani.id_nivel_ingles = ni.id_nivel_ingles
+      LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
+      LEFT JOIN Arte_Especialidad ae ON aae.id_arte_especialidad = ae.id_arte_especialidad
+      WHERE a.estado_alumno = 1 
+        AND (a.nombre_alumno LIKE ? OR a.apaterno_alumno LIKE ? OR a.amaterno_alumno LIKE ?)
       GROUP BY a.id_alumno
-      ORDER BY a.apaterno_alumno, a.nombre_alumno
-    `, [`%${nombre}%`]);
+    `, [`%${nombre}%`, `%${nombre}%`, `%${nombre}%`]);
 
     res.json({ success: true, alumnos });
   } catch (error) {
     console.error('Error al buscar alumnos:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    res.status(500).json({ success: false, message: 'Error al buscar alumnos' });
   }
 });
 
 // AGREGAR NUEVO ALUMNO
 router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
-  const { id_alumno, nombre, apaterno, amaterno, correo, password, id_grado_grupo, id_personal, talleres } = req.body;
+  const { id_alumno, nombre, apaterno, amaterno, correo, password, id_grado_grupo, id_personal, talleres, nivel_ingles, arte_especialidad} = req.body;
 
   const connection = await db.getConnection();
   try {
@@ -892,12 +969,147 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
       `, [id_alumno, s.id_servicio]);
     }
 
+    // INSERTAR NIVEL DE INGLÉS Y ESPECIALIDAD DE ARTE
+    if (nivel_ingles && nivel_ingles.id_nivel_ingles && nivel_ingles.id_personal && nivel_ingles.id_materia) {
+      await connection.query(`
+        INSERT INTO Alumno_Nivel_Ingles (id_alumno, id_personal, id_nivel_ingles, estado_evaluacion_nivel_ingles, id_materia)
+        VALUES (?, ?, ?, 0, ?)
+      `, [id_alumno, nivel_ingles.id_personal, nivel_ingles.id_nivel_ingles, nivel_ingles.id_materia]);
+    }
+
+    if (arte_especialidad && arte_especialidad.id_arte_especialidad && arte_especialidad.id_personal && arte_especialidad.id_materia) {
+      await connection.query(`
+        INSERT INTO Alumno_Arte_Especialidad (id_alumno, id_personal, id_arte_especialidad, estado_evaluacion_arte_especialidad, id_materia)
+        VALUES (?, ?, ?, 0, ?)
+      `, [id_alumno, arte_especialidad.id_personal, arte_especialidad.id_arte_especialidad, arte_especialidad.id_materia]);
+    }
+
     await connection.commit();
     res.json({ success: true });
   } catch (error) {
     await connection.rollback();
     console.error('Error al insertar nuevo alumno:', error);
     res.status(500).json({ success: false, message: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+//TRAER ARTES Y NIVELES DE INGLÉS PARA ASIGNAR AL ALUMNO
+router.get('/opciones-ingles-y-arte/:id_grado_grupo', authMiddleware, async (req, res) => {
+  const { id_grado_grupo } = req.params;
+  try {
+    const [niveles] = await db.query(`
+      SELECT DISTINCT 
+        ni.id_nivel_ingles, 
+        ni.nombre_nivel_ingles,
+        pni.id_personal,
+        COALESCE(gm.id_materia, (SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Inglés%' LIMIT 1)) AS id_materia
+      FROM Personal_Nivel_Ingles pni
+      INNER JOIN Nivel_Ingles ni ON ni.id_nivel_ingles = pni.id_nivel_ingles
+      LEFT JOIN Grupo_Materia gm ON gm.id_grado_grupo = pni.id_grado_grupo 
+        AND gm.id_personal = pni.id_personal
+      LEFT JOIN Materia m ON m.id_materia = gm.id_materia 
+        AND m.nombre_materia LIKE 'Inglés%'
+      WHERE pni.id_grado_grupo = ?;
+    `, [id_grado_grupo]);
+
+    const [artes] = await db.query(`
+      SELECT DISTINCT 
+        ae.id_arte_especialidad, 
+        ae.nombre_arte_especialidad,
+        pae.id_personal,
+        COALESCE(gm.id_materia, (SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Arte%' LIMIT 1)) AS id_materia
+      FROM Personal_Arte_Especialidad pae
+      INNER JOIN Arte_Especialidad ae ON ae.id_arte_especialidad = pae.id_arte_especialidad
+      LEFT JOIN Grupo_Materia gm ON gm.id_grado_grupo = pae.id_grado_grupo 
+        AND gm.id_personal = pae.id_personal
+      LEFT JOIN Materia m ON m.id_materia = gm.id_materia 
+        AND m.nombre_materia LIKE 'Arte%'
+      WHERE pae.id_grado_grupo = ?;
+    `, [id_grado_grupo]);
+
+    console.log(`Niveles para id_grado_grupo ${id_grado_grupo}:`, niveles);
+    console.log(`Artes para id_grado_grupo ${id_grado_grupo}:`, artes);
+
+    res.json({ success: true, niveles, artes });
+  } catch (err) {
+    console.error('Error al obtener opciones de inglés y arte:', err);
+    res.status(500).json({ success: false, message: 'Error obteniendo opciones' });
+  }
+});
+
+// ACTUALIZAR NIVEL DE INGLÉS DEL ALUMNO
+router.post('/actualizar-nivel-ingles-alumno', authMiddleware, async (req, res) => {
+  const { id_alumno, id_nivel_ingles, id_personal, id_materia } = req.body;
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Verificar si ya existe un registro para este alumno
+    const [existing] = await connection.query(`
+      SELECT 1 FROM Alumno_Nivel_Ingles WHERE id_alumno = ?
+    `, [id_alumno]);
+
+    if (existing.length > 0) {
+      // Actualizar registro existente
+      await connection.query(`
+        UPDATE Alumno_Nivel_Ingles 
+        SET id_nivel_ingles = ?, id_personal = ?, id_materia = ?, estado_evaluacion_nivel_ingles = 0
+        WHERE id_alumno = ?
+      `, [id_nivel_ingles, id_personal, id_materia, id_alumno]);
+    } else {
+      // Insertar nuevo registro
+      await connection.query(`
+        INSERT INTO Alumno_Nivel_Ingles (id_alumno, id_personal, id_nivel_ingles, estado_evaluacion_nivel_ingles, id_materia)
+        VALUES (?, ?, ?, 0, ?)
+      `, [id_alumno, id_personal, id_nivel_ingles, id_materia]);
+    }
+
+    await connection.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error al actualizar nivel de inglés:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar nivel de inglés' });
+  } finally {
+    connection.release();
+  }
+});
+
+// ACTUALIZAR ESPECIALIDAD DE ARTE DEL ALUMNO
+router.post('/actualizar-arte-especialidad-alumno', authMiddleware, async (req, res) => {
+  const { id_alumno, id_arte_especialidad, id_personal, id_materia } = req.body;
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Verificar si ya existe un registro para este alumno
+    const [existing] = await connection.query(`
+      SELECT 1 FROM Alumno_Arte_Especialidad WHERE id_alumno = ?
+    `, [id_alumno]);
+
+    if (existing.length > 0) {
+      // Actualizar registro existente
+      await connection.query(`
+        UPDATE Alumno_Arte_Especialidad 
+        SET id_arte_especialidad = ?, id_personal = ?, id_materia = ?, estado_evaluacion_arte_especialidad = 0
+        WHERE id_alumno = ?
+      `, [id_arte_especialidad, id_personal, id_materia, id_alumno]);
+    } else {
+      // Insertar nuevo registro
+      await connection.query(`
+        INSERT INTO Alumno_Arte_Especialidad (id_alumno, id_personal, id_arte_especialidad, estado_evaluacion_arte_especialidad, id_materia)
+        VALUES (?, ?, ?, 0, ?)
+      `, [id_alumno, id_personal, id_arte_especialidad, id_materia]);
+    }
+
+    await connection.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error al actualizar arte/especialidad:', error);
+    res.status(500).json({ success: false, message: 'Error al actualizar arte/especialidad' });
   } finally {
     connection.release();
   }
@@ -997,15 +1209,36 @@ router.post('/asignar-grupo-a-varios', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Datos incompletos' });
   }
 
+  const connection = await db.getConnection();
   try {
-    // Usa Promise.all para ejecutar las actualizaciones en paralelo
-    await Promise.all(alumnos.map(id => 
-      db.query('UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?', [id_grado_grupo, id])
-    ));
+    await connection.beginTransaction();
+
+    for (const id_alumno of alumnos) {
+      await connection.query('UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?', [id_grado_grupo, id_alumno]);
+      await connection.query('DELETE FROM Alumno_Materia WHERE id_alumno = ?', [id_alumno]);
+
+      const [materiasGrupo] = await connection.query(
+        'SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?',
+        [id_grado_grupo]
+      );
+
+      for (const m of materiasGrupo) {
+        await connection.query(
+          `INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia)
+           VALUES (?, ?, ?, 0)`,
+          [id_alumno, m.id_materia, m.id_personal]
+        );
+      }
+    }
+
+    await connection.commit();
     res.json({ success: true });
   } catch (error) {
+    await connection.rollback();
     console.error(error);
     res.status(500).json({ success: false, message: 'Error al asignar alumnos' });
+  } finally {
+    connection.release();
   }
 });
 

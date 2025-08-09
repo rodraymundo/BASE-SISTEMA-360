@@ -81,8 +81,10 @@ async function buscarAlumnos(termino) {
         <div>
           <h6 class="mb-1">${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}</h6>
           <small><strong>Counselor:</strong> ${alumno.nombre_counselor ? alumno.nombre_counselor + ' ' + alumno.apaterno_counselor : '-'}</small><br>
-          <small><strong>Talleres:</strong> ${alumno.talleres || '-'}</small><br>
-          <small><strong>Grupo:</strong> ${alumno.grado} ${alumno.grupo}</small>
+          <small><strong>Taller extraescolar:</strong> ${alumno.talleres || '-'}</small><br>
+          <small><strong>Grupo:</strong> ${alumno.grado} ${alumno.grupo}</small><br>
+          <small><strong>Nivel de Inglés:</strong> ${alumno.nombre_nivel_ingles || '-'}</small><br>
+          <small><strong>Arte/Especialidad:</strong> ${alumno.nombre_arte_especialidad || '-'}</small>
         </div>
         <button class="btn btn-sm btn-outline-danger btn-editar-alumno">
           <i class="fas fa-pen me-1"></i>Editar
@@ -168,7 +170,9 @@ async function cargarAlumnosPorGrupo(id_grado_grupo, nombreGrupo) {
           <h6 class="mb-1">${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}</h6>
           <small><strong>Counselor:</strong> ${alumno.nombre_counselor ? alumno.nombre_counselor + ' ' + alumno.apaterno_counselor : '-'}</small><br>
           <small><strong>Correo:</strong> ${alumno.correo_alumno || '-'}</small><br>
-          <small><strong>Talleres:</strong> ${alumno.talleres || '-'}</small>
+          <small><strong>Taller Extraescolar:</strong> ${alumno.talleres || '-'}</small><br>
+          <small><strong>Nivel de Inglés:</strong> ${alumno.nombre_nivel_ingles || '-'}</small><br>
+          <small><strong>Arte/Especialidad:</strong> ${alumno.nombre_arte_especialidad || '-'}</small>
         </div>
         <button class="btn btn-sm btn-outline-danger btn-editar-alumno">
           <i class="fas fa-pen me-1"></i>Editar
@@ -336,6 +340,29 @@ document.getElementById('btn-imprimir').addEventListener('click', () => {
   });
 });
 
+async function cargarOpcionesInglesYArte(id_grado_grupo) {
+  try {
+    const res = await fetch(`/opciones-ingles-y-arte/${id_grado_grupo}`, { credentials: 'include' });
+    const data = await res.json();
+    if (!data.success) throw new Error('No se pudieron cargar las opciones de inglés y arte');
+
+    const selectIngles = document.getElementById('swal-nivel-ingles');
+    const selectArte = document.getElementById('swal-arte-especialidad');
+
+    // Limpiar y llenar select de inglés
+    selectIngles.innerHTML = data.niveles.length
+      ? data.niveles.map(n => `<option value="${n.id_nivel_ingles}" data-personal="${n.id_personal}" data-materia="${n.id_materia}">${n.nombre_nivel_ingles}</option>`).join('')
+      : '<option value="">(Sin niveles de inglés)</option>';
+
+    // Limpiar y llenar select de arte
+    selectArte.innerHTML = data.artes.length
+      ? data.artes.map(a => `<option value="${a.id_arte_especialidad}" data-personal="${a.id_personal}" data-materia="${a.id_materia}">${a.nombre_arte_especialidad}</option>`).join('')
+      : '<option value="">(Sin artes)</option>';
+  } catch (error) {
+    console.error('Error al cargar opciones de inglés y arte:', error);
+    Swal.fire('Error', 'No se pudieron cargar las opciones de inglés y arte.', 'error');
+  }
+}
 
 async function editarAlumno(id_alumno) {
   try {
@@ -369,13 +396,17 @@ async function editarAlumno(id_alumno) {
     if (!dataGruposMismoGrado.success) throw new Error('No se pudo obtener los grupos del mismo grado');
     const gruposMismoGrado = dataGruposMismoGrado.grupos;
 
+    // Obtener opciones de inglés y arte para el grupo actual del alumno
+    const resOpcionesIA = await fetch(`/opciones-ingles-y-arte/${alumno.id_grado_grupo}`, { credentials: 'include' });
+    const dataOpcionesIA = await resOpcionesIA.json();
+    if (!dataOpcionesIA.success) throw new Error('No se pudo obtener opciones de inglés y arte');
+
     // Crear opciones de grupo (solo del mismo grado)
     const opcionesGrupo = gruposMismoGrado.map(g => `
-      <option value="${g.id_grado_grupo}" ${g.grupo === alumno.grupo ? 'selected' : ''}>
+      <option value="${g.id_grado_grupo}" ${g.id_grado_grupo === alumno.id_grado_grupo ? 'selected' : ''}>
         ${g.grado} ${g.grupo}
       </option>
     `).join('');
-
 
     // Crear opciones para talleres (multi-select)
     const opcionesTalleres = talleresDisponibles.map(t => `
@@ -391,37 +422,75 @@ async function editarAlumno(id_alumno) {
       </option>
     `).join('');
 
+    // Crear opciones para nivel de inglés y arte
+    const opcionesIngles = dataOpcionesIA.niveles.length
+      ? dataOpcionesIA.niveles.map(n => `
+          <option value="${n.id_nivel_ingles}" 
+                  data-personal="${n.id_personal}" 
+                  data-materia="${n.id_materia}"
+                  ${n.id_nivel_ingles === alumno.id_nivel_ingles ? 'selected' : ''}>
+            ${n.nombre_nivel_ingles}
+          </option>`).join('')
+      : '<option value="">(Sin niveles de inglés)</option>';
+
+    const opcionesArte = dataOpcionesIA.artes.length
+      ? dataOpcionesIA.artes.map(a => `
+          <option value="${a.id_arte_especialidad}" 
+                  data-personal="${a.id_personal}" 
+                  data-materia="${a.id_materia}"
+                  ${a.id_arte_especialidad === alumno.id_arte_especialidad ? 'selected' : ''}>
+            ${a.nombre_arte_especialidad}
+          </option>`).join('')
+      : '<option value="">(Sin artes)</option>';
+
     const { value: formValues } = await Swal.fire({
-      title: ` ${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}`,
+      title: `${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}`,
       html: `
-  <div class="text-start">
-    <div class="mb-3">
-      <label for="swal-counselor" class="form-label fw-bold">Counselor</label>
-      <select id="swal-counselor" class="form-select">
-        ${opcionesCounselors}
-      </select>
-    </div>
-
-    <div class="mb-2">
-      <label for="swal-talleres" class="form-label fw-bold">Talleres</label>
-      <select id="swal-talleres" class="form-select" multiple size="6">
-        ${opcionesTalleres}
-      </select>
-      <div class="form-text">Usa Ctrl o Cmd para seleccionar varios.</div>
-    </div>
-    <div class="mb-3">
-      <label for="swal-grupo" class="form-label fw-bold">Grupo</label>
-      <select id="swal-grupo" class="form-select">
-        ${opcionesGrupo}
-      </select>
-    </div>
-    <button id="btn-baja-alumno" class="btn btn-danger w-100 mt-3">Dar de baja alumno</button>
-  </div>
-`,
-
+        <div class="text-start">
+          <div class="mb-3">
+            <label for="swal-counselor" class="form-label fw-bold">Counselor</label>
+            <select id="swal-counselor" class="form-select">
+              ${opcionesCounselors}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="swal-talleres" class="form-label fw-bold">Talleres</label>
+            <select id="swal-talleres" class="form-select" multiple size="6">
+              ${opcionesTalleres}
+            </select>
+            <div class="form-text">Usa Ctrl o Cmd para seleccionar varios.</div>
+          </div>
+          <div class="mb-3">
+            <label for="swal-grupo" class="form-label fw-bold">Grupo</label>
+            <select id="swal-grupo" class="form-select">
+              ${opcionesGrupo}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="swal-nivel-ingles" class="form-label fw-bold">Nivel de Inglés</label>
+            <select id="swal-nivel-ingles" class="form-select">
+              ${opcionesIngles}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="swal-arte-especialidad" class="form-label fw-bold">Arte/Especialidad</label>
+            <select id="swal-arte-especialidad" class="form-select">
+              ${opcionesArte}
+            </select>
+          </div>
+          <button id="btn-baja-alumno" class="btn btn-danger w-100 mt-3">Dar de baja alumno</button>
+        </div>
+      `,
       focusConfirm: false,
       showCancelButton: true,
       didOpen: () => {
+        // Evento para actualizar inglés y arte al cambiar el grupo
+        document.getElementById('swal-grupo').addEventListener('change', async () => {
+          const id_grado_grupo = document.getElementById('swal-grupo').value;
+          await cargarOpcionesInglesYArte(id_grado_grupo);
+        });
+
+        // Evento para el botón de baja
         document.getElementById('btn-baja-alumno')?.addEventListener('click', async () => {
           const confirm = await Swal.fire({
             title: '¿Estás seguro?',
@@ -466,47 +535,58 @@ async function editarAlumno(id_alumno) {
         const counselorId = document.getElementById('swal-counselor').value;
         const grupoId = document.getElementById('swal-grupo').value;
         const talleresSelected = Array.from(document.getElementById('swal-talleres').selectedOptions).map(opt => opt.value);
+        const nivelInglesOption = document.getElementById('swal-nivel-ingles').selectedOptions[0];
+        const arteOption = document.getElementById('swal-arte-especialidad').selectedOptions[0];
+
         return {
           id_alumno,
           id_personal: counselorId || null,
           id_grado_grupo: grupoId || null,
-          talleres: talleresSelected
+          talleres: talleresSelected,
+          nivel_ingles: nivelInglesOption && nivelInglesOption.value ? {
+            id_nivel_ingles: nivelInglesOption.value,
+            id_personal: nivelInglesOption.dataset.personal,
+            id_materia: nivelInglesOption.dataset.materia
+          } : null,
+          arte_especialidad: arteOption && arteOption.value ? {
+            id_arte_especialidad: arteOption.value,
+            id_personal: arteOption.dataset.personal,
+            id_materia: arteOption.dataset.materia
+          } : null
         };
-        
       }
     });
 
     if (formValues) {
-      // Enviar actualización counselor
-      const token = await obtenerCsrfToken(); // 👈 ahora sí definimos el token
+      const token = await obtenerCsrfToken();
+      // Actualizar counselor
       await fetch('/actualizar-counselor-alumno', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'CSRF-Token': token // 👈 nombre correcto del header
-         },
+          'CSRF-Token': token
+        },
         credentials: 'include',
         body: JSON.stringify({ id_alumno: formValues.id_alumno, id_personal: formValues.id_personal })
       });
 
-      // Preparar array para actualizar talleres (con estado 0 por default)
+      // Actualizar talleres
       const talleresParaActualizar = formValues.talleres.map(id_taller => ({
         id_taller: parseInt(id_taller),
         estado_evaluacion_taller: 0
       }));
 
-      // Enviar actualización talleres
-      
       await fetch('/actualizar-talleres-alumno', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'CSRF-Token': token // 👈 nombre correcto del header
+          'CSRF-Token': token
         },
         credentials: 'include',
         body: JSON.stringify({ id_alumno: formValues.id_alumno, talleres: talleresParaActualizar })
       });
 
+      // Actualizar grupo
       await fetch('/actualizar-grupo-alumno', {
         method: 'POST',
         headers: {
@@ -517,7 +597,41 @@ async function editarAlumno(id_alumno) {
         body: JSON.stringify({ id_alumno: formValues.id_alumno, id_grado_grupo: formValues.id_grado_grupo })
       });
 
+      // Actualizar nivel de inglés
+      if (formValues.nivel_ingles) {
+        await fetch('/actualizar-nivel-ingles-alumno', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'CSRF-Token': token
+          },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            id_alumno: formValues.id_alumno, 
+            id_nivel_ingles: formValues.nivel_ingles.id_nivel_ingles,
+            id_personal: formValues.nivel_ingles.id_personal,
+            id_materia: formValues.nivel_ingles.id_materia
+          })
+        });
+      }
 
+      // Actualizar arte/especialidad
+      if (formValues.arte_especialidad) {
+        await fetch('/actualizar-arte-especialidad-alumno', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'CSRF-Token': token
+          },
+          credentials: 'include',
+          body: JSON.stringify({ 
+            id_alumno: formValues.id_alumno, 
+            id_arte_especialidad: formValues.arte_especialidad.id_arte_especialidad,
+            id_personal: formValues.arte_especialidad.id_personal,
+            id_materia: formValues.arte_especialidad.id_materia
+          })
+        });
+      }
 
       Swal.fire('Actualizado', 'Se actualizó la información del alumno.', 'success');
 
@@ -544,10 +658,24 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
     if (!talleres.success || !counselors.success || !grupos.success)
       throw new Error('Error al cargar datos para nuevo alumno');
 
+    const id_grado_grupo_predeterminado = grupos.grupos[0]?.id_grado_grupo;
+
+    const resOpcionesIA = await fetch(`/opciones-ingles-y-arte/${id_grado_grupo_predeterminado}`, { credentials: 'include' });
+    const opcionesIA = await resOpcionesIA.json();
+
+    if (!opcionesIA.success)
+      throw new Error('Error al cargar niveles de inglés y especialidades de arte');
+
     // Armar selects
     const opcionesTalleres = talleres.talleres.map(t => `<option value="${t.id_taller}">${t.nombre_taller}</option>`).join('');
     const opcionesCounselors = counselors.counselors.map(c => `<option value="${c.id_personal}">${c.nombre_personal} ${c.apaterno_personal}</option>`).join('');
     const opcionesGrupos = grupos.grupos.map(g => `<option value="${g.id_grado_grupo}">${g.grado} ${g.grupo}</option>`).join('');
+    const opcionesIngles = opcionesIA.niveles.length
+      ? opcionesIA.niveles.map(n => `<option value="${n.id_nivel_ingles}" data-personal="${n.id_personal}" data-materia="${n.id_materia}">${n.nombre_nivel_ingles}</option>`).join('')
+      : '<option value="">(Sin niveles de inglés)</option>';
+    const opcionesArte = opcionesIA.artes.length
+      ? opcionesIA.artes.map(a => `<option value="${a.id_arte_especialidad}" data-personal="${a.id_personal}" data-materia="${a.id_materia}">${a.nombre_arte_especialidad}</option>`).join('')
+      : '<option value="">(Sin artes)</option>';
 
     const { value: form } = await Swal.fire({
       title: 'Agregar nuevo alumno',
@@ -559,6 +687,8 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         <input id="swal-correo" type="email" class="form-control mb-2" placeholder="Correo electrónico">
         <input id="swal-password" type="password" class="form-control mb-2" placeholder="Contraseña">
         <select id="swal-grupo" class="form-select mb-2">${opcionesGrupos}</select>
+        <select id="swal-nivel-ingles" class="form-select mb-2">${opcionesIngles}</select>
+        <select id="swal-arte-especialidad" class="form-select mb-2">${opcionesArte}</select>
         <select id="swal-counselor" class="form-select mb-2">${opcionesCounselors}</select>
         <select id="swal-talleres" class="form-select mb-2" multiple size="5">${opcionesTalleres}</select>
         <div class="form-text">Ctrl/Cmd para seleccionar múltiples talleres</div>
@@ -566,6 +696,13 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
       showCancelButton: true,
       confirmButtonText: 'Agregar',
       focusConfirm: false,
+      didOpen: () => {
+        // Evento para actualizar inglés y arte al cambiar el grupo
+        document.getElementById('swal-grupo').addEventListener('change', async () => {
+          const id_grado_grupo = document.getElementById('swal-grupo').value;
+          await cargarOpcionesInglesYArte(id_grado_grupo);
+        });
+      },
       preConfirm: () => {
         const id_alumno = document.getElementById('swal-id-alumno').value.trim();
         const nombre = document.getElementById('swal-nombre').value.trim();
@@ -574,13 +711,35 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         const correo = document.getElementById('swal-correo').value.trim();
         const password = document.getElementById('swal-password').value.trim();
         const id_grado_grupo = document.getElementById('swal-grupo').value;
+        const nivelInglesOption = document.getElementById('swal-nivel-ingles').selectedOptions[0];
+        const arteOption = document.getElementById('swal-arte-especialidad').selectedOptions[0];
         const id_personal = document.getElementById('swal-counselor').value;
         const talleres = Array.from(document.getElementById('swal-talleres').selectedOptions).map(opt => opt.value);
 
         if (!id_alumno || !nombre || !apaterno || !id_grado_grupo || !id_personal || !correo || !password)
           return Swal.showValidationMessage('Todos los campos son obligatorios');
 
-        return { id_alumno, nombre, apaterno, amaterno, correo, password, id_grado_grupo, id_personal, talleres };
+        return {
+          id_alumno,
+          nombre,
+          apaterno,
+          amaterno,
+          correo,
+          password,
+          id_grado_grupo,
+          id_personal,
+          talleres,
+          nivel_ingles: nivelInglesOption && nivelInglesOption.value ? {
+            id_nivel_ingles: nivelInglesOption.value,
+            id_personal: nivelInglesOption.dataset.personal,
+            id_materia: nivelInglesOption.dataset.materia
+          } : null,
+          arte_especialidad: arteOption && arteOption.value ? {
+            id_arte_especialidad: arteOption.value,
+            id_personal: arteOption.dataset.personal,
+            id_materia: arteOption.dataset.materia
+          } : null
+        };
       }
     });
 
