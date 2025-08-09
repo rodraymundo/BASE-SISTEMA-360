@@ -1357,31 +1357,42 @@ router.get('/getPreguntasServicio/:id_servicio', authMiddleware, async (req, res
 router.post('/postRespuestasServicio', authMiddleware, async (req, res) => {
   const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
   const {id_servicio,respuestas,comentarios} = req.body;
-  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
-    id_alumno,
-    id_servicio,
-    respuesta.id_pregunta,
-    respuesta.id_respuesta
-  ]);
-  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
-    id_alumno,
-    id_servicio,
-    comentario.tipo_comentario,
-    comentario.comentario_servicio
-  ]);
-  const query = "INSERT INTO Respuesta_Alumno_Servicio (id_alumno, id_servicio, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
-  const query2 = "INSERT INTO Comentario_Servicio (id_alumno, id_servicio, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
-  const query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
-  try { 
-    await db.query(query,[valoresRespuestas]);
-    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
-      await db.query(query2,[valoresComentarios]);
+  if (respuestas != null) {
+    const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_servicio,
+      respuesta.id_pregunta,
+      respuesta.id_respuesta
+    ]);
+    const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+      id_alumno,
+      id_servicio,
+      comentario.tipo_comentario,
+      comentario.comentario_servicio
+    ]);
+    const query = "INSERT INTO Respuesta_Alumno_Servicio (id_alumno, id_servicio, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+    const query2 = "INSERT INTO Comentario_Servicio (id_alumno, id_servicio, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+    const query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+    try { 
+      await db.query(query,[valoresRespuestas]);
+      if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+        await db.query(query2,[valoresComentarios]);
+      }
+      await db.query(query3,[id_alumno,id_servicio]);
+      res.json({ success: true , message:'Servicio evaluado correctamente'});
+    } catch (error) {
+      console.error('Error al hacer la insercion:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
     }
-    await db.query(query3,[id_alumno,id_servicio]);
-    res.json({ success: true , message:'Servicio evaluado correctamente'});
-  } catch (error) {
-    console.error('Error al hacer la insercion:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }else{
+    const query = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=2 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+      try { 
+        await db.query(query,[id_alumno,id_servicio]);
+        res.json({ success: true , message:'Servicio no utilizado'});
+      } catch (error) {
+        console.error('Error al hacer la insercion:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+      }
   }
 });
 
