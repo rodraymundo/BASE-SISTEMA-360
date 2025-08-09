@@ -32,9 +32,6 @@ async function cargarTalleres() {
         if (!data.success) throw new Error(data.message || 'No se pudieron cargar los talleres');
         
         const talleres = data.talleres;
-        document.getElementById('contador-talleres').textContent = `${talleres.length} taller(es)`;
-        document.getElementById('contador-talleres').classList.remove('d-none');
-        
         populateTable(talleres);
     } catch (error) {
         console.error('Error al cargar talleres:', error);
@@ -44,7 +41,7 @@ async function cargarTalleres() {
 
 function populateTable(talleres) {
     const tbody = document.getElementById('talleresTableBody');
-    tbody.innerHTML = '';
+    tbody.innerHTML = ''; // Limpiar la tabla antes de volver a poblarla
     talleres.forEach(taller => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -75,24 +72,28 @@ async function showTallerDetails(id_taller) {
             <p><strong>Profesor:</strong> <span id="tallerProfesor">${taller.profesor || '-'}</span></p>
             <p><strong>Número de Alumnos:</strong> <span id="tallerNumAlumnos">${taller.num_alumnos || 0}</span></p>
             <div class="d-flex justify-content-around mt-4">
-                <button id="viewStudentsBtn" class="btn btn-secondary">Ver Alumnos <i class="fas fa-users"></i></button>
-                <button id="editTallerBtn" class="btn btn-secondary"><i class="fas fa-pen"></i> Editar</button>
-                <button id="printListBtn" class="btn btn-secondary">Imprimir Lista <i class="fas fa-print"></i></button>
-                <button id="deleteTallerBtn" class="btn btn-secondary">Eliminar <i class="fas fa-trash"></i></button>
+                <button id="viewStudentsBtn" class="btn btn-outline-secondary btn-sm rounded-3"><i class="fas fa-users me-1"></i>Ver Alumnos</button>
+                <button id="editTallerBtn" class="btn btn-outline-secondary btn-sm rounded-3"><i class="fas fa-pen me-1"></i>Editar</button>
+                <button id="deleteTallerBtn" class="btn btn-outline-danger btn-sm rounded-3"><i class="fas fa-trash me-1"></i>Eliminar</button>
             </div>
         `;
         setupModalButtons(id_taller);
-        new bootstrap.Modal(document.getElementById('tallerDetailsModal')).show();
+        const modal = new bootstrap.Modal(document.getElementById('tallerDetailsModal'));
+        modal.show();
     } catch (error) {
         console.error('Error al mostrar detalles:', error);
-        alert('Error al cargar los detalles del taller.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al cargar los detalles del taller.',
+            confirmButtonText: 'Aceptar'
+        });
     }
 }
 
 function setupModalButtons(id_taller) {
     document.getElementById('viewStudentsBtn').addEventListener('click', () => viewStudents(id_taller));
     document.getElementById('editTallerBtn').addEventListener('click', () => editTaller(id_taller));
-    document.getElementById('printListBtn').addEventListener('click', () => printStudentList(id_taller));
     document.getElementById('deleteTallerBtn').addEventListener('click', () => deleteTaller(id_taller));
 }
 
@@ -108,79 +109,25 @@ async function viewStudents(id_taller) {
             <ul>
                 ${data.alumnos.length > 0 ? data.alumnos.map(a => `<li>${a.nombre_completo || '-'} (${a.grado}${a.grupo || ''})</li>`).join('') : '<li>No hay alumnos inscritos.</li>'}
             </ul>
-            <button class="btn btn-secondary mt-3" onclick="showTallerDetails(${id_taller})">Volver</button>
+            <button id="backToDetailsBtn" class="btn btn-secondary mt-3">Volver</button>
         `;
+
+        const backButton = document.getElementById('backToDetailsBtn');
+        backButton.addEventListener('click', () => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('tallerDetailsModal'));
+            if (modal) {
+                modal.hide();
+                setTimeout(() => showTallerDetails(id_taller), 100);
+            }
+        }, { once: true });
     } catch (error) {
         console.error('Error al cargar alumnos:', error);
-        alert('Error al cargar la lista de alumnos.');
-    }
-}
-
-async function printStudentList(id_taller) {
-    try {
-        const res = await fetch(`/talleres-personal-alumnos/${id_taller}/alumnos`, { credentials: 'include' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'No se pudieron cargar los alumnos');
-
-        const alumnos = data.alumnos;
-        const tallerNombre = data.taller_nombre || 'Sin nombre';
-        const fecha = new Date().toLocaleDateString('es-MX');
-
-        const tablaFilas = alumnos.map((alumno, i) => `
-            <tr>
-                <td>${i + 1}</td>
-                <td class="nombre-col">${alumno.nombre_completo || '-'}</td>
-                <td class="counselor-col">${alumno.grado}${alumno.grupo || ''}</td>
-            </tr>
-        `).join('');
-
-        const html = `
-            <style>
-                table { width: 100%; border-collapse: collapse; font-size: 10px; font-family: Roboto, sans-serif; }
-                th, td { border: 1px solid black; padding: 2px; text-align: center; }
-                thead th { background-color: #eee; }
-                .nombre-col { width: 270px; max-width: 270px; }
-                .counselor-col { width: 160px; max-width: 160px; }
-            </style>
-            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
-                <img src="/assets/img/logo_balmoral.png" alt="Logo" style="height: 60px;">
-                <div style="text-align: center; flex-grow: 1;">
-                    <div style="font-size: 18px; font-family: Georgia, serif; font-weight: bold;">PREPARATORIA BALMORAL ESCOCÉS</div>
-                    <div style="font-size: 12px; font-family: Georgia, serif; font-style: italic;">"Inspiro a creer que es posible lo que pareciera imposible"</div>
-                </div>
-                <div style="font-size: 12px; font-family: Arial, serif; display: flex; flex-direction: column; align-items: flex-end;">
-                    <span><strong>Taller:</strong> ${tallerNombre}</span>
-                    <span><strong>Fecha:</strong> ${fecha}</span>
-                </div>
-            </div>
-            <table border="1" cellspacing="0" cellpadding="3">
-                <thead>
-                    <tr>
-                        <th>No.</th>
-                        <th>Nombre</th>
-                        <th>Grupo</th>
-                    </tr>
-                </thead>
-                <tbody>${tablaFilas}</tbody>
-            </table>
-        `;
-
-        const contenedor = document.getElementById('reporte-talleres');
-        contenedor.innerHTML = html;
-        contenedor.style.display = 'block';
-
-        html2pdf().set({
-            margin: 5,
-            filename: `Lista_Taller_${tallerNombre.replace(/\s+/g, '_')}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(contenedor).save().then(() => {
-            contenedor.style.display = 'none';
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al cargar la lista de alumnos.',
+            confirmButtonText: 'Aceptar'
         });
-    } catch (error) {
-        console.error('Error al generar PDF:', error);
-        alert('Error al generar la lista en PDF.');
     }
 }
 
@@ -203,7 +150,12 @@ async function editTaller(id_taller) {
         modal.show();
     } catch (error) {
         console.error('Error al editar taller:', error);
-        alert('Error al cargar datos para edición.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al cargar datos para edición.',
+            confirmButtonText: 'Aceptar'
+        });
     }
 }
 
@@ -213,12 +165,18 @@ async function handleEditTaller(id_taller, e) {
     const idProfesor = document.getElementById('profesorSelect').value;
 
     if (!nombreTaller || !idProfesor) {
-        alert('Complete todos los campos.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos incompletos',
+            text: 'Complete todos los campos.',
+            confirmButtonText: 'Aceptar'
+        });
         return;
     }
 
     try {
         const token = await obtenerCsrfToken();
+        console.log('Datos enviados a /talleres-personal-alumnos/:id_taller:', { id_taller, nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) });
         const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
@@ -226,34 +184,68 @@ async function handleEditTaller(id_taller, e) {
             body: JSON.stringify({ nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) })
         });
 
-        if (!res.ok) throw new Error(await res.text());
-        await cargarTalleres();
+        const data = await res.json();
+        console.log('Respuesta del servidor:', data);
+        if (!res.ok) throw new Error(data.message || 'Error al actualizar el taller');
+
+        await cargarTalleres(); // Recargar la lista de talleres
         bootstrap.Modal.getInstance(document.getElementById('addTallerModal')).hide();
-        alert('Taller actualizado exitosamente.');
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: `¡El taller "${nombreTaller}" ha sido actualizado con éxito!`,
+            confirmButtonText: 'Aceptar'
+        });
     } catch (error) {
         console.error('Error al actualizar:', error);
-        alert('Error al actualizar el taller.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al actualizar el taller.',
+            confirmButtonText: 'Aceptar'
+        });
     }
 }
 
 async function deleteTaller(id_taller) {
-    if (!confirm('¿Estás seguro de eliminar este taller?')) return;
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: '¡Esta acción eliminará el taller permanentemente!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
 
-    try {
-        const token = await obtenerCsrfToken();
-        const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, {
-            method: 'DELETE',
-            headers: { 'CSRF-Token': token },
-            credentials: 'include'
-        });
+    if (result.isConfirmed) {
+        try {
+            const token = await obtenerCsrfToken();
+            const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, {
+                method: 'DELETE',
+                headers: { 'CSRF-Token': token },
+                credentials: 'include'
+            });
 
-        if (!res.ok) throw new Error(await res.text());
-        await cargarTalleres();
-        bootstrap.Modal.getInstance(document.getElementById('tallerDetailsModal')).hide();
-        alert('Taller eliminado exitosamente.');
-    } catch (error) {
-        console.error('Error al eliminar:', error);
-        alert('Error al eliminar el taller.');
+            if (!res.ok) throw new Error(await res.text());
+            await cargarTalleres(); // Recargar la lista de talleres
+            bootstrap.Modal.getInstance(document.getElementById('tallerDetailsModal')).hide();
+            Swal.fire({
+                icon: 'success',
+                title: 'Éxito',
+                text: '¡El taller ha sido eliminado con éxito!',
+                confirmButtonText: 'Aceptar'
+            });
+        } catch (error) {
+            console.error('Error al eliminar:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al eliminar el taller.',
+                confirmButtonText: 'Aceptar'
+            });
+        }
     }
 }
 
@@ -263,12 +255,21 @@ async function handleSaveTaller(e) {
     const idProfesor = document.getElementById('profesorSelect').value;
 
     if (!nombreTaller || !idProfesor) {
-        alert('Complete todos los campos.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos incompletos',
+            text: 'Complete todos los campos.',
+            confirmButtonText: 'Aceptar'
+        });
         return;
     }
 
+    const modal = document.getElementById('addTallerModal');
+    modal.dataset.idTaller = ''; // Limpiar cualquier id_taller residual
+
     try {
         const token = await obtenerCsrfToken();
+        console.log('Datos enviados a /talleres-personal-alumnos:', { nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) });
         const res = await fetch('/talleres-personal-alumnos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
@@ -276,13 +277,27 @@ async function handleSaveTaller(e) {
             body: JSON.stringify({ nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) })
         });
 
-        if (!res.ok) throw new Error(await res.text());
-        await cargarTalleres();
+        const data = await res.json();
+        console.log('Respuesta del servidor:', data);
+        if (!res.ok) throw new Error(data.message || 'Error al agregar el taller');
+
+        await cargarTalleres(); // Recargar la lista de talleres
+        document.getElementById('addTallerForm').reset();
         bootstrap.Modal.getInstance(document.getElementById('addTallerModal')).hide();
-        alert('Taller agregado exitosamente.');
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: `¡El taller "${nombreTaller}" ha sido creado con éxito!`,
+            confirmButtonText: 'Aceptar'
+        });
     } catch (error) {
         console.error('Error al guardar:', error);
-        alert('Error al agregar el taller.');
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al agregar el taller.',
+            confirmButtonText: 'Aceptar'
+        });
     }
 }
 
@@ -317,25 +332,13 @@ function setupEventListeners() {
         const modal = new bootstrap.Modal(document.getElementById('addTallerModal'));
         document.getElementById('addTallerModal').querySelector('.modal-title').textContent = 'Agregar Nuevo Taller';
         document.getElementById('addTallerForm').reset();
-        await populateProfesorSelect(); // Aseguramos que se llame aquí
+        await populateProfesorSelect();
         const form = document.getElementById('addTallerForm');
         form.removeEventListener('submit', handleEditTaller);
         form.addEventListener('submit', handleSaveTaller);
         modal.show();
     });
 
-    document.getElementById('searchInput').addEventListener('input', () => {
-        const termino = document.getElementById('searchInput').value.toLowerCase();
-        fetch(`/talleres-personal-alumnos/buscar?term=${encodeURIComponent(termino)}`, { credentials: 'include' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) populateTable(data.talleres);
-                else console.error('Error en búsqueda:', data.message);
-            })
-            .catch(error => console.error('Error en búsqueda:', error));
-    });
-
-    // Evento delegado para los botones "Ver"
     document.getElementById('talleresTableBody').addEventListener('click', (e) => {
         const button = e.target.closest('.view-details-btn');
         if (button) {

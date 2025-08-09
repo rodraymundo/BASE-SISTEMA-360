@@ -182,4 +182,89 @@ body {
   .gestion-personal .modal-body {
     padding: 1rem;
   }
+
+  .gestion-personal {
+  font-family: 'Roboto', sans-serif;
+}
+
+.gestion-personal .table {
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gestion-personal .table th,
+.gestion-personal .table td {
+  padding: 12px;
+  vertical-align: middle;
+}
+
+.gestion-personal .table th {
+  background-color: #f8f9fa;
+  font-weight: 700;
+  color: #333;
+}
+
+.gestion-personal .table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.gestion-personal .btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.gestion-personal .btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.gestion-personal .modal-header.bg-danger {
+  background-color: #dc3545;
+}
+
+.gestion-personal .modal-header.bg-warning {
+  background-color: #ffc107;
+}
+
+.gestion-personal .form-check {
+  margin-bottom: 10px;
+}
+
+.gestion-personal .form-check-input {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.gestion-personal .form-check-label {
+  font-size: 1.1rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.gestion-personal .form-check-input:checked {
+  background-color: #ffc107;
+  border-color: #ffc107;
+}
+
+.gestion-personal #rolesContainer,
+.gestion-personal #categoriasContainer {
+  padding: 15px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.gestion-personal #porcentajesContainer .form-control {
+  max-width: 100px;
+}
+
+.gestion-personal #totalPorcentaje {
+  font-weight: bold;
+}
 }

@@ -1,0 +1,256 @@
+/* Establece la altura completa para el HTML y el body, eliminando márgenes y padding */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Usa flexbox para organizar el contenido en columna */
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Estiliza el título h2 */
+.gestion-materias h2 {
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: #dc3545;
+  margin-bottom: 1.5rem;
+}
+
+/* Estiliza el contenedor principal */
+.gestion-materias .container {
+  flex: 1;
+  max-width: 1200px;
+  padding: 1rem 0;
+  overflow: hidden;
+}
+
+/* Estiliza el grupo de entrada (buscador y botones) */
+.gestion-materias .input-group {
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Estiliza el campo de búsqueda */
+.gestion-materias #buscadorMaterias {
+  margin-bottom: 0;
+  height: 2.2rem;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.5rem;
+  border-color: #dc3545;
+}
+
+/* Estiliza los botones de agregar materia y especialidad */
+.gestion-materias #addMateriaBtn, .gestion-materias #addArteEspecialidadBtn {
+  padding: 0.375rem 1rem;
+  font-size: 0.9rem;
+  height: 2.2rem;
+}
+
+/* Estiliza el contenedor de la tabla */
+.gestion-materias #listaMateriasContainer {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow-y: auto;
+  height: calc(80vh - 6rem);
+  min-height: 500px;
+  width: 100%;
+}
+
+/* Estiliza la tabla */
+.gestion-materias .table {
+  margin-bottom: 0;
+  font-size: 0.95rem;
+  width: 100%;
+  table-layout: fixed;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Estiliza los encabezados de la tabla */
+.gestion-materias .table th {
+  background-color: #dc3547;
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Define los anchos de las columnas */
+.gestion-materias .table th:nth-child(1) { width: 25%; } /* Nombre */
+.gestion-materias .table th:nth-child(2) { width: 15%; } /* Modelo */
+.gestion-materias .table th:nth-child(3) { width: 10%; } /* Grado */
+.gestion-materias .table th:nth-child(4) { width: 20%; } /* Academia */
+.gestion-materias .table th:nth-child(5) { width: 25%; } /* Profesores y Grupos */
+.gestion-materias .table th:nth-child(6) { width: 10%; min-width: 50px; } /* Acciones */
+
+/* Estiliza las celdas de datos */
+.gestion-materias .table td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-top: 1px solid #dee2e6;
+  word-wrap: break-word;
+}
+
+/* Evita truncamiento en la columna Profesores y Grupos */
+.gestion-materias .table td:nth-child(5) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Efecto hover en las filas */
+.gestion-materias .table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Evita desbordamiento horizontal */
+.gestion-materias .table-responsive {
+  overflow-x: hidden;
+}
+
+/* Estiliza los botones de acción */
+.gestion-materias .editBtn, .gestion-materias .deleteBtn {
+  font-size: 0.9rem;
+  padding: 0.1rem;
+  transition: transform 0.2s;
+  margin-right: 0.5rem;
+}
+
+/* Efecto hover en los botones */
+.gestion-materias .editBtn:hover, .gestion-materias .deleteBtn:hover {
+  transform: scale(1.2);
+}
+
+/* Estiliza el contenido de los modales */
+.gestion-materias .modal-content {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estiliza el encabezado de los modales */
+.gestion-materias .modal-header {
+  background-color: #dc3545;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
+}
+
+/* Estiliza el encabezado del modal de asignaciones y especialidad */
+.gestion-materias .modal-header.bg-warning {
+  background-color: #ffc107;
+}
+
+/* Estiliza el título del modal */
+.gestion-materias .modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Estiliza el cuerpo del modal */
+.gestion-materias .modal-body {
+  padding: 1.5rem;
+}
+
+/* Estiliza el pie del modal */
+.gestion-materias .modal-footer {
+  border-top: none;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+/* Estiliza las etiquetas de los formularios */
+.gestion-materias .form-label {
+  font-weight: 500;
+  color: #333;
+}
+
+/* Estiliza los campos de formulario */
+.gestion-materias .form-control,
+.gestion-materias .form-select {
+  height: 2.5rem;
+  font-size: 0.9rem;
+  border-color: #dee2e6;
+}
+
+/* Estiliza el contenedor de asignaciones */
+.gestion-materias #asignacionesContainer {
+  padding: 15px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+}
+
+/* Estiliza el botón de eliminar materia */
+.gestion-materias #deleteMateriaBtn {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Efecto hover para el botón de eliminar */
+.gestion-materias #deleteMateriaBtn:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Media query para pantallas pequeñas */
+@media (max-width: 768px) {
+  .gestion-materias .table {
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  .gestion-materias .table th,
+  .gestion-materias .table td {
+    padding: 0.5rem;
+  }
+
+  .gestion-materias #listaMateriasContainer {
+    height: 350px;
+    max-height: 350px;
+  }
+
+  .gestion-materias .input-group {
+    max-width: 100%;
+  }
+
+  .gestion-materias .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .gestion-materias .modal-body {
+    padding: 1rem;
+  }
+}
+
+/* Estiliza los botones btn-danger */
+.gestion-materias .btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Efecto hover para btn-danger */
+.gestion-materias .btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Estiliza los botones btn-warning */
+.gestion-materias .btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+}
+
+/* Efecto hover para btn-warning */
+.gestion-materias .btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
