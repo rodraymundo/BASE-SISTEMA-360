@@ -1344,6 +1344,24 @@ router.get('/getServicios', authMiddleware, async (req, res) => {
   }
 });
 
+// OBTENER TODOS LOS PSICOLOGOS
+router.get('/getPsicologos', authMiddleware, async (req, res) => {
+  const query = `SELECT pr.id_puesto FROM Puesto_rol pr WHERE pr.id_rol IN (SELECT r.id_rol FROM Rol r WHERE r.nombre_rol = "PEDAGÓGICO")`; // OBTENER PUESTOS QUE TIENE EL ROL DE PEDAGOGICO
+  const query2 = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Personal p WHERE p.id_puesto IN (?)" // OBTENER PERSONAL CON LOS PUESTOS TRAIDOS
+
+  try {
+    const [puestos] = await db.query(query);
+    const idPuestos = puestos.map(puesto =>
+      puesto.id_puesto
+    );
+    const [psicologos] = await db.query(query2, [idPuestos]);
+    res.json({ success: true, psicologos});
+  } catch (error) {
+    console.error('Error al obtener servicios:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
 // OBTENER PREGUNTAS DEL SERVICIO
 router.get('/getPreguntasServicio/:id_servicio', authMiddleware, async (req, res) => {
   const id_servicio = req.params.id_servicio;
@@ -1363,32 +1381,69 @@ router.get('/getPreguntasServicio/:id_servicio', authMiddleware, async (req, res
 // GUARDAR RESPUESTA A SERVICIO POR PARTE DE ALUMNOS 
 router.post('/postRespuestasServicio', authMiddleware, async (req, res) => {
   const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
-  const {id_servicio,respuestas,comentarios} = req.body;
-  const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
-    id_alumno,
-    id_servicio,
-    respuesta.id_pregunta,
-    respuesta.id_respuesta
-  ]);
-  const valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
-    id_alumno,
-    id_servicio,
-    comentario.tipo_comentario,
-    comentario.comentario_servicio
-  ]);
-  const query = "INSERT INTO Respuesta_Alumno_Servicio (id_alumno, id_servicio, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
-  const query2 = "INSERT INTO Comentario_Servicio (id_alumno, id_servicio, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
-  const query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
-  try { 
-    await db.query(query,[valoresRespuestas]);
-    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
-      await db.query(query2,[valoresComentarios]);
+  const {id_servicio,respuestas,comentarios, id_personal} = req.body;
+    let valoresRespuestas = [];
+  let valoresComentarios = [];
+  let query = '';
+  let query2 = '';
+  let query3 = '';
+
+  if (respuestas != null) {
+
+    if (id_personal == null) { // EN CASO DE QUE SEA SERVICIO DE PEDAGOGIA O EN UN FUTURO UN SERVCICIO QUE REQUIERA EVALUAR PERSONAL 
+      valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+        id_alumno,
+        id_servicio,
+        respuesta.id_pregunta,
+        respuesta.id_respuesta
+      ]);
+      valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+        id_alumno,
+        id_servicio,
+        comentario.tipo_comentario,
+        comentario.comentario_servicio
+      ]);
+      query = "INSERT INTO Respuesta_Alumno_Servicio (id_alumno, id_servicio, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+      query2 = "INSERT INTO Comentario_Servicio (id_alumno, id_servicio, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+      query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+    }else{
+      valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+        id_alumno,
+        id_personal,
+        respuesta.id_pregunta,
+        respuesta.id_respuesta
+      ]);
+      valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+        id_alumno,
+        id_personal,
+        comentario.tipo_comentario,
+        comentario.comentario_servicio
+      ]);
+      query = "INSERT INTO Respuesta_Alumno_Psicopedagogico (id_alumno, id_personal, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+      query2 = "INSERT INTO Comentario_Psicopedagogico (id_alumno, id_personal, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+      query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
     }
-    await db.query(query3,[id_alumno,id_servicio]);
-    res.json({ success: true , message:'Servicio evaluado correctamente'});
-  } catch (error) {
-    console.error('Error al hacer la insercion:', error);
-    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+
+    try { 
+      await db.query(query,[valoresRespuestas]);
+      if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+        await db.query(query2,[valoresComentarios]);
+      }
+      await db.query(query3,[id_alumno,id_servicio]);
+      res.json({ success: true , message:'Servicio evaluado correctamente'});
+    } catch (error) {
+      console.error('Error al hacer la insercion:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+    }
+  }else{
+    const query = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=2 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+      try { 
+        await db.query(query,[id_alumno,id_servicio]);
+        res.json({ success: true , message:'Servicio no utilizado'});
+      } catch (error) {
+        console.error('Error al hacer la insercion:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+      }
   }
 });
 

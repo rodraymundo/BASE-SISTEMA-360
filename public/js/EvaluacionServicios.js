@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelectorAll('.evaluar-btn').forEach(btn => {//LE AGREGA A TODOS LOS BOTONES EL EVENTO 
             btn.addEventListener('click', (e) => {//CUANDO SE PRESIONA EL BOTON
                 botonActivo = e.currentTarget;
-                cargarPreguntasModal(botonActivo.dataset.id_servicio);
+                cargarPreguntasModal(botonActivo.dataset.id_servicio, botonActivo.dataset.nombre_servicio);
             });
         });
         document.querySelectorAll('.noUtilizado-btn').forEach(btn  => {//LE AGREGA A TODOS LOS BOTONES EL EVENTO 
@@ -60,7 +60,7 @@ async function cargarServicios() {
             switch (servicio.estado_evaluacion_servicio) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
                 case 0:
                         estadoEvaluacion = `
-                            <button class="btn btn-success rounded-pill px-4 shadow evaluar-btn"  data-id_servicio="${servicio.id_servicio}">Evaluar</button>
+                            <button class="btn btn-success rounded-pill px-4 shadow evaluar-btn"  data-id_servicio="${servicio.id_servicio}" data-nombre_servicio="${servicio.nombre_servicio}">Evaluar</button>
                             <button class="btn btn-danger rounded-pill px-4 shadow noUtilizado-btn"  data-id_servicio="${servicio.id_servicio}">No lo utilice</button>
                         `;
                     break;
@@ -103,7 +103,7 @@ async function cargarServicios() {
 }
 
 
-async function cargarPreguntasModal(id_servicio) {
+async function cargarPreguntasModal(id_servicio, nombre_servicio) {
     try {
         const res = await fetch(`/getPreguntasServicio/${id_servicio}`, { credentials: 'include' }); //OBTENER LOS SERVICIOS DE LA API
         const data = await res.json();
@@ -165,6 +165,40 @@ async function cargarPreguntasModal(id_servicio) {
             } 
             modalEvaluacionBody.appendChild(paginaModalBody);// AGREGAR LA PAGINA A EL BODY 
         }
+
+        // OPCION DE SELECCIONAR PSICOLOGO EN CASO DE SER ESTE SERVICIO
+        if (nombre_servicio == 'PSICOPEDAGÓGICO') {
+            try {
+                const res2 = await fetch(`/getPsicologos`, { credentials: 'include' }); //OBTENER LOS SERVICIOS DE LA API
+                const data2 = await res2.json();
+                if (!data.success) throw new Error('No se pudieron obtener los psicologos');
+
+                const primeraPagina = document.getElementById(`pagina-${tituloModal}-1`) //OBTENER LA PRIMER PAGINA DE EL MODAL
+                const selectPsicologo = document.createElement('div'); // CREAR EL SELECT
+                    selectPsicologo.className = 'container text-center';
+                    selectPsicologo.innerHTML = `
+                        <div class="mb-4">
+                            <label for="psicologoSelect" class="form-label fw-bold">SELECCIONA UN PSICÓLOGO</label>
+                            <select class="form-select" id="psicologoSelect">
+                                <option value=0 selected disabled>Selecciona una opción</option>
+                            </select>
+                        </div>
+                    `;
+                primeraPagina.insertBefore(selectPsicologo, primeraPagina.firstChild); // AGREGAR EL ELEMENTO ASNTES DE EL PRIMER ELEMENTO QUE TIENE COMO CHILD LA PAGINA 
+                
+                const optionsPiscologos = document.getElementById('psicologoSelect'); // PARA PODER AGREGAR TODAS LAS OPCIONES DE PSICOLOGO
+                data2.psicologos.forEach(psicologo =>{
+                    const nombrePsicologo = `${psicologo.nombre_personal} ${psicologo.apaterno_personal} ${psicologo.amaterno_personal}`;
+                    const posiblePsicologo = document.createElement('option');
+                    posiblePsicologo.value = psicologo.id_personal;
+                    posiblePsicologo.innerText = nombrePsicologo;
+                    optionsPiscologos.appendChild(posiblePsicologo); // AGREGAR EL PSICOLOGO A LAS OPCIONES
+                });
+            } catch (error) {
+                console.error('Error en psicologos:', error);
+            }
+        }
+
 
         // COMENTARIOS 
         if (totalPreguntas % 3 == 0 || totalPreguntas % 3 == 2){ // ES 0 PORQUE ESO QUIERE DECIR QUE EL TOTAL DE PREGUNTAS ES MULTIPLO DE 3 PUES NO HAY RESIDUO  Y QUE LA ULTIMA PAGINA ESTA OCUPADA POR 3 PREGUNTAS
@@ -350,6 +384,20 @@ async function cargarPreguntasModal(id_servicio) {
                 }
             }
 
+            // ALERTA EN CASO DE QUE NO SE SELECCIONE UN PSICOLOGO
+            let id_personal = null; // SE DECLARA COMO NULL POR SI NO HAY SELECT 
+            const select = document.getElementById('psicologoSelect');
+            if (select != null) {
+                id_personal = select.value; // EL VALOR DEL SELECT (id_personal)
+                if(id_personal == 0){
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Se debe de elegir un psicologo'
+                    });
+                    return;
+                }
+            }
+
             // ALERTA EN CASO DE QUE UNA PREGUNTA ESTE SIN CONTESTAR 
             if(respuestasAlumno.length < totalPreguntas || comentarioPositivoSeleccionValor === null || comentarioNegativoSeleccionValor === null){
                 await Swal.fire({
@@ -394,7 +442,7 @@ async function cargarPreguntasModal(id_servicio) {
             console.log('comentarios',comentariosAlumno);
             console.log('idservicio',id_servicio);
 
-            const resulado = await guardarRespuestasServicio(id_servicio,respuestasAlumno,comentariosAlumno);
+            const resulado = await guardarRespuestasServicio(id_servicio,respuestasAlumno,comentariosAlumno, id_personal);
             if(resulado.success){
                 await Swal.fire({
                     icon: 'success',
@@ -420,7 +468,7 @@ async function cargarPreguntasModal(id_servicio) {
     }
 }
 
-async function guardarRespuestasServicio(id_servicio,respuestas,comentarios){
+async function guardarRespuestasServicio(id_servicio,respuestas,comentarios, id_personal){
     try {
         const csrfRes = await fetch('/csrf-token', {
             credentials: 'include'
@@ -437,7 +485,8 @@ async function guardarRespuestasServicio(id_servicio,respuestas,comentarios){
             body: JSON.stringify({
                 id_servicio,
                 respuestas,
-                comentarios
+                comentarios,
+                id_personal
             })
         });
         const data = await res.json();
