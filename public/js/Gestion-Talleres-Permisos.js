@@ -26,18 +26,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarTalleres() {
+    await buscarTalleres(); // Carga inicial sin término de búsqueda
+}
+
+async function buscarTalleres(term = '') {
     try {
-        const res = await fetch('/talleres-personal-alumnos', { credentials: 'include' });
+        const url = term 
+            ? `/buscar-talleres?term=${encodeURIComponent(term)}` 
+            : '/talleres-personal-alumnos'; // esta sería la de listado normal
+
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ message: 'Error en la solicitud' }));
+            throw new Error(errorData.message || `Error ${res.status}: No se pudieron cargar los talleres`);
+        }
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'No se pudieron cargar los talleres');
         
-        const talleres = data.talleres;
-        populateTable(talleres);
+        populateTable(data.talleres);
     } catch (error) {
-        console.error('Error al cargar talleres:', error);
-        document.getElementById('talleresTableBody').innerHTML = '<tr><td colspan="4">Error al cargar talleres.</td></tr>';
+        console.error('Error al buscar talleres:', error);
+        document.getElementById('talleresTableBody').innerHTML = `<tr><td colspan="4">Error al cargar talleres: ${error.message}</td></tr>`;
+        Swal.fire({
+            icon: 'error',
+            title: 'Error en búsqueda',
+            text: error.message,
+            confirmButtonText: 'Aceptar'
+        });
     }
 }
+
 
 function populateTable(talleres) {
     const tbody = document.getElementById('talleresTableBody');
@@ -176,7 +194,6 @@ async function handleEditTaller(id_taller, e) {
 
     try {
         const token = await obtenerCsrfToken();
-        console.log('Datos enviados a /talleres-personal-alumnos/:id_taller:', { id_taller, nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) });
         const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
@@ -185,10 +202,9 @@ async function handleEditTaller(id_taller, e) {
         });
 
         const data = await res.json();
-        console.log('Respuesta del servidor:', data);
         if (!res.ok) throw new Error(data.message || 'Error al actualizar el taller');
 
-        await cargarTalleres(); // Recargar la lista de talleres
+        await cargarTalleres();
         bootstrap.Modal.getInstance(document.getElementById('addTallerModal')).hide();
         Swal.fire({
             icon: 'success',
@@ -229,7 +245,7 @@ async function deleteTaller(id_taller) {
             });
 
             if (!res.ok) throw new Error(await res.text());
-            await cargarTalleres(); // Recargar la lista de talleres
+            await cargarTalleres();
             bootstrap.Modal.getInstance(document.getElementById('tallerDetailsModal')).hide();
             Swal.fire({
                 icon: 'success',
@@ -265,11 +281,10 @@ async function handleSaveTaller(e) {
     }
 
     const modal = document.getElementById('addTallerModal');
-    modal.dataset.idTaller = ''; // Limpiar cualquier id_taller residual
+    modal.dataset.idTaller = '';
 
     try {
         const token = await obtenerCsrfToken();
-        console.log('Datos enviados a /talleres-personal-alumnos:', { nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) });
         const res = await fetch('/talleres-personal-alumnos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
@@ -278,10 +293,9 @@ async function handleSaveTaller(e) {
         });
 
         const data = await res.json();
-        console.log('Respuesta del servidor:', data);
         if (!res.ok) throw new Error(data.message || 'Error al agregar el taller');
 
-        await cargarTalleres(); // Recargar la lista de talleres
+        await cargarTalleres();
         document.getElementById('addTallerForm').reset();
         bootstrap.Modal.getInstance(document.getElementById('addTallerModal')).hide();
         Swal.fire({
@@ -327,6 +341,15 @@ async function populateProfesorSelect() {
     }
 }
 
+// Función de debounce para optimizar búsquedas
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
 function setupEventListeners() {
     document.getElementById('addTallerBtn').addEventListener('click', async () => {
         const modal = new bootstrap.Modal(document.getElementById('addTallerModal'));
@@ -345,5 +368,13 @@ function setupEventListeners() {
             const id_taller = button.getAttribute('data-id');
             showTallerDetails(id_taller);
         }
+    });
+
+    // Escuchar eventos del buscador con debounce
+    const buscador = document.getElementById('buscadorTalleres');
+    const buscarConDebounce = debounce((term) => buscarTalleres(term), 300);
+    buscador.addEventListener('input', (e) => {
+        const term = e.target.value.trim();
+        buscarConDebounce(term);
     });
 }

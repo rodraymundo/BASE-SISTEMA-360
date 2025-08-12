@@ -8,14 +8,6 @@ body {
   height: 100vh;
   overflow: hidden;
 }
-
-h2 {
-  font-weight: 700;
-  font-size: 1.8rem;
-  color: #cb2e2e; /* Negro para énfasis */
-  margin-bottom: 1.5rem;
-}
-
 /* === LAYOUT === */
 main.container {
   height: calc(100vh - 90px); /* Mantener altura original */

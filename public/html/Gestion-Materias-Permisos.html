@@ -11,47 +11,54 @@
   <link rel="stylesheet" href="assets/css/Dashboard.css">
   <link rel="stylesheet" href="assets/css/Gestion-Materias-Permisos.css">
 </head>
-<body class="gestion-materias">
+
+<body class="gestion-materias d-flex flex-column min-vh-100">
   <div id="header-container"></div>
   
-  <main class="container py-4">
+  <div class="container-fluid mt-4 px-4">
     <div class="mb-4">
-      <h2 class="mb-0"><i class="fas fa-book me-2"></i>Gestión de Materias</h2>
-      <div class="input-group mb-2" style="max-width: 600px;">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <h3 class="text-danger fw-bold mb-0 flex-grow-1">Gestión de Materias</h3>
         <input
           id="buscadorMaterias"
           type="search"
-          class="form-control"
+          class="form-control flex-grow-1"
           placeholder="Buscar materias..."
+          style="min-width: 200px; max-width: 300px;"
         />
-        <button id="addMateriaBtn" class="btn btn-danger">
+        <button id="addMateriaBtn" class="btn btn-danger flex-shrink-0">
           <i class="fas fa-plus me-2"></i>Agregar Materia
         </button>
-        <button id="addArteEspecialidadBtn" class="btn btn-warning ms-2">
+        <button id="addArteEspecialidadBtn" class="btn btn-secondary flex-shrink-0">
           <i class="fas fa-palette me-2"></i>Agregar Especialidad de Arte
         </button>
       </div>
-      <div class="table-responsive" id="listaMateriasContainer">
-        <table id="listaMaterias" class="table table-hover">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Modelo</th>
-              <th>Grado</th>
-              <th>Academia</th>
-              <th>Profesores y Grupos</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="6" class="text-muted text-center">Cargando materias...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </div>
-  </main>
+
+    <div
+      id="listaMateriasContainer"
+      class="table-responsive border rounded bg-white shadow-sm"
+      style="max-height: 80vh; overflow-y: auto;"
+    >
+      <table id="listaMaterias" class="table table-hover mb-0">
+        <thead class="bg-danger text-white">
+          <tr>
+            <th style="width: 25%;">Nombre</th>
+            <th style="width: 15%;">Modelo</th>
+            <th style="width: 10%;">Grado</th>
+            <th style="width: 20%;">Academia</th>
+            <th style="width: 25%;">Profesores y Grupos</th>
+            <th style="width: 10%; min-width: 50px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="6" class="text-muted text-center">Cargando materias...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <!-- Modal para agregar/editar materia -->
   <div class="modal fade" id="materiaModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
@@ -102,7 +109,7 @@
   <div class="modal fade" id="asignarModal" tabindex="-1" aria-labelledby="asignarModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header bg-warning text-white">
+        <div class="modal-header bg-secondary text-white">
           <h5 class="modal-title" id="asignarModalTitle">Asignar Profesores y Grupos</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -147,19 +154,17 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="submit" form="asignarForm" class="btn btn-warning">Asignar</button>
+          <button type="submit" form="asignarForm" class="btn btn-danger">Asignar</button>
         </div>
       </div>
     </div>
   </div>
 
-  
-
   <!-- Modal para agregar especialidad de arte -->
   <div class="modal fade" id="arteEspecialidadModal" tabindex="-1" aria-labelledby="arteModalTitle" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header bg-warning text-white">
+        <div class="modal-header bg-secondary text-white">
           <h5 class="modal-title" id="arteModalTitle">Agregar Especialidad de Arte</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -185,7 +190,7 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" form="arteEspecialidadForm" class="btn btn-warning">Guardar</button>
+          <button type="submit" form="arteEspecialidadForm" class="btn btn-danger">Guardar</button>
         </div>
       </div>
     </div>

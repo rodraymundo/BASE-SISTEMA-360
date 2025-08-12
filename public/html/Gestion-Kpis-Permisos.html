@@ -11,47 +11,49 @@
   <link rel="stylesheet" href="assets/css/Dashboard.css">
   <link rel="stylesheet" href="assets/css/Gestion-Kpis-Permisos.css">
 </head>
-<body class="gestion-kpis">
+<body class="gestion-kpis d-flex flex-column min-vh-100">
   <div id="header-container"></div>
   
-  <main class="container py-4">
+  <div class="container-fluid mt-4 px-4">
     <div class="mb-4">
-      <h2 class="mb-0"><i class="fas fa-chart-line me-2"></i>Gestión de KPIs</h2>
-      <div class="input-group mb-2" style="max-width: 600px;">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <h3 class="text-danger fw-bold mb-0 flex-grow-1">Gestión de KPIs</h3>
         <input
           id="buscadorKpi"
           type="search"
-          class="form-control"
+          class="form-control flex-grow-1"
           placeholder="Buscar KPI..."
+          style="min-width: 200px; max-width: 300px;"
         />
-        <button id="addKpiBtn" class="btn btn-danger">
+        <button id="addKpiBtn" class="btn btn-danger flex-shrink-0">
           <i class="fas fa-plus me-2"></i>Agregar KPI
         </button>
       </div>
-      <div class="table-responsive" id="listaKpisContainer">
-        <table id="listaKpis" class="table table-hover">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Meta</th>
-              <th>Tipo</th>
-              <th>Categoría</th>
-              <th>Área Estratégica</th>
-              <th>Indicador</th>
-              <th>Rol Evaluador</th>
-              <th>Puesto</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="9" class="text-muted text-center">Cargando KPIs...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </div>
-  </main>
+    
+    <div class="table-responsive" id="listaKpisContainer">
+      <table id="listaKpis" class="table table-hover">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Meta</th>
+            <th>Tipo</th>
+            <th>Categoría</th>
+            <th>Área Estratégica</th>
+            <th>Indicador</th>
+            <th>Rol Evaluador</th>
+            <th>Puesto</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="9" class="text-muted text-center">Cargando KPIs...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="modal fade" id="kpiModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg">

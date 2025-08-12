@@ -81,6 +81,7 @@ async function buscarAlumnos(termino) {
         <div>
           <h6 class="mb-1">${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}</h6>
           <small><strong>Counselor:</strong> ${alumno.nombre_counselor ? alumno.nombre_counselor + ' ' + alumno.apaterno_counselor : '-'}</small><br>
+          <small><strong>Correo:</strong> ${alumno.correo_alumno || '-'}</small><br>
           <small><strong>Taller extraescolar:</strong> ${alumno.talleres || '-'}</small><br>
           <small><strong>Grupo:</strong> ${alumno.grado} ${alumno.grupo}</small><br>
           <small><strong>Nivel de Inglés:</strong> ${alumno.nombre_nivel_ingles || '-'}</small><br>
@@ -373,7 +374,7 @@ async function editarAlumno(id_alumno) {
     const alumno = dataAlumno.alumno;
 
     // Obtener talleres disponibles
-    const resTalleres = await fetch('/talleres', { credentials: 'include' });
+    const resTalleres = await fetch('/talleres-para-alumnos', { credentials: 'include' });
     const dataTalleres = await resTalleres.json();
     if (!dataTalleres.success) throw new Error('No se pudo obtener talleres');
     const talleresDisponibles = dataTalleres.talleres;
@@ -559,8 +560,9 @@ async function editarAlumno(id_alumno) {
 
     if (formValues) {
       const token = await obtenerCsrfToken();
+
       // Actualizar counselor
-      await fetch('/actualizar-counselor-alumno', {
+      const counselorResponse = await fetch('/actualizar-counselor-alumno', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -569,14 +571,17 @@ async function editarAlumno(id_alumno) {
         credentials: 'include',
         body: JSON.stringify({ id_alumno: formValues.id_alumno, id_personal: formValues.id_personal })
       });
+      const counselorData = await counselorResponse.json();
+      if (!counselorData.success) {
+        throw new Error(counselorData.message || 'Error al actualizar el counselor');
+      }
 
       // Actualizar talleres
       const talleresParaActualizar = formValues.talleres.map(id_taller => ({
         id_taller: parseInt(id_taller),
         estado_evaluacion_taller: 0
       }));
-
-      await fetch('/actualizar-talleres-alumno', {
+      const talleresResponse = await fetch('/actualizar-talleres-alumno', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -585,9 +590,13 @@ async function editarAlumno(id_alumno) {
         credentials: 'include',
         body: JSON.stringify({ id_alumno: formValues.id_alumno, talleres: talleresParaActualizar })
       });
+      const talleresData = await talleresResponse.json();
+      if (!talleresData.success) {
+        throw new Error(talleresData.message || 'Error al actualizar los talleres');
+      }
 
       // Actualizar grupo
-      await fetch('/actualizar-grupo-alumno', {
+      const grupoResponse = await fetch('/actualizar-grupo-alumno', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -596,10 +605,14 @@ async function editarAlumno(id_alumno) {
         credentials: 'include',
         body: JSON.stringify({ id_alumno: formValues.id_alumno, id_grado_grupo: formValues.id_grado_grupo })
       });
+      const grupoData = await grupoResponse.json();
+      if (!grupoData.success) {
+        throw new Error(grupoData.message || 'Error al actualizar el grupo');
+      }
 
       // Actualizar nivel de inglés
       if (formValues.nivel_ingles) {
-        await fetch('/actualizar-nivel-ingles-alumno', {
+        const inglesResponse = await fetch('/actualizar-nivel-ingles-alumno', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -613,11 +626,15 @@ async function editarAlumno(id_alumno) {
             id_materia: formValues.nivel_ingles.id_materia
           })
         });
+        const inglesData = await inglesResponse.json();
+        if (!inglesData.success) {
+          throw new Error(inglesData.message || 'Error al actualizar el nivel de inglés');
+        }
       }
 
       // Actualizar arte/especialidad
       if (formValues.arte_especialidad) {
-        await fetch('/actualizar-arte-especialidad-alumno', {
+        const arteResponse = await fetch('/actualizar-arte-especialidad-alumno', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -631,6 +648,10 @@ async function editarAlumno(id_alumno) {
             id_materia: formValues.arte_especialidad.id_materia
           })
         });
+        const arteData = await arteResponse.json();
+        if (!arteData.success) {
+          throw new Error(arteData.message || 'Error al actualizar la especialidad de arte');
+        }
       }
 
       Swal.fire('Actualizado', 'Se actualizó la información del alumno.', 'success');
@@ -640,8 +661,8 @@ async function editarAlumno(id_alumno) {
     }
 
   } catch (error) {
-    console.error(error);
-    Swal.fire('Error', 'No se pudo cargar o actualizar la información.', 'error');
+    console.error('Error al editar alumno:', error);
+    Swal.fire('Error', error.message || 'No se pudo cargar o actualizar la información.', 'error');
   }
 }
 
@@ -650,7 +671,7 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
   try {
     // Obtener datos necesarios
     const [talleres, counselors, grupos] = await Promise.all([
-      fetch('/talleres', { credentials: 'include' }).then(r => r.json()),
+      fetch('/talleres-para-alumnos', { credentials: 'include' }).then(r => r.json()),
       fetch('/counselors-disponibles', { credentials: 'include' }).then(r => r.json()),
       fetch('/grupos', { credentials: 'include' }).then(r => r.json())
     ]);
@@ -685,7 +706,6 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         <input id="swal-apaterno" class="form-control mb-2" placeholder="Apellido paterno">
         <input id="swal-amaterno" class="form-control mb-2" placeholder="Apellido materno">
         <input id="swal-correo" type="email" class="form-control mb-2" placeholder="Correo electrónico">
-        <input id="swal-password" type="password" class="form-control mb-2" placeholder="Contraseña">
         <select id="swal-grupo" class="form-select mb-2">${opcionesGrupos}</select>
         <select id="swal-nivel-ingles" class="form-select mb-2">${opcionesIngles}</select>
         <select id="swal-arte-especialidad" class="form-select mb-2">${opcionesArte}</select>
@@ -709,14 +729,13 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         const apaterno = document.getElementById('swal-apaterno').value.trim();
         const amaterno = document.getElementById('swal-amaterno').value.trim();
         const correo = document.getElementById('swal-correo').value.trim();
-        const password = document.getElementById('swal-password').value.trim();
         const id_grado_grupo = document.getElementById('swal-grupo').value;
         const nivelInglesOption = document.getElementById('swal-nivel-ingles').selectedOptions[0];
         const arteOption = document.getElementById('swal-arte-especialidad').selectedOptions[0];
         const id_personal = document.getElementById('swal-counselor').value;
         const talleres = Array.from(document.getElementById('swal-talleres').selectedOptions).map(opt => opt.value);
 
-        if (!id_alumno || !nombre || !apaterno || !id_grado_grupo || !id_personal || !correo || !password)
+        if (!id_alumno || !nombre || !apaterno || !id_grado_grupo || !id_personal || !correo)
           return Swal.showValidationMessage('Todos los campos son obligatorios');
 
         return {
@@ -725,7 +744,6 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
           apaterno,
           amaterno,
           correo,
-          password,
           id_grado_grupo,
           id_personal,
           talleres,

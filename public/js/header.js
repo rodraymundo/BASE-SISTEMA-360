@@ -1,33 +1,33 @@
 export function renderHeader(user) {
-  let  Dashboard = '';
+  let Dashboard = '';
   if (user.userType == 'alumno') {
     Dashboard = '/DashboardAlumno';
   } else {
-    if (user.id_puesto==35) {
+    if (user.id_puesto == 35) {
       Dashboard = '/Dashboard';
-    }else{
+    } else {
       Dashboard = '/DashboardPersonal';
     }
   }
 
   const header = document.createElement('nav');
-  header.className = 'navbar navbar-expand-lg';
+  header.className = 'navbar navbar-expand-lg navbar-light'; // Añadido navbar-light para mejor contraste
   header.innerHTML = `
-    <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div class="container-fluid">
       <a class="navbar-brand" href="${Dashboard}">
-        <img src="/assets/img/logo_balmoral.png" alt="Logo Balmoral" style="height: 45px;">
+        <img src="/assets/img/logo_balmoral.png" alt="Logo Balmoral" class="img-fluid logo-img" style="max-height: 45px;">
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Alternar navegación">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse d-flex justify-content-center" id="navbarNav">
-        <ul class="navbar-nav mb-2 mb-lg-0 justify-content-center">
-          <li><a class="nav-link" id="nav-materias" href="/Gestion-Materias-Permisos" style="display: none;">Materias</a></li>
-          <li><a class="nav-link" id="nav-kpis" href="/Gestion-Kpis-Permisos" style="display: none;">KPIs</a></li>
-          <li><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos" style="display: none;">Grupos</a></li>
-          <li><a class="nav-link" id="nav-personal" href="/Gestion-Personal-Permisos" style="display: none;">Personal</a></li>
-          <li><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
-          <li><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos" style="display: none;">Alumnos</a></li>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav mx-auto"> <!-- Centrado y ajustado -->
+          <li class="nav-item"><a class="nav-link" id="nav-materias" href="/Gestion-Materias-Permisos" style="display: none;">Materias</a></li>
+          <li class="nav-item"><a class="nav-link" id="nav-kpis" href="/Gestion-Kpis-Permisos" style="display: none;">KPIs</a></li>
+          <li class="nav-item"><a class="nav-link" id="nav-grupos" href="/Gestion-Grupos" style="display: none;">Grupos</a></li>
+          <li class="nav-item"><a class="nav-link" id="nav-personal" href="/Gestion-Personal-Permisos" style="display: none;">Personal</a></li>
+          <li class="nav-item"><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
+          <li class="nav-item"><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos" style="display: none;">Alumnos</a></li>
         </ul>
         <div class="dropdown ms-auto">
           <a class="dropdown-toggle d-flex align-items-center text-decoration-none text-dark" href="#" role="button" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
@@ -37,10 +37,7 @@ export function renderHeader(user) {
             <li><a class="dropdown-item" href="/Mi-Perfil">Ver mi perfil</a></li>
             <li><a class="dropdown-item" href="/Mis-KPIs-Pendientes">Evaluar KPIs</a></li>
             <li><a class="dropdown-item" id="mis-evaluaciones-btn" href="/Mis-Evaluaciones-Dir-General" style="display: none;">Mis Evaluaciones</a></li>
-            <!--
-            <li><a class="dropdown-item" id="gestion-captacion-btn" href="/Gestion-Alumnos" style="display: none;">Gestión de alumnos</a></li>
-            <li><a class="dropdown-item" id="gestion-grupos-btn" href="/Gestion-Grupos" style="display: none;">Gestión de grupos</a></li>
-            -->
+            <li><a class="dropdown-item" id="elegir-taller-btn" href="/Elegir-Taller" style="display: none;">Elección de talleres</a></li>
             <li><a class="dropdown-item" id="logout-btn" href="#">Cerrar Sesión</a></li>
           </ul>
         </div>
@@ -52,17 +49,13 @@ export function renderHeader(user) {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 shadow-sm border-0">
           <div class="modal-header bg-danger text-white rounded-top-4">
-            <h5 class="modal-title w-100 text-center" id="userInfoModalLabel">
-              Información de Usuario
-            </h5>
+            <h5 class="modal-title w-100 text-center" id="userInfoModalLabel">Información de Usuario</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
           </div>
           <div class="modal-body bg-light text-center px-4">
-
             <div class="mb-4">
               <i class="fas fa-user-circle fa-6x text-secondary mb-3"></i>
             </div>
-
             <div class="mb-3 border-bottom pb-2">
               <h6 class="text-muted mb-1">Nombre</h6>
               <p id="modalUserName" class="fw-semibold text-dark">N/A</p>
@@ -82,7 +75,6 @@ export function renderHeader(user) {
             </div>
           </div>
           <hr style="border-color: #dee2e6; margin: 0;">
-
           <div class="modal-footer bg-light rounded-bottom-4 justify-content-center">
             <button type="button" class="btn btn-outline-dark px-4" data-bs-dismiss="modal">Cerrar</button>
           </div>
@@ -125,7 +117,6 @@ export function renderHeader(user) {
       </div>
     </div>
   `);
-
 
   // Logout con CSRF
   header.querySelector('#logout-btn').addEventListener('click', async (e) => {
@@ -181,14 +172,12 @@ export function renderHeader(user) {
 
   // Mostrar modal al dar clic en "Ver mi perfil"
   const verPerfilLink = header.querySelector('a.dropdown-item[href="/Mi-Perfil"]');
-  // Ocultar botón de Evaluar KPIs si es alumno
-    const evaluarKPIs = header.querySelector('a[href="/Mis-KPIs-Pendientes"]');
+  const evaluarKPIs = header.querySelector('a[href="/Mis-KPIs-Pendientes"]');
 
   if (evaluarKPIs) {
     if (user.userType === 'alumno') {
       evaluarKPIs.style.display = 'none';
     } else {
-      // Para personal: verificar si tiene evaluaciones pendientes
       (async () => {
         try {
           const response = await fetch('/tiene-evaluaciones-pendientes', { credentials: 'include' });
@@ -198,20 +187,20 @@ export function renderHeader(user) {
           }
         } catch (err) {
           console.error('Error al verificar KPIs pendientes:', err);
-          evaluarKPIs.style.display = 'none'; // Por precaución, ocultar si algo falla
+          evaluarKPIs.style.display = 'none';
         }
       })();
     }
   }
 
+  const elegirTallerBtn = header.querySelector('#elegir-taller-btn');
+  if (elegirTallerBtn && user.userType === 'alumno') {
+    elegirTallerBtn.style.display = 'block';
+  }
 
-  // Mostrar botón de Gestión de alumnos si tiene rol de Captación
   const gestionCaptacionBtn = header.querySelector('#gestion-captacion-btn');
   if (gestionCaptacionBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
-    const tieneRolCaptacionOSubdirector = user.roles.some(r => {
-      const rol = r.nombre_rol.toLowerCase();
-      return rol.includes('subdirector');
-    });
+    const tieneRolCaptacionOSubdirector = user.roles.some(r => r.nombre_rol.toLowerCase().includes('subdirector'));
     if (tieneRolCaptacionOSubdirector) {
       gestionCaptacionBtn.style.display = 'block';
     }
@@ -224,13 +213,9 @@ export function renderHeader(user) {
     });
   }
 
-    //NUEVOOOO
   const gestionGruposBtn = header.querySelector('#gestion-grupos-btn');
   if (gestionGruposBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
-    const tieneRolCaptacionOSubdirector = user.roles.some(r => {
-      const rol = r.nombre_rol.toLowerCase();
-      return rol.includes('subdirector');
-    });
+    const tieneRolCaptacionOSubdirector = user.roles.some(r => r.nombre_rol.toLowerCase().includes('subdirector'));
     if (tieneRolCaptacionOSubdirector) {
       gestionGruposBtn.style.display = 'block';
     }
@@ -241,19 +226,14 @@ export function renderHeader(user) {
     openChangePasswordModalBtn.addEventListener('click', () => {
       const perfilModal = bootstrap.Modal.getInstance(header.querySelector('#userInfoModal'));
       if (perfilModal) perfilModal.hide();
-
       const changeModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
       changeModal.show();
     });
   }
 
-
   const misEvaluacionesBtn = header.querySelector('#mis-evaluaciones-btn');
   if (misEvaluacionesBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
-    const esDirectorGeneral = user.roles.some(r => {
-      const rol = r.nombre_rol.toLowerCase();
-      return rol === 'director general';
-    });
+    const esDirectorGeneral = user.roles.some(r => r.nombre_rol.toLowerCase() === 'director general');
     if (esDirectorGeneral) {
       misEvaluacionesBtn.style.display = 'block';
     }
@@ -262,96 +242,81 @@ export function renderHeader(user) {
   const changePasswordForm = document.querySelector('#changePasswordForm');
   const passwordChangeError = document.querySelector('#passwordChangeError');
 
-  // Al cerrar el modal de cambio de contraseña, limpiar formulario y reabrir modal de perfil
   document.getElementById('changePasswordModal').addEventListener('hidden.bs.modal', () => {
     changePasswordForm.reset();
     passwordChangeError.style.display = 'none';
-
-    // Mostrar nuevamente el modal de perfil
     const perfilModal = new bootstrap.Modal(header.querySelector('#userInfoModal'));
     setTimeout(() => perfilModal.show(), 300);
   });
 
   changePasswordForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  passwordChangeError.style.display = 'none';
-  
-  
-  const currentPassword = changePasswordForm.currentPassword.value.trim();
-  const newPassword = changePasswordForm.newPassword.value.trim();
-  const confirmNewPassword = changePasswordForm.confirmNewPassword.value.trim();
+    e.preventDefault();
+    passwordChangeError.style.display = 'none';
+    const currentPassword = changePasswordForm.currentPassword.value.trim();
+    const newPassword = changePasswordForm.newPassword.value.trim();
+    const confirmNewPassword = changePasswordForm.confirmNewPassword.value.trim();
 
-  if (newPassword !== confirmNewPassword) {
-    passwordChangeError.textContent = 'Las nuevas contraseñas no coinciden.';
-    passwordChangeError.style.display = 'block';
-    return;
-  }
+    if (newPassword !== confirmNewPassword) {
+      passwordChangeError.textContent = 'Las nuevas contraseñas no coinciden.';
+      passwordChangeError.style.display = 'block';
+      return;
+    }
 
-  try {
-    // Obtener token CSRF
-    const csrfResponse = await fetch('/csrf-token', { credentials: 'include' });
-    const csrfData = await csrfResponse.json();
-
-    const response = await fetch('/cambiar-contrasena-perfil', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'CSRF-Token': csrfData.csrfToken
-      },
-      body: JSON.stringify({ currentPassword, newPassword })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      Swal.fire({
-        icon: 'success',
-        title: 'Contraseña actualizada',
-        text: data.message,
-        timer: 2000,
-        showConfirmButton: false
+    try {
+      const csrfResponse = await fetch('/csrf-token', { credentials: 'include' });
+      const csrfData = await csrfResponse.json();
+      const response = await fetch('/cambiar-contrasena-perfil', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfData.csrfToken
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
       });
-      changePasswordForm.reset();
-      // Opcional: cerrar modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
-      modal.hide();
+      const data = await response.json();
 
-      // Reabrir modal de información de usuario
-      const perfilModal = new bootstrap.Modal(header.querySelector('#userInfoModal'));
-      setTimeout(() => perfilModal.show(), 300); // Espera 300ms para evitar conflicto visual
-
-
-    } else {
-      passwordChangeError.textContent = data.message || 'Error al actualizar contraseña.';
+      if (data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Contraseña actualizada',
+          text: data.message,
+          timer: 2000,
+          showConfirmButton: false
+        });
+        changePasswordForm.reset();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+        modal.hide();
+        const perfilModal = new bootstrap.Modal(header.querySelector('#userInfoModal'));
+        setTimeout(() => perfilModal.show(), 300);
+      } else {
+        passwordChangeError.textContent = data.message || 'Error al actualizar contraseña.';
+        passwordChangeError.style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error al cambiar contraseña:', error);
+      passwordChangeError.textContent = 'Error al conectar con el servidor.';
       passwordChangeError.style.display = 'block';
     }
-  } catch (error) {
-    console.error('Error al cambiar contraseña:', error);
-    passwordChangeError.textContent = 'Error al conectar con el servidor.';
-    passwordChangeError.style.display = 'block';
-  }
+  });
 
-});
-
-(async () => {
-  try {
-    const response = await fetch('/permisos-usuario', { credentials: 'include' });
-    const data = await response.json();
-
-    if (data.success && data.permisos) {
-      const p = data.permisos;
-
-      if (p.permiso_materias) header.querySelector('#nav-materias')?.style.removeProperty('display');
-      if (p.permiso_kpis) header.querySelector('#nav-kpis')?.style.removeProperty('display');
-      if (p.permiso_grupos) header.querySelector('#nav-grupos')?.style.removeProperty('display');
-      if (p.permiso_personal) header.querySelector('#nav-personal')?.style.removeProperty('display');
-      if (p.permiso_talleres) header.querySelector('#nav-talleres')?.style.removeProperty('display');
-      if (p.permiso_alumnos) header.querySelector('#nav-alumnos')?.style.removeProperty('display');
+  (async () => {
+    try {
+      const response = await fetch('/permisos-usuario', { credentials: 'include' });
+      const data = await response.json();
+      if (data.success && data.permisos) {
+        const p = data.permisos;
+        if (p.permiso_materias) header.querySelector('#nav-materias')?.style.removeProperty('display');
+        if (p.permiso_kpis) header.querySelector('#nav-kpis')?.style.removeProperty('display');
+        if (p.permiso_grupos) header.querySelector('#nav-grupos')?.style.removeProperty('display');
+        if (p.permiso_personal) header.querySelector('#nav-personal')?.style.removeProperty('display');
+        if (p.permiso_talleres) header.querySelector('#nav-talleres')?.style.removeProperty('display');
+        if (p.permiso_alumnos) header.querySelector('#nav-alumnos')?.style.removeProperty('display');
+      }
+    } catch (err) {
+      console.error('Error al cargar permisos:', err);
     }
-  } catch (err) {
-    console.error('Error al cargar permisos:', err);
-  }
-})();
+  })();
+
   return header;
 }

@@ -11,48 +11,50 @@
   <link rel="stylesheet" href="assets/css/Dashboard.css">
   <link rel="stylesheet" href="assets/css/Gestion-Personal-Permisos.css">
 </head>
-<body class="gestion-personal">
+
+<body class="gestion-personal d-flex flex-column min-vh-100">
   <div id="header-container"></div>
-  
-  <main class="container py-4">
+
+  <div class="container-fluid mt-4 px-4">
     <div class="mb-4">
-      <h2 class="mb-0"><i class="fas fa-users me-2"></i>Gestión de Personal</h2>
-      <div class="input-group mb-2" style="max-width: 600px;">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <h3 class="text-danger fw-bold mb-0 flex-grow-1">Gestión de Personal</h3>
         <input
           id="buscadorPersonal"
           type="search"
-          class="form-control"
+          class="form-control flex-grow-1"
           placeholder="Buscar personal..."
+          style="min-width: 200px; max-width: 300px;"
         />
-        <button id="addPersonalBtn" class="btn btn-danger">
+        <button id="addPersonalBtn" class="btn btn-danger flex-shrink-0">
           <i class="fas fa-user-plus me-2"></i>Agregar Personal
         </button>
-        <button id="addPuestoBtn" class="btn btn-warning ms-2">
+        <button id="addPuestoBtn" class="btn btn-secondary flex-shrink-0">
           <i class="fas fa-briefcase me-2"></i>Agregar Puesto
         </button>
       </div>
-      <div class="table-responsive" id="listaPersonalContainer">
-        <table id="listaPersonal" class="table table-hover">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Apellido Paterno</th>
-              <th>Apellido Materno</th>
-              <th>Puesto</th>
-              <th>Correo</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="7" class="text-muted text-center">Cargando personal...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </div>
-  </main>
+    <div class="table-responsive" id="listaPersonalContainer">
+      <table id="listaPersonal" class="table table-hover">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido Paterno</th>
+            <th>Apellido Materno</th>
+            <th>Puesto</th>
+            <th>Correo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="text-muted text-center">Cargando personal...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <div class="modal fade" id="personalModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -118,7 +120,7 @@
   <div class="modal fade" id="puestoModal" tabindex="-1" aria-labelledby="puestoModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header bg-warning text-white">
+        <div class="modal-header bg-secondary text-white">
           <h5 class="modal-title" id="puestoModalTitle">Agregar Puesto</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -144,7 +146,7 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" form="puestoForm" class="btn btn-warning">Siguiente</button>
+          <button type="submit" form="puestoForm" class="btn btn-secondary">Siguiente</button>
         </div>
       </div>
     </div>
@@ -153,7 +155,7 @@
   <div class="modal fade" id="porcentajesModal" tabindex="-1" aria-labelledby="porcentajesModalTitle" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header bg-warning text-white">
+        <div class="modal-header bg-secondary text-white">
           <h5 class="modal-title" id="porcentajesModalTitle">Asignar Porcentajes a Categorías</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -169,7 +171,7 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" form="porcentajesForm" class="btn btn-warning">Guardar</button>
+          <button type="submit" form="porcentajesForm" class="btn btn-secondary">Guardar</button>
         </div>
       </div>
     </div>

@@ -1,81 +1,6 @@
-/* Establece la altura completa para el HTML y el body, eliminando márgenes y padding */
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  font-family: 'Roboto', sans-serif;
-}
-
-/* Usa flexbox para organizar el contenido en columna */
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Estiliza el título h2 */
-.gestion-materias h2 {
-  font-weight: 700;
-  font-size: 1.8rem;
-  color: #dc3545;
-  margin-bottom: 1.5rem;
-}
-
-/* Estiliza el contenedor principal */
-.gestion-materias .container {
-  flex: 1;
-  max-width: 1200px;
-  padding: 1rem 0;
-  overflow: hidden;
-}
-
-/* Estiliza el grupo de entrada (buscador y botones) */
-.gestion-materias .input-group {
-  width: 100%;
-  max-width: 600px;
-}
-
-/* Estiliza el campo de búsqueda */
-.gestion-materias #buscadorMaterias {
-  margin-bottom: 0;
-  height: 2.2rem;
-  font-size: 0.9rem;
-  padding: 0.3rem 0.5rem;
-  border-color: #dc3545;
-}
-
-/* Estiliza los botones de agregar materia y especialidad */
-.gestion-materias #addMateriaBtn, .gestion-materias #addArteEspecialidadBtn {
-  padding: 0.375rem 1rem;
-  font-size: 0.9rem;
-  height: 2.2rem;
-}
-
-/* Estiliza el contenedor de la tabla */
-.gestion-materias #listaMateriasContainer {
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  overflow-y: auto;
-  height: calc(80vh - 6rem);
-  min-height: 500px;
-  width: 100%;
-}
-
-/* Estiliza la tabla */
-.gestion-materias .table {
-  margin-bottom: 0;
-  font-size: 0.95rem;
-  width: 100%;
-  table-layout: fixed;
-  background-color: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
 /* Estiliza los encabezados de la tabla */
 .gestion-materias .table th {
-  background-color: #dc3547;
+  background-color: #dc3545;
   color: white;
   font-weight: 600;
   padding: 1rem;
@@ -136,17 +61,20 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Estiliza el encabezado de los modales */
-.gestion-materias .modal-header {
+/* Estiliza el encabezado de los modales principales (rojo) */
+.gestion-materias .modal-header.bg-danger {
   background-color: #dc3545;
   color: white;
   border-bottom: none;
   padding: 1rem;
 }
 
-/* Estiliza el encabezado del modal de asignaciones y especialidad */
-.gestion-materias .modal-header.bg-warning {
-  background-color: #ffc107;
+/* Estiliza el encabezado de los modales secundarios (gris) */
+.gestion-materias .modal-header.bg-secondary {
+  background-color: #6c757d;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
 }
 
 /* Estiliza el título del modal */
@@ -201,6 +129,25 @@ body {
   border-color: #bd2130;
 }
 
+/* Ajustes para la fila del título, buscador y botones */
+.gestion-materias .d-flex.align-items-center {
+  flex-wrap: wrap;
+  gap: 1rem; /* Espaciado entre elementos */
+  justify-content: flex-start; /* Justifica los elementos a la izquierda */
+}
+
+/* Ajusta el tamaño del input */
+.gestion-materias #buscadorMaterias {
+  min-width: 200px;
+  max-width: 300px; /* Limita el ancho máximo */
+}
+
+/* Asegura que los botones no se estiren demasiado */
+.gestion-materias .btn-danger, .gestion-materias .btn-secondary {
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+}
+
 /* Media query para pantallas pequeñas */
 @media (max-width: 768px) {
   .gestion-materias .table {
@@ -218,8 +165,23 @@ body {
     max-height: 350px;
   }
 
-  .gestion-materias .input-group {
-    max-width: 100%;
+  .gestion-materias .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start; /* Alinea a la izquierda en pantallas pequeñas */
+    gap: 0.5rem;
+  }
+
+  .gestion-materias #buscadorMaterias {
+    max-width: 100%; /* Ocupa todo el ancho en pantallas pequeñas */
+    margin-bottom: 0.5rem;
+  }
+
+  .gestion-materias h3 {
+    margin-bottom: 0.5rem;
+  }
+
+  .gestion-materias .btn-danger, .gestion-materias .btn-secondary {
+    width: 100%; /* Botones ocupan todo el ancho en pantallas pequeñas */
   }
 
   .gestion-materias .modal-dialog {
@@ -231,7 +193,7 @@ body {
   }
 }
 
-/* Estiliza los botones btn-danger */
+/* Estiliza los botones btn-danger (rojo) */
 .gestion-materias .btn-danger {
   background-color: #dc3545;
   border-color: #dc3545;
@@ -243,14 +205,14 @@ body {
   border-color: #bd2130;
 }
 
-/* Estiliza los botones btn-warning */
-.gestion-materias .btn-warning {
-  background-color: #ffc107;
-  border-color: #ffc107;
+/* Estiliza los botones btn-secondary (gris) */
+.gestion-materias .btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
 }
 
-/* Efecto hover para btn-warning */
-.gestion-materias .btn-warning:hover {
-  background-color: #e0a800;
-  border-color: #d39e00;
+/* Efecto hover para btn-secondary */
+.gestion-materias .btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
 }
