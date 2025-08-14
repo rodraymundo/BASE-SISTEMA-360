@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Resultados del Personal - Balmoral Escocés</title>
+  <link rel="icon" type="image/x-icon" href="/assets/img/favicon.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/Dashboard.css">
+  <link rel="stylesheet" href="/assets/css/Gestion-Personal-Resultados.css">
+</head>
+<body class="gestion-personal-resultados">
+  <div id="header-container"></div>
+  <div class="container-fluid">
+    <div class="row">
+      <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+        <div class="position-sticky pt-3">
+          <h4 class="sidebar-heading">Categorías de Roles</h4>
+          <div class="accordion" id="rolesAccordion">
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingDireccion">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDireccion" aria-expanded="true" aria-controls="collapseDireccion">
+                  Dirección General
+                </button>
+              </h2>
+              <div id="collapseDireccion" class="accordion-collapse collapse show" aria-labelledby="headingDireccion" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Fundador">Fundador</li>
+                    <li class="list-group-item role-item" data-role="Director General">Director General</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingSubdireccion">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSubdireccion" aria-expanded="false" aria-controls="collapseSubdireccion">
+                  Subdirección
+                </button>
+              </h2>
+              <div id="collapseSubdireccion" class="accordion-collapse collapse" aria-labelledby="headingSubdireccion" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Subdirector de Gestión Académica">Subdirector de Gestión Académica</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Eventos Académicos">Subdirector de Eventos Académicos</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Proyectos Académicos">Subdirector de Proyectos Académicos</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Pedagogía">Subdirector de Pedagogía</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Planeación Académica">Subdirector de Planeación Académica</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Evaluación Académica">Subdirector de Evaluación Académica</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Control Escolar">Subdirector de Control Escolar</li>
+                    <li class="list-group-item role-item" data-role="Subdirector Administrativo">Subdirector Administrativo</li>
+                    <li class="list-group-item role-item" data-role="Subdirector de Gestión Escolar">Subdirector de Gestión Escolar</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingCoordinadores">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCoordinadores" aria-expanded="false" aria-controls="collapseCoordinadores">
+                  Coordinadores
+                </button>
+              </h2>
+              <div id="collapseCoordinadores" class="accordion-collapse collapse" aria-labelledby="headingCoordinadores" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Coordinador de Academia de Idiomas">Coordinador de Academia de Idiomas</li>
+                    <li class="list-group-item role-item" data-role="Coordinador de Academia">Coordinador de Academia</li>
+                    <li class="list-group-item role-item" data-role="Comité Técnico">Comité Técnico</li>
+                    <li class="list-group-item role-item" data-role="Captación">Captación</li>
+                    <li class="list-group-item role-item" data-role="Enlace Administrativo de Captación">Enlace Administrativo de Captación</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingDocentes">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDocentes" aria-expanded="false" aria-controls="collapseDocentes">
+                  Docentes
+                </button>
+              </h2>
+              <div id="collapseDocentes" class="accordion-collapse collapse" aria-labelledby="headingDocentes" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Profesor de Tiempo Completo">Profesor de Tiempo Completo</li>
+                    <li class="list-group-item role-item" data-role="Profesor de Asimilados">Profesor de Asimilados</li>
+                    <li class="list-group-item role-item" data-role="Profesor de Tiempo Completo Pedagógico">Profesor de Tiempo Completo Pedagógico</li>
+                    <li class="list-group-item role-item" data-role="Counselor">Counselor</li>
+                    <li class="list-group-item role-item" data-role="Pedagógico">Pedagógico</li>
+                    <li class="list-group-item role-item" data-role="Equipo Educador">Equipo Educador</li>
+                    <li class="list-group-item role-item" data-role="Taller Extraescolar">Taller Extraescolar</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingAdministracion">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdministracion" aria-expanded="false" aria-controls="collapseAdministracion">
+                  Administración
+                </button>
+              </h2>
+              <div id="collapseAdministracion" class="accordion-collapse collapse" aria-labelledby="headingAdministracion" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Administrador">Administrador</li>
+                    <li class="list-group-item role-item" data-role="Auxiliar Administrativo">Auxiliar Administrativo</li>
+                    <li class="list-group-item role-item" data-role="Necesidades Tecnológicas">Necesidades Tecnológicas</li>
+                    <li class="list-group-item role-item" data-role="Marketing">Marketing</li>
+                    <li class="list-group-item role-item" data-role="Negocios">Negocios</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingServicios">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServicios" aria-expanded="false" aria-controls="collapseServicios">
+                  Servicios y Mantenimiento
+                </button>
+              </h2>
+              <div id="collapseServicios" class="accordion-collapse collapse" aria-labelledby="headingServicios" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Encargado de Disciplina y Deportes">Encargado de Disciplina y Deportes</li>
+                    <li class="list-group-item role-item" data-role="Encargado de Mantenimiento">Encargado de Mantenimiento</li>
+                    <li class="list-group-item role-item" data-role="Encargado de Limpieza">Encargado de Limpieza</li>
+                    <li class="list-group-item role-item" data-role="Disciplina">Disciplina</li>
+                    <li class="list-group-item role-item" data-role="Disciplina de Talleres">Disciplina de Talleres</li>
+                    <li class="list-group-item role-item" data-role="Ayudante de Limpieza">Ayudante de Limpieza</li>
+                    <li class="list-group-item role-item" data-role="Guardia de Seguridad">Guardia de Seguridad</li>
+                    <li class="list-group-item role-item" data-role="Paramédico">Paramédico</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h2><i class="fas fa-users me-2"></i>Resultados del Personal</h2>
+          <div class="input-group" style="max-width: 400px;">
+            <input id="buscadorPersonal" type="search" class="form-control" placeholder="Buscar personal...">
+          </div>
+        </div>
+        <div id="personalContainer" class="row"></div>
+      </main>
+    </div>
+  </div>
+  <div class="modal fade" id="perfilModal" tabindex="-1" aria-labelledby="perfilModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="perfilModalLabel">Ficha Técnica del Personal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="kpisModal" tabindex="-1" aria-labelledby="kpisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="kpisModalLabel">Indicadores Clave de Rendimiento (KPIs)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="evaluacionesModal" tabindex="-1" aria-labelledby="evaluacionesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="evaluacionesModalLabel">Evaluaciones</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="evaluacionesButtons" class="d-flex flex-wrap justify-content-center gap-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="resultadosModal" tabindex="-1" aria-labelledby="resultadosModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resultadosModalLabel">Resultados</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-kpis" data-id="">KPIs</button>
+            <button class="btn btn-evaluaciones" data-id="">Evaluaciones</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="evaluacionResultsModal" tabindex="-1" aria-labelledby="evaluacionResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="evaluacionResultsModalLabel">Resultados de Evaluación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module" src="/js/Gestion-Personal-Resultados.js"></script>
+</body>
+</html>

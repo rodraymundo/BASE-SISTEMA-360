@@ -147,7 +147,7 @@ router.get('/Dashboard', authMiddleware, (req, res) => {
   }
 
   // Si es personal
-  const esDirectorGeneral = user.roles?.some(rol => rol.nombre_rol === 'Director General');
+  const esDirectorGeneral = user.roles?.some(rol => rol.nombre_rol === 'DIRECTOR GENERAL');
 
   if (esDirectorGeneral) {
     return res.sendFile(path.join(__dirname, '../../public/html/Dashboard.html'));
@@ -167,6 +167,7 @@ router.get('/redirigir-a-recuperar', (req, res) => {
 });
 
 // ALUMNOS
+// (RODRIGO)
 router.get('/DashboardAlumno', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/DashboardAlumno.html'));
 });
@@ -191,38 +192,8 @@ router.get('/Elegir-Taller', authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Elegir-Taller.html'));
 });
 
-//ADMINISTRACIÓN
-//(RAYMUNDO)
-router.get('/Gestion-Alumnos', authMiddleware, bloquearAlumnos, permisoMiddleware ('permiso_alumnos'), (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Alumnos.html'));
-});
-
-router.get('/Gestion-Grupos', authMiddleware, bloquearAlumnos, permisoMiddleware('permiso_grupos'), (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
-});
-//(ARMANDO)
-router.get('/Gestion-Personal-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_personal'), (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Permisos.html'));
-});
-
-router.get('/Gestion-Talleres-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_talleres'), (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Talleres-Permisos.html'));
-});
-
-router.get('/Gestion-Kpis-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_kpis'), 
-(req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Kpis-Permisos.html')); 
-});
-
-router.get('/Gestion-Materias-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_materias'), (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Materias-Permisos.html'));
-});
-
 // PERSONAL
-router.get('/DashboardPersonal', authMiddleware, bloquearAlumnos, (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/html/DashboardPersonal.html'));
-});
-
+// (RODRIGO)
 router.get('/EvaluacionCoordinador', authMiddleware, bloquearAlumnos,(req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionCoordinador.html'));
 });
@@ -243,8 +214,45 @@ router.get('/EvaluacionSubordinados', bloquearAlumnos, authMiddleware, (req, res
   res.sendFile(path.join(__dirname, '../../public/html/EvaluacionSubordinados.html'));
 });
 
+//ADMINISTRACIÓN
+//(RAYMUNDO)
+router.get('/Gestion-Alumnos', authMiddleware, bloquearAlumnos, permisoMiddleware ('permiso_alumnos'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Alumnos.html'));
+});
+
+router.get('/Gestion-Grupos', authMiddleware, bloquearAlumnos, permisoMiddleware('permiso_grupos'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Grupos.html'));
+});
+
+//(ARMANDO)
+router.get('/Gestion-Personal-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_personal'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Permisos.html'));
+});
+
+router.get('/Gestion-Talleres-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_talleres'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Talleres-Permisos.html'));
+});
+
+router.get('/Gestion-Kpis-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_kpis'), 
+(req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Kpis-Permisos.html')); 
+});
+
+router.get('/Gestion-Materias-Permisos', bloquearAlumnos, authMiddleware, permisoMiddleware ('permiso_materias'), (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Materias-Permisos.html'));
+});
+
+
 router.get('/Mis-Evaluaciones-Dir-General', bloquearAlumnos, authMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/html/Evaluaciones360.html'));
+});
+
+router.get('/Gestion-Personal-Resultados', authMiddleware, bloquearAlumnos, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Resultados.html'));
+});
+
+router.get('/Gestion-Permisos', authMiddleware, bloquearAlumnos, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/html/Gestion-Permisos.html'));
 });
 
 //RUTA PROTEGIDA: SOLO SI VIENE DESDE LOGIN
@@ -321,12 +329,7 @@ router.post('/login', async (req, res) => {
         nombre_completo,
         permisos // AÑADIMOS LOS PERMISOS AQUÍ
       };
-      if (id_puesto == 35){
         res.json({ success: true , userType, redirect: '/Dashboard' });
-      }else {
-        res.json({ success: true , userType, redirect: '/DashboardPersonal' });
-      }
-
     } else if (alumno.length > 0) {
         userType = 'alumno'; 
         id_alumno = alumno[0].id_alumno; 
@@ -341,7 +344,7 @@ router.post('/login', async (req, res) => {
           nombre_completo,
           id_personal 
         };
-        res.json({ success: true , userType, redirect: '/DashboardAlumno' });
+        res.json({ success: true , userType, redirect: '/Dashboard' });
     } else {
       return res.status(500).json({ success: false, message: 'Usuario no asociado a personal o alumno.' });
     }
@@ -1773,8 +1776,9 @@ router.post('/postRespuestasServicio', authMiddleware, async (req, res) => {
 
 // OBTENER LOS TALLERES PARA EVALUARLOS
 router.get('/getTalleres', authMiddleware, async (req, res) => {
-  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
-  const query = "SELECT t.id_taller, t.nombre_taller, t.img_taller, ta.estado_evaluacion_taller, p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Taller t, Alumno_Taller ta, Personal p, Personal_taller pt WHERE p.id_personal=pt.id_taller AND pt.id_taller=ta.id_taller AND t.id_taller=ta.id_taller AND ta.id_alumno=?"; // OBTENER LOS TALLERES A LOS QUE ESTA INSCRITO
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION
+  console.log('iialum',id_alumno);
+  const query = "SELECT t.id_taller, t.nombre_taller, t.img_taller, ta.estado_evaluacion_taller, p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Taller t, Alumno_Taller ta, Personal p, Personal_taller pt WHERE p.id_personal=pt.id_personal AND pt.id_taller=ta.id_taller AND t.id_taller=ta.id_taller AND ta.id_alumno=?"; // OBTENER LOS TALLERES A LOS QUE ESTA INSCRITO
   try {
     const [talleres] = await db.query(query,id_alumno);
     const cantidadTalleres = talleres.length;
@@ -2001,7 +2005,7 @@ router.post('/postRespuestasDocente', authMiddleware, async (req, res) => {
       await db.query(query2,[valoresComentarios]);
     }
     await db.query(query3,[id_alumno]);
-    res.json({ success: true , message:'Materia evaluada correctamente'});
+    res.json({ success: true , message:'Profesor evaluada correctamente'});
   } catch (error) {
     console.error('Error al hacer la insercion:', error);
     res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
@@ -4910,7 +4914,972 @@ router.get('/personal-kpis/:id_personal', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (req, res) => {
+  const { id_personal } = req.params;
+  try {
+    const tipos = [];
+
+    // Obtener el puesto del personal
+    const [personalPuesto] = await db.query(`
+      SELECT pu.nombre_puesto
+      FROM Personal p
+      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+      WHERE p.id_personal = ?
+    `, [id_personal]);
+    if (personalPuesto.length === 0) {
+      console.log(`No se encontró personal con id_personal: ${id_personal}`);
+      return res.json([]);
+    }
+    const nombrePuesto = personalPuesto[0].nombre_puesto.toLowerCase();
+
+    // Obtener roles del personal
+    const [rolesPersonal] = await db.query(`
+      SELECT r.nombre_rol
+      FROM Personal p
+      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+      JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+      JOIN Rol r ON pr.id_rol = r.id_rol
+      WHERE p.id_personal = ?
+    `, [id_personal]);
+    const roles = rolesPersonal.map(r => r.nombre_rol.toLowerCase());
+
+    // Check for materias
+    const [materiasCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Grupo_Materia WHERE id_personal = ?
+    `, [id_personal]);
+    if (materiasCount[0].count > 0) {
+      console.log(`Materias encontradas para id_personal: ${id_personal}`);
+      tipos.push('materias');
+    }
+
+    // Check for talleres
+    const [talleresCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
+    `, [id_personal]);
+    if (talleresCount[0].count > 0) {
+      console.log(`Talleres encontrados para id_personal: ${id_personal}`);
+      tipos.push('talleres');
+    }
+
+    // Check for artes (usando Personal_Arte_Especialidad)
+    const [artesCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Arte_Especialidad WHERE id_personal = ?
+    `, [id_personal]);
+    if (artesCount[0].count > 0) {
+      console.log(`Especialidades de arte encontradas para id_personal: ${id_personal}`);
+      tipos.push('artes');
+    }
+
+    // Check for niveles de inglés
+    const [inglesCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Nivel_Ingles WHERE id_personal = ?
+    `, [id_personal]);
+    if (inglesCount[0].count > 0) {
+      console.log(`Niveles de inglés encontrados para id_personal: ${id_personal}`);
+      tipos.push('ingles');
+    }
+
+    // Check for pares
+    const [paresCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Par WHERE id_personal = ?
+    `, [id_personal]);
+    if (paresCount[0].count > 0) {
+      console.log(`Pares encontrados para id_personal: ${id_personal}`);
+      tipos.push('pares');
+    }
+
+    // Check for jefes
+    const [jefesCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Jefe WHERE id_personal = ?
+    `, [id_personal]);
+    if (jefesCount[0].count > 0) {
+      console.log(`Jefes encontrados para id_personal: ${id_personal}`);
+      tipos.push('jefes');
+    }
+
+    // Check for subordinados
+    const [subordinadosCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Subordinado WHERE id_personal = ?
+    `, [id_personal]);
+    if (subordinadosCount[0].count > 0) {
+      console.log(`Subordinados encontrados para id_personal: ${id_personal}`);
+      tipos.push('subordinados');
+    }
+
+    // Check for coordinadores
+    const [coordinadoresCount] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_Coordinador WHERE id_personal = ?
+    `, [id_personal]);
+    if (coordinadoresCount[0].count > 0) {
+      console.log(`Coordinadores encontrados para id_personal: ${id_personal}`);
+      tipos.push('coordinadores');
+    }
+
+    // Check for 360
+    const [tres60Count] = await db.query(`
+      SELECT COUNT(*) as count FROM Personal_360 WHERE id_personal = ?
+    `, [id_personal]);
+    if (tres60Count[0].count > 0) {
+      console.log(`Evaluaciones 360 encontradas para id_personal: ${id_personal}`);
+      tipos.push('360');
+    }
+
+    // Ajustes basados en roles/puesto (ejemplo para subdirectores que dan clases)
+    if (roles.some(r => r.includes('subdirector')) && (materiasCount[0].count > 0 || talleresCount[0].count > 0 || inglesCount[0].count > 0 || artesCount[0].count > 0)) {
+      console.log(`Subdirector con actividades docentes encontrado para id_personal: ${id_personal}`);
+      tipos.push('alumnos');
+    }
+
+    // Elimina duplicados
+    const uniqueTipos = [...new Set(tipos)];
+    console.log(`Tipos de evaluaciones finales para id_personal ${id_personal}:`, uniqueTipos);
+
+    res.json(uniqueTipos);
+  } catch (error) {
+    console.error('Error al obtener tipos de evaluaciones:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
+  }
+});
+
+// Obtener personal asociado a un rol específico
+router.get('/personal-by-role-permisos/:roleId', async (req, res) => {
+    const { roleId } = req.params;
+    try {
+        const [personal] = await db.query(
+            `SELECT DISTINCT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.id_usuario
+             FROM Personal p
+             JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+             WHERE pr.id_rol = ?`,
+            [roleId]
+        );
+        res.json({ success: true, personal });
+    } catch (error) {
+        console.error('Error fetching personal by role:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta.' });
+    }
+});
+
+// Fetch all roles
+router.get('/personal-roles', authMiddleware, async (req, res) => {
+    try {
+        const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
+        res.json({ success: true, roles });
+    } catch (error) {
+        console.error('Error fetching roles:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta de roles.' });
+    }
+});
+
+// Fetch all categories with their roles
+router.get('/personal-categories', authMiddleware, async (req, res) => {
+    try {
+        const [categories] = await db.query(`
+            SELECT r.id_rol, r.nombre_rol, p.nombre_puesto
+            FROM Rol r
+            JOIN Puesto_Rol pr ON r.id_rol = pr.id_rol
+            JOIN Puesto p ON pr.id_puesto = p.id_puesto
+        `);
+        const roleCategories = [
+            { name: 'Dirección', roleIds: [3, 12] },
+            { name: 'Subdirección', roleIds: [4, 5, 8, 11, 16, 18, 21, 23, 37] },
+            { name: 'Docentes', roleIds: [1, 2, 15, 19, 30, 31, 36] },
+            { name: 'Servicios', roleIds: [9, 10, 20, 24, 27] },
+            { name: 'Otros', roleIds: [6, 7, 13, 14, 17, 22, 25, 26, 28, 29, 32, 33, 34, 35] }
+        ];
+        res.json({ success: true, categories: roleCategories });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta de categorías.' });
+    }
+});
+
+// Fetch personal by role
+router.get('/personal-by-role/:roleId', authMiddleware, async (req, res) => {
+    const { roleId } = req.params;
+    try {
+        const [personal] = await db.query(`
+            SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.telefono_personal, p.id_usuario, p.id_puesto, p.img_personal
+            FROM Personal p
+            JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+            WHERE pr.id_rol = ? AND p.estado_personal = 1
+        `, [roleId]);
+        res.json({ success: true, personal });
+    } catch (error) {
+        console.error('Error fetching personal:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta de personal.' });
+    }
+});
+
+// Fetch KPI results for a personal with responsible role
+router.get('/personal-kpi-results/:id_personal', authMiddleware, async (req, res) => {
+    const { id_personal } = req.params;
+    try {
+        const [results] = await db.query(`
+            SELECT rk.id_resultado_kpi, rk.resultado_kpi, k.nombre_kpi, k.meta_kpi, k.tipo_kpi, ck.nombre_categoria_kpi, pc.porcentaje_categoria, r.nombre_rol AS responsable
+            FROM Resultado_Kpi rk
+            JOIN Kpi k ON rk.id_kpi = k.id_kpi
+            JOIN Categoria_Kpi ck ON k.id_categoria_kpi = ck.id_categoria_kpi
+            JOIN Puesto_Kpi pk ON k.id_kpi = pk.id_kpi
+            JOIN Puesto_Categoria pc ON pk.id_puesto = pc.id_puesto AND k.id_categoria_kpi = pc.id_categoria_kpi
+            JOIN Personal p ON rk.id_personal = p.id_personal
+            JOIN Rol r ON k.id_rol = r.id_rol
+            WHERE rk.id_personal = ? AND p.id_puesto = pk.id_puesto
+        `, [id_personal]);
+        res.json({ success: true, results });
+    } catch (error) {
+        console.error('Error fetching KPI results:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta de resultados KPI.' });
+    }
+});
+
+router.get('/personal-evaluaciones-results/:id_personal/:tipo', authMiddleware, async (req, res) => {
+  const { id_personal, tipo } = req.params;
+  const idTipoPregunta = req.query.id_tipo_pregunta;
+  try {
+    if (!idTipoPregunta) {
+      return res.status(400).json({ success: false, message: 'id_tipo_pregunta requerido' });
+    }
+
+    // Nombre del personal
+    const [personal] = await db.query(`
+      SELECT nombre_personal, apaterno_personal, amaterno_personal
+      FROM Personal
+      WHERE id_personal = ?
+    `, [id_personal]);
+    if (personal.length === 0) {
+      return res.status(404).json({ success: false, message: 'Personal no encontrado' });
+    }
+    const teacherName = `${personal[0].nombre_personal} ${personal[0].apaterno_personal} ${personal[0].amaterno_personal}`.toUpperCase();
+
+    // Fetch preguntas (criterios)
+    const [questions] = await db.query(`
+      SELECT id_pregunta, nombre_pregunta
+      FROM Pregunta
+      WHERE id_tipo_pregunta = ?
+      ORDER BY id_pregunta
+    `, [idTipoPregunta]);
+    if (questions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay preguntas para este tipo de evaluación' });
+    }
+
+    let subjects = [];
+    let comments = [];
+    let isMultiple = false;
+
+    // Define table mappings for each tipo
+    const responseTables = {
+      materias: 'Respuesta_Alumno_Docente',
+      talleres: 'Respuesta_Alumno_Taller',
+      counselors: 'Respuesta_Alumno_Counselor',
+      coordinadores: 'Respuesta_Personal',
+      subordinados: 'Respuesta_Personal',
+      '360': 'Respuesta_Personal',
+      pares: 'Respuesta_Personal',
+      jefes: 'Respuesta_Personal',
+      servicios: 'Respuesta_Alumno_Servicio',
+      instalaciones: 'Respuesta_Alumno_Servicio',
+      ingles: 'Respuesta_Alumno_Docente_Ingles',
+      artes: 'Respuesta_Alumno_Docente_Arte',
+      psicopedagogico: 'Respuesta_Alumno_Psicopedagogico',
+    };
+
+    const commentTables = {
+      materias: 'Comentario_Docente',
+      talleres: 'Comentario_Taller',
+      counselors: 'Comentario_Counselor',
+      coordinadores: 'Comentario_Personal',
+      subordinados: 'Comentario_Personal',
+      '360': 'Comentario_Personal',
+      pares: 'Comentario_Personal',
+      jefes: 'Comentario_Personal',
+      servicios: 'Comentario_Servicio',
+      instalaciones: 'Comentario_Servicio',
+      ingles: 'Comentario_Docente_Ingles',
+      artes: 'Comentario_Docente_Arte',
+      psicopedagogico: 'Comentario_Psicopedagogico',
+    };
+
+    const commentColumnNames = {
+      materias: 'comentario_docente',
+      talleres: 'comentario_taller',
+      counselors: 'comentario_counselor',
+      coordinadores: 'comentario_personal',
+      subordinados: 'comentario_personal',
+      '360': 'comentario_personal',
+      pares: 'comentario_personal',
+      jefes: 'comentario_personal',
+      servicios: 'comentario_servicio',
+      instalaciones: 'comentario_servicio',
+      ingles: 'comentario_docente_ingles',
+      artes: 'comentario_docente_arte',
+      psicopedagogico: 'comentario_servicio',
+    };
+
+    // Logic for each evaluation type
+    if (tipo === 'materias') {
+      const [materias] = await db.query(`
+        SELECT DISTINCT m.id_materia, m.nombre_materia
+        FROM Grupo_Materia gm
+        JOIN Materia m ON gm.id_materia = m.id_materia
+        WHERE gm.id_personal = ?
+      `, [id_personal]);
+      isMultiple = materias.length > 1;
+
+      for (const materia of materias) {
+        const [totalAlumnos] = await db.query(`
+          SELECT COUNT(DISTINCT id_alumno) as total
+          FROM Respuesta_Alumno_Docente
+          WHERE id_personal = ? AND id_materia = ?
+        `, [id_personal, materia.id_materia]);
+        const total = totalAlumnos[0].total;
+
+        const criteria = [];
+        let sumAvgSi = 0;
+
+        for (const [index, q] of questions.entries()) {
+          const [counts] = await db.query(`
+            SELECT r.nombre_respuesta, COUNT(*) as count
+            FROM Respuesta_Alumno_Docente rad
+            JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
+            WHERE rad.id_personal = ? AND rad.id_materia = ? AND rad.id_pregunta = ?
+            GROUP BY r.nombre_respuesta
+          `, [id_personal, materia.id_materia, q.id_pregunta]);
+
+          let si = 0, no = 0;
+          counts.forEach(c => {
+            if (c.nombre_respuesta === 'Si') si = c.count;
+            if (c.nombre_respuesta === 'No') no = c.count;
+          });
+          const totalResponses = si + no;
+          const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+          const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+          sumAvgSi += parseFloat(pctSi);
+        }
+
+        const avgSi = (sumAvgSi / questions.length).toFixed(2);
+        const avgNo = (100 - avgSi).toFixed(2);
+
+        subjects.push({ name: materia.nombre_materia.toUpperCase(), totalAlumnos: total, criteria, avgSi, avgNo });
+
+        const [commentsData] = await db.query(`
+          SELECT comentario_docente
+          FROM Comentario_Docente
+          WHERE id_personal = ? AND id_materia = ?
+        `, [id_personal, materia.id_materia]);
+        comments = comments.concat(commentsData.map(c => c.comentario_docente));
+      }
+    } else if (tipo === 'talleres') {
+      const [talleres] = await db.query(`
+        SELECT DISTINCT t.id_taller, t.nombre_taller
+        FROM Personal_taller pt
+        JOIN Taller t ON pt.id_taller = t.id_taller
+        WHERE pt.id_personal = ?
+      `, [id_personal]);
+      isMultiple = talleres.length > 1;
+
+      for (const taller of talleres) {
+        const [totalAlumnos] = await db.query(`
+          SELECT COUNT(DISTINCT id_alumno) as total
+          FROM Respuesta_Alumno_Taller
+          WHERE id_personal = ? AND id_taller = ?
+        `, [id_personal, taller.id_taller]);
+        const total = totalAlumnos[0].total;
+
+        const criteria = [];
+        let sumAvgSi = 0;
+
+        for (const [index, q] of questions.entries()) {
+          const [counts] = await db.query(`
+            SELECT r.nombre_respuesta, COUNT(*) as count
+            FROM Respuesta_Alumno_Taller rat
+            JOIN Respuesta r ON rat.id_respuesta = r.id_respuesta
+            WHERE rat.id_personal = ? AND rat.id_taller = ? AND rat.id_pregunta = ?
+            GROUP BY r.nombre_respuesta
+          `, [id_personal, taller.id_taller, q.id_pregunta]);
+
+          let si = 0, no = 0;
+          counts.forEach(c => {
+            if (c.nombre_respuesta === 'Si') si = c.count;
+            if (c.nombre_respuesta === 'No') no = c.count;
+          });
+          const totalResponses = si + no;
+          const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+          const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+          sumAvgSi += parseFloat(pctSi);
+        }
+
+        const avgSi = (sumAvgSi / questions.length).toFixed(2);
+        const avgNo = (100 - avgSi).toFixed(2);
+
+        subjects.push({ name: taller.nombre_taller.toUpperCase(), totalAlumnos: total, criteria, avgSi, avgNo });
+
+        const [commentsData] = await db.query(`
+          SELECT comentario_taller
+          FROM Comentario_Taller
+          WHERE id_personal = ? AND id_taller = ?
+        `, [id_personal, taller.id_taller]);
+        comments = comments.concat(commentsData.map(c => c.comentario_taller));
+      }
+    } else if (tipo === 'counselors') {
+      const [totalAlumnos] = await db.query(`
+        SELECT COUNT(DISTINCT id_alumno) as total
+        FROM Respuesta_Alumno_Counselor
+        WHERE id_personal = ?
+      `, [id_personal]);
+      const total = totalAlumnos[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Alumno_Counselor rac
+          JOIN Respuesta r ON rac.id_respuesta = r.id_respuesta
+          WHERE rac.id_personal = ? AND rac.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'COUNSELOR', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_counselor
+        FROM Comentario_Counselor
+        WHERE id_personal = ?
+      `, [id_personal]);
+      comments = comments.concat(commentsData.map(c => c.comentario_counselor));
+    } else if (tipo === '360') {
+      // Explicit handling for 360 evaluations with id_tipo_pregunta = 5
+      const [totalEvaluadores] = await db.query(`
+        SELECT COUNT(DISTINCT id_evaluador) as total
+        FROM Respuesta_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, 5]);
+      const total = totalEvaluadores[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Personal rp
+          JOIN Respuesta r ON rp.id_respuesta = r.id_respuesta
+          WHERE rp.id_personal = ? AND rp.id_tipo_pregunta = ? AND rp.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, 5, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'EVALUACIÓN 360', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_personal
+        FROM Comentario_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, 5]);
+      comments = comments.concat(commentsData.map(c => c.comentario_personal));
+    } else if (tipo === 'subordinados') {
+      const [totalEvaluadores] = await db.query(`
+        SELECT COUNT(DISTINCT id_evaluador) as total
+        FROM Respuesta_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      const total = totalEvaluadores[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Personal rp
+          JOIN Respuesta r ON rp.id_respuesta = r.id_respuesta
+          WHERE rp.id_personal = ? AND rp.id_tipo_pregunta = ? AND rp.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, idTipoPregunta, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'SUBORDINADOS', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_personal
+        FROM Comentario_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      comments = comments.concat(commentsData.map(c => c.comentario_personal));
+    } else if (tipo === 'pares') {
+      const [totalEvaluadores] = await db.query(`
+        SELECT COUNT(DISTINCT id_evaluador) as total
+        FROM Respuesta_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      const total = totalEvaluadores[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Personal rp
+          JOIN Respuesta r ON rp.id_respuesta = r.id_respuesta
+          WHERE rp.id_personal = ? AND rp.id_tipo_pregunta = ? AND rp.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, idTipoPregunta, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'PARES', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_personal
+        FROM Comentario_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      comments = comments.concat(commentsData.map(c => c.comentario_personal));
+    } else if (tipo === 'jefes') {
+      const [totalEvaluadores] = await db.query(`
+        SELECT COUNT(DISTINCT id_evaluador) as total
+        FROM Respuesta_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      const total = totalEvaluadores[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Personal rp
+          JOIN Respuesta r ON rp.id_respuesta = r.id_respuesta
+          WHERE rp.id_personal = ? AND rp.id_tipo_pregunta = ? AND rp.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, idTipoPregunta, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'JEFES', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_personal
+        FROM Comentario_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      comments = comments.concat(commentsData.map(c => c.comentario_personal));
+    } else if (tipo === 'coordinadores') {
+      const [totalEvaluadores] = await db.query(`
+        SELECT COUNT(DISTINCT id_evaluador) as total
+        FROM Respuesta_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      const total = totalEvaluadores[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Personal rp
+          JOIN Respuesta r ON rp.id_respuesta = r.id_respuesta
+          WHERE rp.id_personal = ? AND rp.id_tipo_pregunta = ? AND rp.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, idTipoPregunta, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'COORDINADORES', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_personal
+        FROM Comentario_Personal
+        WHERE id_personal = ? AND id_tipo_pregunta = ?
+      `, [id_personal, idTipoPregunta]);
+      comments = comments.concat(commentsData.map(c => c.comentario_personal));
+    } else if (tipo === 'servicios' || tipo === 'instalaciones') {
+      const [servicios] = await db.query(`
+        SELECT DISTINCT s.id_servicio, s.nombre_servicio
+        FROM Servicio s
+        JOIN Respuesta_Alumno_Servicio ras ON s.id_servicio = ras.id_servicio
+        WHERE ras.id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ?)
+      `, [idTipoPregunta]);
+      isMultiple = servicios.length > 1;
+
+      for (const servicio of servicios) {
+        const [totalAlumnos] = await db.query(`
+          SELECT COUNT(DISTINCT id_alumno) as total
+          FROM Respuesta_Alumno_Servicio
+          WHERE id_servicio = ?
+        `, [servicio.id_servicio]);
+        const total = totalAlumnos[0].total;
+
+        const criteria = [];
+        let sumAvgSi = 0;
+
+        for (const [index, q] of questions.entries()) {
+          const [counts] = await db.query(`
+            SELECT r.nombre_respuesta, COUNT(*) as count
+            FROM Respuesta_Alumno_Servicio ras
+            JOIN Respuesta r ON ras.id_respuesta = r.id_respuesta
+            WHERE ras.id_servicio = ? AND ras.id_pregunta = ?
+            GROUP BY r.nombre_respuesta
+          `, [servicio.id_servicio, q.id_pregunta]);
+
+          let si = 0, no = 0;
+          counts.forEach(c => {
+            if (c.nombre_respuesta === 'Si') si = c.count;
+            if (c.nombre_respuesta === 'No') no = c.count;
+          });
+          const totalResponses = si + no;
+          const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+          const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+          sumAvgSi += parseFloat(pctSi);
+        }
+
+        const avgSi = (sumAvgSi / questions.length).toFixed(2);
+        const avgNo = (100 - avgSi).toFixed(2);
+
+        subjects.push({ name: servicio.nombre_servicio.toUpperCase(), totalAlumnos: total, criteria, avgSi, avgNo });
+
+        const [commentsData] = await db.query(`
+          SELECT comentario_servicio
+          FROM Comentario_Servicio
+          WHERE id_servicio = ?
+        `, [servicio.id_servicio]);
+        comments = comments.concat(commentsData.map(c => c.comentario_servicio));
+      }
+    } else if (tipo === 'ingles') {
+      const [niveles] = await db.query(`
+        SELECT DISTINCT ni.id_nivel_ingles, ni.nombre_nivel
+        FROM Nivel_Ingles ni
+        JOIN Respuesta_Alumno_Docente_Ingles radi ON ni.id_nivel_ingles = radi.id_nivel_ingles
+        WHERE radi.id_personal = ?
+      `, [id_personal]);
+      isMultiple = niveles.length > 1;
+
+      for (const nivel of niveles) {
+        const [totalAlumnos] = await db.query(`
+          SELECT COUNT(DISTINCT id_alumno) as total
+          FROM Respuesta_Alumno_Docente_Ingles
+          WHERE id_personal = ? AND id_nivel_ingles = ?
+        `, [id_personal, nivel.id_nivel_ingles]);
+        const total = totalAlumnos[0].total;
+
+        const criteria = [];
+        let sumAvgSi = 0;
+
+        for (const [index, q] of questions.entries()) {
+          const [counts] = await db.query(`
+            SELECT r.nombre_respuesta, COUNT(*) as count
+            FROM Respuesta_Alumno_Docente_Ingles radi
+            JOIN Respuesta r ON radi.id_respuesta = r.id_respuesta
+            WHERE radi.id_personal = ? AND radi.id_nivel_ingles = ? AND radi.id_pregunta = ?
+            GROUP BY r.nombre_respuesta
+          `, [id_personal, nivel.id_nivel_ingles, q.id_pregunta]);
+
+          let si = 0, no = 0;
+          counts.forEach(c => {
+            if (c.nombre_respuesta === 'Si') si = c.count;
+            if (c.nombre_respuesta === 'No') no = c.count;
+          });
+          const totalResponses = si + no;
+          const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+          const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+          sumAvgSi += parseFloat(pctSi);
+        }
+
+        const avgSi = (sumAvgSi / questions.length).toFixed(2);
+        const avgNo = (100 - avgSi).toFixed(2);
+
+        subjects.push({ name: nivel.nombre_nivel.toUpperCase(), totalAlumnos: total, criteria, avgSi, avgNo });
+
+        const [commentsData] = await db.query(`
+          SELECT comentario_docente_ingles
+          FROM Comentario_Docente_Ingles
+          WHERE id_personal = ? AND id_nivel_ingles = ?
+        `, [id_personal, nivel.id_nivel_ingles]);
+        comments = comments.concat(commentsData.map(c => c.comentario_docente_ingles));
+      }
+    } else if (tipo === 'artes') {
+      const [especialidades] = await db.query(`
+        SELECT DISTINCT ae.id_arte_especialidad, ae.nombre_especialidad
+        FROM Arte_Especialidad ae
+        JOIN Respuesta_Alumno_Docente_Arte rada ON ae.id_arte_especialidad = rada.id_arte_especialidad
+        WHERE rada.id_personal = ?
+      `, [id_personal]);
+      isMultiple = especialidades.length > 1;
+
+      for (const especialidad of especialidades) {
+        const [totalAlumnos] = await db.query(`
+          SELECT COUNT(DISTINCT id_alumno) as total
+          FROM Respuesta_Alumno_Docente_Arte
+          WHERE id_personal = ? AND id_arte_especialidad = ?
+        `, [id_personal, especialidad.id_arte_especialidad]);
+        const total = totalAlumnos[0].total;
+
+        const criteria = [];
+        let sumAvgSi = 0;
+
+        for (const [index, q] of questions.entries()) {
+          const [counts] = await db.query(`
+            SELECT r.nombre_respuesta, COUNT(*) as count
+            FROM Respuesta_Alumno_Docente_Arte rada
+            JOIN Respuesta r ON rada.id_respuesta = r.id_respuesta
+            WHERE rada.id_personal = ? AND rada.id_arte_especialidad = ? AND rada.id_pregunta = ?
+            GROUP BY r.nombre_respuesta
+          `, [id_personal, especialidad.id_arte_especialidad, q.id_pregunta]);
+
+          let si = 0, no = 0;
+          counts.forEach(c => {
+            if (c.nombre_respuesta === 'Si') si = c.count;
+            if (c.nombre_respuesta === 'No') no = c.count;
+          });
+          const totalResponses = si + no;
+          const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+          const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+          sumAvgSi += parseFloat(pctSi);
+        }
+
+        const avgSi = (sumAvgSi / questions.length).toFixed(2);
+        const avgNo = (100 - avgSi).toFixed(2);
+
+        subjects.push({ name: especialidad.nombre_especialidad.toUpperCase(), totalAlumnos: total, criteria, avgSi, avgNo });
+
+        const [commentsData] = await db.query(`
+          SELECT comentario_docente_arte
+          FROM Comentario_Docente_Arte
+          WHERE id_personal = ? AND id_arte_especialidad = ?
+        `, [id_personal, especialidad.id_arte_especialidad]);
+        comments = comments.concat(commentsData.map(c => c.comentario_docente_arte));
+      }
+    } else if (tipo === 'psicopedagogico') {
+      const [totalAlumnos] = await db.query(`
+        SELECT COUNT(DISTINCT id_alumno) as total
+        FROM Respuesta_Alumno_Psicopedagogico
+        WHERE id_personal = ?
+      `, [id_personal]);
+      const total = totalAlumnos[0].total;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.nombre_respuesta, COUNT(*) as count
+          FROM Respuesta_Alumno_Psicopedagogico rap
+          JOIN Respuesta r ON rap.id_respuesta = r.id_respuesta
+          WHERE rap.id_personal = ? AND rap.id_pregunta = ?
+          GROUP BY r.nombre_respuesta
+        `, [id_personal, q.id_pregunta]);
+
+        let si = 0, no = 0;
+        counts.forEach(c => {
+          if (c.nombre_respuesta === 'Si') si = c.count;
+          if (c.nombre_respuesta === 'No') no = c.count;
+        });
+        const totalResponses = si + no;
+        const pctSi = totalResponses ? ((si / totalResponses) * 100).toFixed(2) : 0;
+        const pctNo = totalResponses ? ((no / totalResponses) * 100).toFixed(2) : 0;
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        sumAvgSi += parseFloat(pctSi);
+      }
+
+      const avgSi = (sumAvgSi / questions.length).toFixed(2);
+      const avgNo = (100 - avgSi).toFixed(2);
+
+      subjects.push({ name: 'PSICOPEDAGOGICO', totalAlumnos: total, criteria, avgSi, avgNo });
+
+      const [commentsData] = await db.query(`
+        SELECT comentario_servicio
+        FROM Comentario_Psicopedagogico
+        WHERE id_personal = ?
+      `, [id_personal]);
+      comments = comments.concat(commentsData.map(c => c.comentario_servicio));
+    } else {
+      return res.status(400).json({ success: false, message: 'Tipo de evaluación no soportado' });
+    }
+
+    // Calcular promedios por criterio
+    const criteria = questions.map((q, index) => {
+      let sumPctSi = 0;
+      subjects.forEach(s => sumPctSi += parseFloat(s.criteria[index]?.pctSi || 0));
+      const promedio = subjects.length ? (sumPctSi / subjects.length).toFixed(2) : 0;
+      return { no: index + 1, criterio: q.nombre_pregunta, promedio };
+    });
+
+    const generalAverage = subjects.length
+      ? (subjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / subjects.length).toFixed(2)
+      : 0;
+
+    res.json({ teacherName, isMultiple, subjects, criteria, generalAverage, comments });
+  } catch (error) {
+    console.error('Error al obtener resultados de evaluaciones:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
+  }
+});
+
 //FIN RUTAS DE RESULTADOS
+
+// HACER CIERRE DE CICLO
+router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
+  const { ciclo } = req.body;
+
+  // Lista de tablas a respaldar
+  const tablas = [
+    'Resultado_Kpi',
+    'Personal_Nivel_Ingles',
+    'Alumno_Nivel_Ingles',
+    'Alumno_Materia',
+    'Grupo_Materia',
+    'Alumno_Taller',
+    'Alumno_Arte_Especialidad',
+    'Respuesta_Alumno_Docente',
+    'Respuesta_Alumno_Docente_Ingles',
+    'Respuesta_Alumno_Docente_Arte',
+    'Respuesta_Alumno_Servicio',
+    'Respuesta_Alumno_Taller',
+    'Respuesta_Alumno_Counselor',
+    'Respuesta_Personal',
+    'Respuesta_Alumno_Psicopedagogico',
+    'Comentario_Docente',
+    'Comentario_Docente_Ingles',
+    'Comentario_Docente_Arte',
+    'Comentario_Servicio',
+    'Comentario_Taller',
+    'Comentario_Counselor',
+    'Comentario_Personal',
+    'Comentario_Psicopedagogico'
+  ];
+
+  try {
+    for (const tabla of tablas) {
+      const historico = `${tabla}_Historico`;
+
+      // Respaldar datos
+      const insertQuery = `
+        INSERT INTO ${historico}
+        SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
+        FROM ${tabla};
+      `;
+      await db.query(insertQuery, [ciclo]);
+
+      // Vaciar tabla original
+      await db.query(`TRUNCATE TABLE ${tabla}`);
+    }
+
+    const query = 'SELECT ';
+
+    res.json({ success: true, message: 'Ciclo cerrado correctamente!' });
+
+  } catch (error) {
+    console.error('Error al cerrar ciclo:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta más tarde' });
+  }
+});
+
+// Alumno: Se pasa de grupo
+// Alumno_Taller: Cuando el alumno sale de 6to se elimina
+// Alumno_Arte_Especialidad: Cuando pasen a 4to se eliminan
 
 
 //RUTA PARA PRUEBA NADAMÁS

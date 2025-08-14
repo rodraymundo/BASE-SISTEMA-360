@@ -1,4 +1,80 @@
-/* Estiliza los encabezados de la tabla */
+/* Establece la altura completa para el HTML y el body, eliminando márgenes y padding para un control total del diseño */
+html, body {
+  height: 100%; /* Hace que el HTML y el body ocupen el 100% de la altura de la ventana */
+  margin: 0; /* Elimina márgenes predeterminados */
+  padding: 0; /* Elimina padding predeterminado */
+  overflow: hidden; /* Evita barras de desplazamiento no deseadas en la página */
+  font-family: 'Roboto', sans-serif; /* Establece la fuente Roboto para un estilo moderno y legible */
+}
+
+/* Asegura que el body use un diseño flexible en columna para organizar el contenido */
+body {
+  display: flex; /* Usa flexbox para organizar los elementos hijos */
+  flex-direction: column; /* Organiza los elementos en una columna vertical */
+  padding: 20px;
+}
+
+/* Estiliza el título h2 dentro de la clase .gestion-kpis */
+.gestion-kpis h2 {
+  font-weight: 700; /* Usa peso de fuente negrita para destacar el título */
+  font-size: 1.8rem; /* Establece el tamaño de fuente a 1.8rem (≈28.8px) para un título prominente */
+  color: #dc3545; /* Usa rojo (tema de la aplicación) para el color del texto */
+  margin-bottom: 1.5rem; /* Añade un margen inferior de 1.5rem (24px) para separar del contenido siguiente */
+}
+
+/* Estiliza el contenedor principal de la página */
+.gestion-kpis .container {
+  flex: 1; /* Hace que el contenedor ocupe todo el espacio disponible en el diseño flexible */
+  max-width: 1550px; /* Limita el ancho máximo a 1200px para mantener el contenido centrado */
+  padding: 1rem 0; /* Añade padding vertical de 1rem (16px) para espacio interno */
+  overflow: hidden; /* Evita que el contenido se desborde del contenedor */
+}
+
+/* Estiliza el grupo de entrada (input y botón de agregar KPI) */
+.gestion-kpis .input-group {
+  width: 100%; /* Hace que el grupo de entrada ocupe todo el ancho disponible */
+  max-width: 600px; /* Limita el ancho máximo a 600px para un diseño compacto */
+}
+
+/* Estiliza el campo de búsqueda de KPIs */
+.gestion-kpis #buscadorKpi {
+  margin-bottom: 0; /* Elimina el margen inferior para alinear con el botón de agregar */
+  height: 2.2rem; /* Establece una altura de 2.2rem (≈35.2px) para consistencia con el botón */
+  font-size: 0.9rem; /* Usa un tamaño de fuente de 0.9rem (≈14.4px) para legibilidad */
+  padding: 0.3rem 0.5rem; /* Añade padding interno de 0.3rem (4.8px) vertical y 0.5rem (8px) horizontal */
+  border-color: #dc3545; /* Establece un borde rojo para mantener el tema visual */
+}
+
+/* Estiliza el botón de agregar KPI */
+.gestion-kpis #addKpiBtn {
+  padding: 0.375rem 1rem; /* Añade padding de 0.375rem (6px) vertical y 1rem (16px) horizontal */
+  font-size: 0.9rem; /* Usa un tamaño de fuente de 0.9rem (≈14.4px) para consistencia */
+  height: 2.2rem; /* Establece la misma altura que el campo de búsqueda para alineación */
+}
+
+/* Estiliza el contenedor de la tabla de KPIs */
+.gestion-kpis #listaKpisContainer {
+  border: 1px solid #dee2e6; /* Añade un borde gris claro para delimitar el contenedor */
+  border-radius: 4px; /* Redondea las esquinas del contenedor con un radio de 4px */
+  overflow-y: auto; /* Permite desplazamiento vertical si el contenido excede la altura */
+  height: calc(80vh - 6rem); /* Establece la altura a 80% de la ventana menos 6rem (96px) para el encabezado y márgenes */
+  min-height: 500px; /* Garantiza una altura mínima de 500px para evitar contenedores demasiado pequeños */
+  width: 100%; /* Hace que el contenedor ocupe todo el ancho disponible */
+}
+
+/* Estiliza la tabla de KPIs */
+.gestion-kpis .table {
+  margin-bottom: 0; /* Elimina el margen inferior para que la tabla encaje en el contenedor */
+  font-size: 0.95rem; /* Usa un tamaño de fuente de 0.95rem (≈15.2px) para legibilidad */
+  width: 100%; /* Hace que la tabla ocupe todo el ancho del contenedor */
+  table-layout: fixed; /* Fija los anchos de las columnas para un diseño consistente */
+  background-color: #fff; /* Establece un fondo blanco para la tabla */
+  border-radius: 8px; /* Redondea las esquinas de la tabla (aunque puede ser recortado por overflow) */
+  overflow: hidden; /* Evita que el contenido se desborde de las esquinas redondeadas */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Añade una sombra sutil para profundidad */
+}
+
+/* Estiliza las celdas de encabezado de la tabla (th) */
 .gestion-kpis .table th {
   background-color: #dc3545;
   color: white;
