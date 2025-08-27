@@ -469,96 +469,62 @@ router.post('/guardar-eleccion-taller', authMiddleware, async (req, res) => {
   const id_alumno = req.session.user?.id_alumno;
   if (!id_alumno) return res.json({ success: false, message: 'No hay alumno en sesión' });
 
-  const { arte, extraescolares } = req.body; // arte: {id_arte_especialidad, id_personal} o null; extraescolares: array de ids
+  const { arte, extraescolares } = req.body;
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    // Obtener grado y grupo
-    const [[alumnoRow]] = await connection.query(`
-      SELECT a.id_grado_grupo, gg.grado
-      FROM Alumno a
-      LEFT JOIN Grado_grupo gg ON gg.id_grado_grupo = a.id_grado_grupo
-      WHERE a.id_alumno = ?
-    `, [id_alumno]);
-
-    if (!alumnoRow) {
-      await connection.rollback();
-      return res.json({ success: false, message: 'Alumno no encontrado' });
-    }
-
-    const gradoParsed = alumnoRow.grado ? parseInt(alumnoRow.grado, 10) : NaN;
-    const exigeArte = !isNaN(gradoParsed) ? (gradoParsed >= 1 && gradoParsed <= 3) : false;
-
-    if (exigeArte && !arte) {
-      await connection.rollback();
-      return res.json({ success: false, message: 'Tu grado requiere seleccionar un taller de arte.' });
-    }
-
-    if (arte && (!arte.id_arte_especialidad || !arte.id_personal)) {
-      await connection.rollback();
-      return res.json({ success: false, message: 'Datos incompletos para el taller de arte. Elige otra opción o pide a administración asignar materia.' });
-    }
-
-    // Obtener id_materia para el taller de arte
-    let id_materia_arte = null;
-    if (arte) {
-      const [[materiaRow]] = await connection.query(`
-        SELECT COALESCE(
-          gm.id_materia,
-          (SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Arte%' AND grado_materia = ? LIMIT 1),
-          (SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Arte%' LIMIT 1)
-        ) AS id_materia
-        FROM Personal_Arte_Especialidad pae
-        LEFT JOIN Grupo_Materia gm ON gm.id_grado_grupo = pae.id_grado_grupo AND gm.id_personal = pae.id_personal
-        WHERE pae.id_arte_especialidad = ? AND pae.id_personal = ? AND pae.id_grado_grupo = ?
-        LIMIT 1
-      `, [gradoParsed, arte.id_arte_especialidad, arte.id_personal, alumnoRow.id_grado_grupo]);
-
-      if (materiaRow && materiaRow.id_materia) {
-        id_materia_arte = materiaRow.id_materia;
-      } else {
-        const [[fallbackMateria]] = await connection.query(`
-          SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Arte%' LIMIT 1
-        `);
-        id_materia_arte = fallbackMateria ? fallbackMateria.id_materia : null;
-      }
-
-      if (!id_materia_arte) {
-        await connection.rollback();
-        return res.json({ success: false, message: 'No se pudo determinar la materia para el taller de arte.' });
-      }
-    }
-
-    // Extraescolares actuales en DB
+    // Obtener talleres actuales
     const [talleresDB] = await connection.query(`SELECT id_taller FROM Alumno_Taller WHERE id_alumno = ?`, [id_alumno]);
     const talleresDBIds = talleresDB.map(t => t.id_taller);
 
-    // Calcular cuáles borrar y cuáles insertar
     const nuevosIds = Array.isArray(extraescolares) ? extraescolares.map(id => parseInt(id, 10)) : [];
     const borrarIds = talleresDBIds.filter(id => !nuevosIds.includes(id));
     const insertarIds = nuevosIds.filter(id => !talleresDBIds.includes(id));
 
     // Eliminar talleres que ya no están
     if (borrarIds.length) {
-      await connection.query(`
-        DELETE FROM Alumno_Taller WHERE id_alumno = ? AND id_taller IN (?)
-      `, [id_alumno, borrarIds]);
+      await connection.query(`DELETE FROM Alumno_Taller WHERE id_alumno = ? AND id_taller IN (?)`, [id_alumno, borrarIds]);
     }
 
-    // Insertar nuevos talleres
-    if (insertarIds.length) {
-      const filas = insertarIds.map(id => [id_alumno, id, 0]);
+    // Insertar nuevos talleres con asignación rotativa de profesores
+    for (const id_taller of insertarIds) {
+      const [profesores] = await connection.query(`SELECT id_personal FROM Personal_taller WHERE id_taller = ?`, [id_taller]);
+
+      let id_personal = null;
+      if (profesores.length > 0) {
+        // Contador global por taller (puede ser un campo en memoria o simple random si quieres)
+        // Aquí simplemente asignamos el profesor con menos alumnos
+        const [conteos] = await connection.query(`
+          SELECT id_personal, COUNT(*) AS total FROM Alumno_Taller
+          WHERE id_taller = ?
+          GROUP BY id_personal
+          ORDER BY total ASC
+        `, [id_taller]);
+        if (conteos.length) {
+          id_personal = conteos[0].id_personal;
+        } else {
+          id_personal = profesores[0].id_personal;
+        }
+      }
+
       await connection.query(`
-        INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller) VALUES ?
-      `, [filas]);
+        INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller, id_personal)
+        VALUES (?, ?, 0, ?)
+      `, [id_alumno, id_taller, id_personal]);
     }
 
     // Actualizar taller de arte
-    // Eliminar si existe
     await connection.query(`DELETE FROM Alumno_Arte_Especialidad WHERE id_alumno = ?`, [id_alumno]);
     if (arte) {
+      // Asignación de id_materia (puedes mantener la lógica que ya tenías)
+      let id_materia_arte = null;
+      const [[materiaRow]] = await connection.query(`
+        SELECT id_materia FROM Materia WHERE nombre_materia LIKE 'Arte%' LIMIT 1
+      `);
+      id_materia_arte = materiaRow ? materiaRow.id_materia : null;
+
       await connection.query(`
         INSERT INTO Alumno_Arte_Especialidad 
           (id_alumno, id_personal, id_arte_especialidad, id_materia, estado_evaluacion_arte_especialidad)
@@ -568,6 +534,7 @@ router.post('/guardar-eleccion-taller', authMiddleware, async (req, res) => {
 
     await connection.commit();
     res.json({ success: true });
+
   } catch (error) {
     await connection.rollback();
     console.error('Error guardar-eleccion-taller:', error);
@@ -576,6 +543,7 @@ router.post('/guardar-eleccion-taller', authMiddleware, async (req, res) => {
     connection.release();
   }
 });
+
 
 
 
@@ -973,7 +941,7 @@ router.post('/actualizar-talleres-alumno', authMiddleware, async (req, res) => {
       `, [id_alumno]);
     }
 
-    // 2. Insertar nuevos talleres
+    // 2. Insertar nuevos talleres con asignación de profesor rotativa
     for (const taller of talleres) {
       const [rows] = await connection.query(`
         SELECT 1 FROM Alumno_Taller
@@ -989,10 +957,38 @@ router.post('/actualizar-talleres-alumno', authMiddleware, async (req, res) => {
 
         const yaEvaluado = respuestas[0].total > 0 ? 1 : taller.estado_evaluacion_taller;
 
+        // Obtener profesores del taller
+        const [profesores] = await connection.query(`
+          SELECT id_personal FROM Personal_taller
+          WHERE id_taller = ?
+        `, [taller.id_taller]);
+
+        // Asignar profesor rotativo
+        let id_personal = null;
+        if (profesores.length > 0) {
+          // Contar cuántos alumnos ya tiene cada profesor
+          const [conteo] = await connection.query(`
+            SELECT id_personal, COUNT(*) AS total
+            FROM Alumno_Taller
+            WHERE id_taller = ?
+            GROUP BY id_personal
+          `, [taller.id_taller]);
+
+          // Ordenar profesores por menos alumnos para balancear
+          const ordenado = profesores.map(p => {
+            const c = conteo.find(x => x.id_personal === p.id_personal);
+            return { id_personal: p.id_personal, total: c ? c.total : 0 };
+          }).sort((a,b) => a.total - b.total);
+
+          // Elegimos el profesor con menos alumnos
+          id_personal = ordenado[0].id_personal;
+        }
+
+        // Insertar con profesor asignado
         await connection.query(`
-          INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller)
-          VALUES (?, ?, ?)
-        `, [id_alumno, taller.id_taller, yaEvaluado]);
+          INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller, id_personal)
+          VALUES (?, ?, ?, ?)
+        `, [id_alumno, taller.id_taller, yaEvaluado, id_personal]);
       }
     }
 
@@ -1006,6 +1002,7 @@ router.post('/actualizar-talleres-alumno', authMiddleware, async (req, res) => {
     connection.release();
   }
 });
+
 
 
 //ACTUALIZAR COUNSELOR DEL ALUMNO
@@ -1197,94 +1194,91 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
     await connection.beginTransaction();
 
     // VERIFICAR SI YA EXISTE UN ALUMNO CON ESA MATRÍCULA
-    const [alumnoExistente] = await connection.query(`
-      SELECT 1 FROM Alumno WHERE id_alumno = ?
-    `, [id_alumno]);
-
-    if (alumnoExistente.length > 0) {
-      throw new Error(`Ya existe un alumno con la matrícula ${id_alumno}`);
-    }
+    const [alumnoExistente] = await connection.query(`SELECT 1 FROM Alumno WHERE id_alumno = ?`, [id_alumno]);
+    if (alumnoExistente.length > 0) throw new Error(`Ya existe un alumno con la matrícula ${id_alumno}`);
 
     // VERIFICAR SI YA EXISTE ESE CORREO
-    const [correoExistente] = await connection.query(`
-      SELECT 1 FROM Usuario WHERE correo_usuario = ?
-    `, [correo]);
-
-    if (correoExistente.length > 0) {
-      throw new Error(`Ya existe un usuario con el correo ${correo}`);
-    }
+    const [correoExistente] = await connection.query(`SELECT 1 FROM Usuario WHERE correo_usuario = ?`, [correo]);
+    if (correoExistente.length > 0) throw new Error(`Ya existe un usuario con el correo ${correo}`);
 
     //GENERAR CONTRASEÑA POR DEFECTO
-    const username = correo.split('@')[0]; // Extrae la parte antes de @
+    const username = correo.split('@')[0];
     const defaultPassword = `pass${username}`;
-
-    // HASHEAR CONTRASEÑA
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     // GENERAR NUEVO ID_USUARIO
     const [[{ maxId }]] = await connection.query('SELECT MAX(id_usuario) AS maxId FROM Usuario');
     const id_usuario = (maxId || 0) + 1;
 
     // INSERTAR EN USUARIO
-    await connection.query(`
-      INSERT INTO Usuario (id_usuario, correo_usuario, contraseña_usuario)
-      VALUES (?, ?, ?)
-    `, [id_usuario, correo, hashedPassword]);
+    await connection.query(`INSERT INTO Usuario (id_usuario, correo_usuario, contraseña_usuario) VALUES (?, ?, ?)`,
+      [id_usuario, correo, hashedPassword]);
 
     // INSERTAR EN ALUMNO
-    await connection.query(`
-      INSERT INTO Alumno (id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_grado_grupo, id_personal, id_usuario)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [id_alumno, nombre, apaterno, amaterno, id_grado_grupo, id_personal, id_usuario]);
+    await connection.query(`INSERT INTO Alumno (id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_grado_grupo, id_personal, id_usuario)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`, [id_alumno, nombre, apaterno, amaterno, id_grado_grupo, id_personal, id_usuario]);
 
-    // INSERTAR RELACIÓN CON TALLERES
+    // INSERTAR RELACIÓN CON TALLERES (con asignación de profesor balanceada)
     for (const id_taller of talleres) {
+      // Obtener profesores del taller
+      const [profesores] = await connection.query(`
+        SELECT id_personal FROM Personal_taller WHERE id_taller = ?
+      `, [id_taller]);
+
+      let id_personal_asignado = null;
+
+      if (profesores.length > 0) {
+        // Contar alumnos asignados a cada profesor
+        const [conteo] = await connection.query(`
+          SELECT id_personal, COUNT(*) AS total
+          FROM Alumno_Taller
+          WHERE id_taller = ?
+          GROUP BY id_personal
+        `, [id_taller]);
+
+        const ordenado = profesores.map(p => {
+          const c = conteo.find(x => x.id_personal === p.id_personal);
+          return { id_personal: p.id_personal, total: c ? c.total : 0 };
+        }).sort((a,b) => a.total - b.total);
+
+        // Elegir el profesor con menos alumnos
+        id_personal_asignado = ordenado[0].id_personal;
+      }
+
       await connection.query(`
-        INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller)
-        VALUES (?, ?, 0)
-      `, [id_alumno, id_taller]);
+        INSERT INTO Alumno_Taller (id_alumno, id_taller, estado_evaluacion_taller, id_personal)
+        VALUES (?, ?, 0, ?)
+      `, [id_alumno, id_taller, id_personal_asignado]);
     }
 
     // INSERTAR RELACIÓN CON MATERIAS DEL GRUPO
-    const [materiasGrupo] = await connection.query(`
-      SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?
-    `, [id_grado_grupo]);
-
+    const [materiasGrupo] = await connection.query(`SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?`, [id_grado_grupo]);
     for (const m of materiasGrupo) {
-      await connection.query(`
-        INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia)
-        VALUES (?, ?, ?, 0)
-      `, [id_alumno, m.id_materia, m.id_personal]);
+      await connection.query(`INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia)
+        VALUES (?, ?, ?, 0)`, [id_alumno, m.id_materia, m.id_personal]);
     }
 
     // INSERTAR RELACIÓN CON SERVICIOS
     const [servicios] = await connection.query('SELECT id_servicio FROM Servicio');
-
     for (const s of servicios) {
-      await connection.query(`
-        INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio)
-        VALUES (?, ?, 0)
-      `, [id_alumno, s.id_servicio]);
+      await connection.query(`INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio)
+        VALUES (?, ?, 0)`, [id_alumno, s.id_servicio]);
     }
 
     // INSERTAR NIVEL DE INGLÉS Y ESPECIALIDAD DE ARTE
     if (nivel_ingles && nivel_ingles.id_nivel_ingles && nivel_ingles.id_personal && nivel_ingles.id_materia) {
-      await connection.query(`
-        INSERT INTO Alumno_Nivel_Ingles (id_alumno, id_personal, id_nivel_ingles, estado_evaluacion_nivel_ingles, id_materia)
-        VALUES (?, ?, ?, 0, ?)
-      `, [id_alumno, nivel_ingles.id_personal, nivel_ingles.id_nivel_ingles, nivel_ingles.id_materia]);
+      await connection.query(`INSERT INTO Alumno_Nivel_Ingles (id_alumno, id_personal, id_nivel_ingles, estado_evaluacion_nivel_ingles, id_materia)
+        VALUES (?, ?, ?, 0, ?)`, [id_alumno, nivel_ingles.id_personal, nivel_ingles.id_nivel_ingles, nivel_ingles.id_materia]);
     }
 
     if (arte_especialidad && arte_especialidad.id_arte_especialidad && arte_especialidad.id_personal && arte_especialidad.id_materia) {
-      await connection.query(`
-        INSERT INTO Alumno_Arte_Especialidad (id_alumno, id_personal, id_arte_especialidad, estado_evaluacion_arte_especialidad, id_materia)
-        VALUES (?, ?, ?, 0, ?)
-      `, [id_alumno, arte_especialidad.id_personal, arte_especialidad.id_arte_especialidad, arte_especialidad.id_materia]);
+      await connection.query(`INSERT INTO Alumno_Arte_Especialidad (id_alumno, id_personal, id_arte_especialidad, estado_evaluacion_arte_especialidad, id_materia)
+        VALUES (?, ?, ?, 0, ?)`, [id_alumno, arte_especialidad.id_personal, arte_especialidad.id_arte_especialidad, arte_especialidad.id_materia]);
     }
 
     await connection.commit();
     res.json({ success: true });
+
   } catch (error) {
     await connection.rollback();
     console.error('Error al insertar nuevo alumno:', error);
@@ -1293,6 +1287,7 @@ router.post('/insertar-nuevo-alumno', authMiddleware, async (req, res) => {
     connection.release();
   }
 });
+
 
 //TRAER ARTES Y NIVELES DE INGLÉS PARA ASIGNAR AL ALUMNO
 router.get('/opciones-ingles-y-arte/:id_grado_grupo', authMiddleware, async (req, res) => {
@@ -2881,18 +2876,47 @@ router.delete('/personal/:id', authMiddleware, async (req, res) => {
 });
 
 //RUTAS TALLERES
-
+ 
 // RUTA PARA OBTENER TODOS LOS TALLERES
 router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
   try {
-    const [talleres] = await db.query(
-      'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
-      'FROM Taller t ' +
-      'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
-      'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
-      'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
-      'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal'
-    );
+    // 1) Obtener talleres y número de alumnos
+    const [tallerRows] = await db.query(`
+      SELECT t.id_taller, t.nombre_taller, COUNT(at.id_alumno) AS num_alumnos
+      FROM Taller t
+      LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
+      GROUP BY t.id_taller, t.nombre_taller
+      ORDER BY t.nombre_taller
+    `);
+
+    const tallerIds = tallerRows.map(r => r.id_taller);
+    if (tallerIds.length === 0) {
+      return res.json({ success: true, talleres: [] });
+    }
+
+    // 2) Obtener todos los instructores para esos talleres
+    const [instrRows] = await db.query(`
+      SELECT pt.id_taller, p.id_personal, CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS nombre_personal
+      FROM Personal_taller pt
+      JOIN Personal p ON p.id_personal = pt.id_personal
+      WHERE pt.id_taller IN (?)
+    `, [tallerIds]);
+
+    // 3) Agrupar instructores por taller
+    const instrMap = {};
+    instrRows.forEach(r => {
+      if (!instrMap[r.id_taller]) instrMap[r.id_taller] = [];
+      instrMap[r.id_taller].push({ id_personal: r.id_personal, nombre: r.nombre_personal });
+    });
+
+    // 4) Construir resultado final
+    const talleres = tallerRows.map(t => ({
+      id_taller: t.id_taller,
+      nombre_taller: t.nombre_taller,
+      num_alumnos: t.num_alumnos,
+      instructors: instrMap[t.id_taller] || []
+    }));
+
     res.json({ success: true, talleres });
   } catch (error) {
     console.error('Error al obtener talleres:', error);
@@ -2900,50 +2924,89 @@ router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
   }
 });
 
+
 // RUTA PARA OBTENER DETALLES DE UN TALLER ESPECÍFICO
 router.get('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
   const { id_taller } = req.params;
   try {
-    const [taller] = await db.query(
-      'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
-      'FROM Taller t ' +
-      'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
-      'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
-      'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
-      'WHERE t.id_taller = ? ' +
-      'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal',
+    const [rows] = await db.query(
+      `SELECT 
+         t.id_taller, 
+         t.nombre_taller, 
+         p.id_personal, 
+         CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, 
+         COUNT(at.id_alumno) AS num_alumnos
+       FROM Taller t
+       LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+       LEFT JOIN Personal p ON pt.id_personal = p.id_personal
+       LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
+       WHERE t.id_taller = ?
+       GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal`,
       [id_taller]
     );
-    if (taller.length === 0) {
+
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Taller no encontrado.' });
     }
-    res.json({ success: true, taller: taller[0] });
+
+    const taller = {
+      id_taller: rows[0].id_taller,
+      nombre_taller: rows[0].nombre_taller,
+      num_alumnos: rows[0].num_alumnos,
+      instructors: rows
+        .filter(r => r.id_personal !== null)
+        .map(r => ({
+          id_personal: r.id_personal,
+          profesor: r.profesor
+        }))
+    };
+
+    res.json({ success: true, taller });
   } catch (error) {
     console.error('Error al obtener taller:', error);
     res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
   }
 });
 
-// RUTA PARA OBTENER LA LISTA DE ALUMNOS INSCRITOS EN UN TALLER ESPECÍFICO
+// RUTA PARA OBTENER LA LISTA DE ALUMNOS INSCRITOS EN UN TALLER ESPECÍFICO (con filtro por profesor)
 router.get('/talleres-personal-alumnos/:id_taller/alumnos', authMiddleware, async (req, res) => {
   const { id_taller } = req.params;
+  const { id_personal } = req.query; // opcional
+
   try {
     const [taller] = await db.query('SELECT nombre_taller FROM Taller WHERE id_taller = ?', [id_taller]);
-    if (taller.length === 0) throw new Error('Taller no encontrado');
-    const [alumnos] = await db.query(
-      'SELECT a.id_alumno, CONCAT(a.nombre_alumno, " ", a.apaterno_alumno, " ", a.amaterno_alumno) AS nombre_completo, g.grado, g.grupo ' +
-      'FROM Alumno_Taller at ' +
-      'JOIN Alumno a ON at.id_alumno = a.id_alumno ' +
-      'JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo ' +
-      'WHERE at.id_taller = ? AND a.estado_alumno = 1',
-      [id_taller]
-    );
-    res.json({ success: true, taller_nombre: taller[0].nombre_taller, alumnos });
+    if (taller.length === 0) return res.status(404).json({ success: false, message: 'Taller no encontrado' });
+
+    // Construimos la consulta y parámetros condicionalmente
+    let sql = `
+      SELECT a.id_alumno,
+             CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', IFNULL(a.amaterno_alumno, '')) AS nombre_completo,
+             g.grado, g.grupo
+      FROM Alumno_Taller at
+      JOIN Alumno a ON at.id_alumno = a.id_alumno
+      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+      WHERE at.id_taller = ? AND a.estado_alumno = 1
+    `;
+    const params = [id_taller];
+
+    if (id_personal) {
+      sql += ' AND at.id_personal = ?';
+      params.push(id_personal);
+    }
+
+    const [alumnos] = await db.query(sql, params);
+
+    res.json({
+      success: true,
+      taller_nombre: taller[0].nombre_taller,
+      alumnos
+    });
   } catch (error) {
     console.error('Error al obtener alumnos:', error);
     res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
   }
 });
+
 
 // RUTA PARA CREAR UN NUEVO TALLER
 router.post('/talleres-personal-alumnos', authMiddleware, async (req, res) => {

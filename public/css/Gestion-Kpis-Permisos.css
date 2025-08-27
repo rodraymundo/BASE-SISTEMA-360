@@ -1,18 +1,4 @@
-/* Establece la altura completa para el HTML y el body, eliminando márgenes y padding para un control total del diseño */
-html, body {
-  height: 100%; /* Hace que el HTML y el body ocupen el 100% de la altura de la ventana */
-  margin: 0; /* Elimina márgenes predeterminados */
-  padding: 0; /* Elimina padding predeterminado */
-  overflow: hidden; /* Evita barras de desplazamiento no deseadas en la página */
-  font-family: 'Roboto', sans-serif; /* Establece la fuente Roboto para un estilo moderno y legible */
-}
 
-/* Asegura que el body use un diseño flexible en columna para organizar el contenido */
-body {
-  display: flex; /* Usa flexbox para organizar los elementos hijos */
-  flex-direction: column; /* Organiza los elementos en una columna vertical */
-  padding: 20px;
-}
 
 /* Estiliza el título h2 dentro de la clase .gestion-kpis */
 .gestion-kpis h2 {
@@ -42,7 +28,7 @@ body {
   height: 2.2rem; /* Establece una altura de 2.2rem (≈35.2px) para consistencia con el botón */
   font-size: 0.9rem; /* Usa un tamaño de fuente de 0.9rem (≈14.4px) para legibilidad */
   padding: 0.3rem 0.5rem; /* Añade padding interno de 0.3rem (4.8px) vertical y 0.5rem (8px) horizontal */
-  border-color: #dc3545; /* Establece un borde rojo para mantener el tema visual */
+
 }
 
 /* Estiliza el botón de agregar KPI */

@@ -6,6 +6,11 @@ async function obtenerCsrfToken() {
     return data.csrfToken;
 }
 
+// helper: nombre del instructor con fallback
+function instructorName(i) {
+  return i?.nombre || i?.profesor || i?.nombre_personal || (i?.nombre_personal && i?.apaterno_personal ? `${i.nombre_personal} ${i.apaterno_personal}` : '—') ;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch('/auth-check', { credentials: 'include' });
@@ -56,15 +61,22 @@ async function buscarTalleres(term = '') {
     }
 }
 
-
+// --- REEMPLAZADO populateTable ---
 function populateTable(talleres) {
     const tbody = document.getElementById('talleresTableBody');
-    tbody.innerHTML = ''; // Limpiar la tabla antes de volver a poblarla
+    tbody.innerHTML = ''; // Limpiar tabla
+
     talleres.forEach(taller => {
+        const profesorTexto = (!taller.instructors || taller.instructors.length === 0)
+            ? '-'
+            : taller.instructors.length === 1
+                ? instructorName(taller.instructors[0])
+                : 'Varios';
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${taller.nombre_taller || '-'}</td>
-            <td>${taller.profesor || '-'}</td>
+            <td>${profesorTexto}</td>
             <td>${taller.num_alumnos || 0}</td>
             <td>
                 <button class="btn btn-sm btn-outline-danger view-details-btn" data-id="${taller.id_taller}">
@@ -76,6 +88,7 @@ function populateTable(talleres) {
     });
 }
 
+// Reemplaza showTallerDetails con esta versión
 async function showTallerDetails(id_taller) {
     try {
         const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, { credentials: 'include' });
@@ -84,20 +97,83 @@ async function showTallerDetails(id_taller) {
 
         const taller = data.taller;
         const modalBody = document.querySelector('#tallerDetailsModal .modal-body');
+
+        // --- REEMPLAZADO profesorHTML ---
+        let profesorHTML = '';
+        if (!taller.instructors || taller.instructors.length === 0) {
+            profesorHTML = '-';
+        } else if (taller.instructors.length === 1) {
+            const single = taller.instructors[0];
+            profesorHTML = `<span id="selectedInstructorName">${instructorName(single)}</span>
+                            <input type="hidden" id="selectedInstructorId" value="${single.id_personal}">`;
+        } else {
+            profesorHTML = `
+              <select id="instructorSelect" class="form-select form-select-sm">
+                ${taller.instructors.map(i => `<option value="${i.id_personal}">${instructorName(i)}</option>`).join('')}
+              </select>
+            `;
+        }
+
         modalBody.innerHTML = `
             <h6 id="tallerTitle" data-id_taller="${id_taller}">${taller.nombre_taller || 'Sin nombre'}</h6>
             <p><strong>Nombre:</strong> <span id="tallerName">${taller.nombre_taller || 'Sin nombre'}</span></p>
-            <p><strong>Profesor:</strong> <span id="tallerProfesor">${taller.profesor || '-'}</span></p>
+            <p><strong>Profesor:</strong> ${profesorHTML}</p>
             <p><strong>Número de Alumnos:</strong> <span id="tallerNumAlumnos">${taller.num_alumnos || 0}</span></p>
-            <div class="d-flex justify-content-around mt-4">
-                <button id="viewStudentsBtn" class="btn btn-outline-secondary btn-sm rounded-3"><i class="fas fa-users me-1"></i>Ver Alumnos</button>
-                <button id="editTallerBtn" class="btn btn-outline-secondary btn-sm rounded-3"><i class="fas fa-pen me-1"></i>Editar</button>
-                <button id="deleteTallerBtn" class="btn btn-outline-danger btn-sm rounded-3"><i class="fas fa-trash me-1"></i>Eliminar</button>
+
+            <div class="d-flex justify-content-around mt-3">
+                <button id="viewStudentsBtn" class="btn btn-outline-secondary btn-sm rounded-3">
+                  <i class="fas fa-users me-1"></i> Ver Alumnos
+                </button>
+                <button id="editTallerBtn" class="btn btn-outline-secondary btn-sm rounded-3">
+                  <i class="fas fa-pen me-1"></i> Editar
+                </button>
+                <button id="deleteTallerBtn" class="btn btn-outline-danger btn-sm rounded-3">
+                  <i class="fas fa-trash me-1"></i> Eliminar
+                </button>
             </div>
+
+            <div id="alumnosListContainer" class="mt-3"></div>
         `;
+
         setupModalButtons(id_taller);
+
+        // --- Inicialización de select con nombre y hidden ---
+        const instructorSelect = document.getElementById('instructorSelect');
+        if (instructorSelect) {
+            const primerId = instructorSelect.value;
+            const primerNombre = instructorSelect.selectedOptions && instructorSelect.selectedOptions[0]
+              ? instructorSelect.selectedOptions[0].textContent
+              : instructorName(taller.instructors[0]);
+
+            document.getElementById('selectedInstructorName')?.remove();
+            const nameSpan = document.createElement('span');
+            nameSpan.id = 'selectedInstructorName';
+            nameSpan.className = 'ms-2 fw-semibold';
+            nameSpan.textContent = primerNombre;
+            instructorSelect.insertAdjacentElement('afterend', nameSpan);
+
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden'; hidden.id = 'selectedInstructorId'; hidden.value = primerId;
+            nameSpan.insertAdjacentElement('afterend', hidden);
+
+            instructorSelect.addEventListener('change', (e) => {
+                const id_personal = e.target.value;
+                const nombre = e.target.selectedOptions[0].textContent;
+                document.getElementById('selectedInstructorName').textContent = nombre;
+                document.getElementById('selectedInstructorId').value = id_personal;
+                loadAlumnosForTaller(id_taller, id_personal);
+            });
+
+            loadAlumnosForTaller(id_taller, primerId);
+        } else {
+            const hidden = document.getElementById('selectedInstructorId');
+            if (hidden) loadAlumnosForTaller(id_taller, hidden.value);
+            else loadAlumnosForTaller(id_taller, null);
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('tallerDetailsModal'));
         modal.show();
+
     } catch (error) {
         console.error('Error al mostrar detalles:', error);
         Swal.fire({
@@ -109,44 +185,78 @@ async function showTallerDetails(id_taller) {
     }
 }
 
+// Nueva versión de loadAlumnosForTaller: actualiza listado y contador según instructor seleccionado
+async function loadAlumnosForTaller(id_taller, id_personal = null) {
+    try {
+        // construimos la URL con el filtro opcional
+        let url = `/talleres-personal-alumnos/${id_taller}/alumnos`;
+        if (id_personal) url += `?id_personal=${encodeURIComponent(id_personal)}`;
+
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) {
+            const txt = await res.text().catch(() => 'Error al cargar alumnos');
+            throw new Error(txt || 'Error en la petición');
+        }
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'No se pudieron cargar los alumnos');
+
+        const container = document.getElementById('alumnosListContainer');
+        if (!container) return;
+
+        const alumnos = Array.isArray(data.alumnos) ? data.alumnos : [];
+        const tallerNombre = data.taller_nombre || '';
+
+        // Actualizar el contador de alumnos en el modal (si existe)
+        const numSpan = document.getElementById('tallerNumAlumnos');
+        if (numSpan) numSpan.textContent = alumnos.length;
+
+        // Render básico; cámbialo por la UI que prefieras
+        const listaHtml = alumnos.length > 0
+            ? `<ul class="list-group">${alumnos.map(a =>
+                 `<li class="list-group-item">${a.nombre_completo || '-'} <small class="text-muted">(${a.grado || ''}${a.grupo ? ' ' + a.grupo : ''})</small></li>`
+               ).join('')}</ul>`
+            : '<div class="alert alert-secondary mb-0">No hay alumnos inscritos para este instructor.</div>';
+
+        // Si se filtró por instructor, mostrar cuál se filtró (opcional)
+        const selectedInstructorName = document.getElementById('selectedInstructorName')?.textContent || '';
+        const subtitle = id_personal && selectedInstructorName
+            ? `<small class="text-muted">Instructor: ${selectedInstructorName}</small>`
+            : '';
+
+        container.innerHTML = `
+            <h6 class="mt-3">Alumnos inscritos ${tallerNombre ? 'en ' + tallerNombre : ''} ${subtitle}</h6>
+            ${listaHtml}
+        `;
+    } catch (err) {
+        console.error('Error al cargar alumnos:', err);
+        const container = document.getElementById('alumnosListContainer');
+        if (container) container.innerHTML = `<div class="alert alert-danger">Error al cargar alumnos: ${err.message}</div>`;
+    }
+}
+
+
+// Modifica viewStudents para usar loadAlumnosForTaller:
+// (lo dejamos simple: recoge instructor seleccionado y fuerza la carga)
+async function viewStudents(id_taller) {
+    try {
+        const selected = document.getElementById('selectedInstructorId');
+        const id_personal = selected ? selected.value : null;
+        await loadAlumnosForTaller(id_taller, id_personal);
+        // opcional: desplazarse al contenedor
+        const cont = document.getElementById('alumnosListContainer');
+        if (cont) cont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (err) {
+        console.error(err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Error al cargar la lista de alumnos.' });
+    }
+}
+
+
+
 function setupModalButtons(id_taller) {
     document.getElementById('viewStudentsBtn').addEventListener('click', () => viewStudents(id_taller));
     document.getElementById('editTallerBtn').addEventListener('click', () => editTaller(id_taller));
     document.getElementById('deleteTallerBtn').addEventListener('click', () => deleteTaller(id_taller));
-}
-
-async function viewStudents(id_taller) {
-    try {
-        const res = await fetch(`/talleres-personal-alumnos/${id_taller}/alumnos`, { credentials: 'include' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'No se pudieron cargar los alumnos');
-
-        const modalBody = document.querySelector('#tallerDetailsModal .modal-body');
-        modalBody.innerHTML = `
-            <h6>Alumnos inscritos en ${data.taller_nombre || 'Sin nombre'}</h6>
-            <ul>
-                ${data.alumnos.length > 0 ? data.alumnos.map(a => `<li>${a.nombre_completo || '-'} (${a.grado}${a.grupo || ''})</li>`).join('') : '<li>No hay alumnos inscritos.</li>'}
-            </ul>
-            <button id="backToDetailsBtn" class="btn btn-secondary mt-3">Volver</button>
-        `;
-
-        const backButton = document.getElementById('backToDetailsBtn');
-        backButton.addEventListener('click', () => {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('tallerDetailsModal'));
-            if (modal) {
-                modal.hide();
-                setTimeout(() => showTallerDetails(id_taller), 100);
-            }
-        }, { once: true });
-    } catch (error) {
-        console.error('Error al cargar alumnos:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al cargar la lista de alumnos.',
-            confirmButtonText: 'Aceptar'
-        });
-    }
 }
 
 async function editTaller(id_taller) {
