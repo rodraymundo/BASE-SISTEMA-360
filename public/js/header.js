@@ -1,12 +1,12 @@
 export function renderHeader(user) {
   let Dashboard = '';
   if (user.userType == 'alumno') {
-    Dashboard = '/DashboardAlumno';
+    Dashboard = '/Dashboard';
   } else {
     if (user.id_puesto == 35) {
       Dashboard = '/Dashboard';
     } else {
-      Dashboard = '/DashboardPersonal';
+      Dashboard = '/Dashboard';
     }
   }
 

@@ -11,24 +11,43 @@ function instructorName(i) {
   return i?.nombre || i?.profesor || i?.nombre_personal || (i?.nombre_personal && i?.apaterno_personal ? `${i.nombre_personal} ${i.apaterno_personal}` : '—') ;
 }
 
+// Reemplaza tu DOMContentLoaded por este
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const response = await fetch('/auth-check', { credentials: 'include' });
-        const data = await response.json();
-
-        if (!data.authenticated) {
-            window.location.href = '/';
-            return;
-        }
-
-        document.getElementById('header-container').appendChild(renderHeader(data.user));
-        await cargarTalleres();
-        setupEventListeners();
-    } catch (error) {
-        console.error('Error al iniciar:', error);
-        window.location.href = '/';
+  // 1) auth-check separado (si no auth -> redirect)
+  try {
+    const response = await fetch('/auth-check', { credentials: 'include' });
+    const data = await response.json();
+    if (!data.authenticated) {
+      window.location.href = '/';
+      return;
     }
+
+    const headerContainer = document.getElementById('header-container');
+    if (headerContainer) {
+      headerContainer.appendChild(renderHeader(data.user));
+    }
+  } catch (err) {
+    console.error('Error en auth-check:', err);
+    window.location.href = '/';
+    return;
+  }
+
+  // 2) Inicialización del UI (errores aquí no deben redirigir)
+  try {
+    await cargarTalleres();
+    setupEventListeners();
+  } catch (err) {
+    console.error('Error iniciando UI:', err);
+    // mostrar alerta amigable pero NO redirigir
+    Swal.fire({
+      icon: 'error',
+      title: 'Error al iniciar la interfaz',
+      text: String(err.message || err),
+      confirmButtonText: 'Aceptar'
+    });
+  }
 });
+
 
 async function cargarTalleres() {
     await buscarTalleres(); // Carga inicial sin término de búsqueda
@@ -63,30 +82,67 @@ async function buscarTalleres(term = '') {
 
 // --- REEMPLAZADO populateTable ---
 function populateTable(talleres) {
-    const tbody = document.getElementById('talleresTableBody');
-    tbody.innerHTML = ''; // Limpiar tabla
+    const container = document.getElementById('talleresListContainer');
+    if (!container) return;
+    container.innerHTML = ''; // limpiar
+
+    if (!talleres || talleres.length === 0) {
+        container.innerHTML = `<div class="alert alert-secondary">No hay talleres para mostrar.</div>`;
+        return;
+    }
 
     talleres.forEach(taller => {
+        // DEBUG: si el nombre no aparece, descomenta para ver la estructura en consola
+        // console.log('Taller recibido:', taller);
+
+        // fallback para distintos nombres de campo
+        const nombreTaller = taller.nombre_taller ?? taller.nombre ?? taller.nombreTaller ?? '-';
+        const numAlumnos = ('num_alumnos' in taller) ? taller.num_alumnos : (taller.numAlumnos ?? 0);
+
         const profesorTexto = (!taller.instructors || taller.instructors.length === 0)
-            ? '-'
+            ? '-' 
             : taller.instructors.length === 1
                 ? instructorName(taller.instructors[0])
-                : 'Varios';
+                : taller.instructors.map(i => instructorName(i)).join(', ');
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${taller.nombre_taller || '-'}</td>
-            <td>${profesorTexto}</td>
-            <td>${taller.num_alumnos || 0}</td>
-            <td>
-                <button class="btn btn-sm btn-outline-danger view-details-btn" data-id="${taller.id_taller}">
-                    <i class="fas fa-eye"></i> Ver
-                </button>
-            </td>
+        // Construimos un item tipo list-group (vertical)
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action shadow-sm p-3';
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div class="me-3" style="flex:1 1 auto; min-width:0;">
+                    <h5 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${escapeHtml(nombreTaller)}
+                    </h5>
+                    <p class="mb-1 text-muted small" style="white-space:normal;">
+                        <strong>Profesor(es):</strong> ${escapeHtml(profesorTexto)}
+                    </p>
+                    <p class="mb-0 text-muted small"><strong>Alumnos:</strong> ${escapeHtml(String(numAlumnos))}</p>
+                </div>
+
+                <div class="ms-3 d-flex align-items-center" style="flex: 0 0 auto;">
+                    <button class="btn btn-outline-danger btn-sm view-details-btn" data-id="${taller.id_taller ?? ''}">
+                        <i class="fas fa-eye me-1"></i> Ver
+                    </button>
+                </div>
+            </div>
         `;
-        tbody.appendChild(row);
+        container.appendChild(item);
     });
 }
+
+/* pequeño helper para escapar texto y evitar problemas si vienen caracteres especiales */
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+
 
 // Reemplaza showTallerDetails con esta versión
 async function showTallerDetails(id_taller) {
@@ -98,52 +154,118 @@ async function showTallerDetails(id_taller) {
         const taller = data.taller;
         const modalBody = document.querySelector('#tallerDetailsModal .modal-body');
 
-        // --- REEMPLAZADO profesorHTML ---
+        // --- profesorHTML con botones (incluye botón eliminar por instructor) ---
         let profesorHTML = '';
         if (!taller.instructors || taller.instructors.length === 0) {
             profesorHTML = '-';
-        } else if (taller.instructors.length === 1) {
-            const single = taller.instructors[0];
-            profesorHTML = `<span id="selectedInstructorName">${instructorName(single)}</span>
-                            <input type="hidden" id="selectedInstructorId" value="${single.id_personal}">`;
         } else {
             profesorHTML = `
-              <select id="instructorSelect" class="form-select form-select-sm">
-                ${taller.instructors.map(i => `<option value="${i.id_personal}">${instructorName(i)}</option>`).join('')}
-              </select>
+                <div id="instructorsList" class="list-group">
+                ${taller.instructors.map(i => `
+                    <div class="list-group-item d-flex align-items-center justify-content-between">
+                        <div class="fw-semibold">${instructorName(i)}</div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary me-1 view-by-instructor-btn" data-id="${i.id_personal}">Ver alumnos</button>
+                            <button class="btn btn-sm btn-outline-danger replace-instructor-btn" data-id="${i.id_personal}">Reemplazar</button>
+                            <button class="btn btn-sm btn-outline-danger delete-instructor-btn" data-id="${i.id_personal}">Eliminar</button>
+                        </div>
+                    </div>
+                `).join('')}
+                </div>
             `;
         }
 
+        // HTML del modal (acciones en la cabecera derecha)
         modalBody.innerHTML = `
-            <h6 id="tallerTitle" data-id_taller="${id_taller}">${taller.nombre_taller || 'Sin nombre'}</h6>
-            <p><strong>Nombre:</strong> <span id="tallerName">${taller.nombre_taller || 'Sin nombre'}</span></p>
-            <p><strong>Profesor:</strong> ${profesorHTML}</p>
-            <p><strong>Número de Alumnos:</strong> <span id="tallerNumAlumnos">${taller.num_alumnos || 0}</span></p>
-
-            <div class="d-flex justify-content-around mt-3">
-                <button id="viewStudentsBtn" class="btn btn-outline-secondary btn-sm rounded-3">
-                  <i class="fas fa-users me-1"></i> Ver Alumnos
-                </button>
-                <button id="editTallerBtn" class="btn btn-outline-secondary btn-sm rounded-3">
-                  <i class="fas fa-pen me-1"></i> Editar
-                </button>
-                <button id="deleteTallerBtn" class="btn btn-outline-danger btn-sm rounded-3">
-                  <i class="fas fa-trash me-1"></i> Eliminar
-                </button>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>Profesor(es):</strong>
+                <div class="d-flex gap-2">
+                    <button id="addInstructorBtn" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-user-plus me-1"></i> Agregar Profesor
+                    </button>
+                    <button id="deleteTallerBtn" class="btn btn-outline-danger btn-sm rounded-3">
+                        <i class="fas fa-trash me-1"></i> Eliminar taller
+                    </button>
+                </div>
             </div>
+
+            <div class="mb-2">${profesorHTML}</div>
+
+            <p><strong>Número de Alumnos:</strong> <span id="tallerNumAlumnos">${taller.num_alumnos || 0}</span></p>
 
             <div id="alumnosListContainer" class="mt-3"></div>
         `;
 
+        // listener para "Agregar Profesor"
+        const addBtn = document.getElementById('addInstructorBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', async () => {
+                await populateProfesorSelect();
+                const modalEl = document.getElementById('addTallerModal');
+                modalEl.querySelector('.modal-title').textContent = 'Agregar Profesor a Taller';
+                modalEl.dataset.addInstructorMode = 'true';
+                modalEl.dataset.idTaller = id_taller;
+
+                const nameInput = document.getElementById('tallerNameInput');
+                if (nameInput) {
+                    nameInput.value = '';
+                    nameInput.disabled = true;
+                    nameInput.closest('.mb-3')?.classList.add('d-none');
+                }
+
+                const form = document.getElementById('addTallerForm');
+                form.removeEventListener('submit', handleSaveTaller);
+                form.removeEventListener('submit', handleReplaceInstructorSubmit);
+                form.addEventListener('submit', handleAddInstructorSubmit);
+
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            });
+        }
+
+        // setup botones globales del modal (Eliminar taller)
         setupModalButtons(id_taller);
 
-        // --- Inicialización de select con nombre y hidden ---
+        // ahora sí obtenemos la referencia al listado de instructors y enganchamos handlers
+        const instructorsList = document.getElementById('instructorsList');
+        if (instructorsList) {
+            // Eliminar instructor (desasignar)
+            instructorsList.querySelectorAll('.delete-instructor-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id_personal = e.currentTarget.getAttribute('data-id');
+                    await deleteInstructorFromTaller(id_taller, id_personal);
+                });
+            });
+
+            // Ver alumnos por instructor
+            instructorsList.querySelectorAll('.view-by-instructor-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id_personal = e.currentTarget.getAttribute('data-id');
+                    loadAlumnosForTaller(id_taller, id_personal);
+                });
+            });
+
+            // Reemplazar instructor
+            instructorsList.querySelectorAll('.replace-instructor-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const oldId = e.currentTarget.getAttribute('data-id');
+                    openReplaceInstructorModal(id_taller, oldId);
+                });
+            });
+        }
+
+        // título del modal y dataset
+        const modalTitle = document.getElementById('tallerDetailsModalLabel');
+        modalTitle.innerHTML = `<i class="fas fa-book me-2"></i>${taller.nombre_taller || 'Sin nombre'}`;
+        modalTitle.dataset.idTaller = id_taller;
+
+        // Inicialización del select alternativo (si existe) y carga de alumnos
         const instructorSelect = document.getElementById('instructorSelect');
         if (instructorSelect) {
             const primerId = instructorSelect.value;
-            const primerNombre = instructorSelect.selectedOptions && instructorSelect.selectedOptions[0]
-              ? instructorSelect.selectedOptions[0].textContent
-              : instructorName(taller.instructors[0]);
+            const primerNombre = (instructorSelect.selectedOptions && instructorSelect.selectedOptions[0])
+                ? instructorSelect.selectedOptions[0].textContent
+                : (taller.instructors && taller.instructors[0] ? instructorName(taller.instructors[0]) : '');
 
             document.getElementById('selectedInstructorName')?.remove();
             const nameSpan = document.createElement('span');
@@ -185,6 +307,76 @@ async function showTallerDetails(id_taller) {
     }
 }
 
+
+async function handleAddInstructorSubmit(e) {
+  e.preventDefault();
+
+  const modalEl = document.getElementById('addTallerModal');
+  const id_taller = modalEl.dataset.idTaller;
+  const idProfesor = document.getElementById('profesorSelect').value;
+
+  if (!idProfesor) {
+    Swal.fire({ icon: 'warning', title: 'Selecciona un profesor' });
+    return;
+  }
+
+  try {
+    const token = await obtenerCsrfToken();
+    const res = await fetch(`/talleres-personal-alumnos/${id_taller}/instructor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
+      credentials: 'include',
+      body: JSON.stringify({ id_personal: parseInt(idProfesor) })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Error al agregar profesor');
+
+    bootstrap.Modal.getInstance(modalEl).hide();
+    await cargarTalleres();
+    showTallerDetails(id_taller); // recargar modal
+    Swal.fire({ icon: 'success', title: 'Profesor agregado', text: data.message });
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+  }
+}
+
+async function deleteInstructorFromTaller(id_taller, id_personal) {
+  const result = await Swal.fire({
+    title: '¿Estás seguro?',
+    text: 'Se desasignará este profesor y sus alumnos quedarán sin taller.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  });
+
+  if (!result.isConfirmed) return;
+
+  try {
+    const token = await obtenerCsrfToken();
+    const res = await fetch(`/talleres-personal-alumnos/${id_taller}/instructor/${id_personal}`, {
+      method: 'DELETE',
+      headers: { 'CSRF-Token': token },
+      credentials: 'include'
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.message || 'Error al eliminar instructor');
+
+    Swal.fire({ icon: 'success', title: 'Éxito', text: data.message });
+
+    // Recargar lista de talleres y modal
+    await cargarTalleres();
+    showTallerDetails(id_taller);
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+  }
+}
+
+
 // Nueva versión de loadAlumnosForTaller: actualiza listado y contador según instructor seleccionado
 async function loadAlumnosForTaller(id_taller, id_personal = null) {
     try {
@@ -224,7 +416,7 @@ async function loadAlumnosForTaller(id_taller, id_personal = null) {
             : '';
 
         container.innerHTML = `
-            <h6 class="mt-3">Alumnos inscritos ${tallerNombre ? 'en ' + tallerNombre : ''} ${subtitle}</h6>
+            <p class="mt-3"><strong>Listado de alumnos</strong></p>
             ${listaHtml}
         `;
     } catch (err) {
@@ -235,57 +427,10 @@ async function loadAlumnosForTaller(id_taller, id_personal = null) {
 }
 
 
-// Modifica viewStudents para usar loadAlumnosForTaller:
-// (lo dejamos simple: recoge instructor seleccionado y fuerza la carga)
-async function viewStudents(id_taller) {
-    try {
-        const selected = document.getElementById('selectedInstructorId');
-        const id_personal = selected ? selected.value : null;
-        await loadAlumnosForTaller(id_taller, id_personal);
-        // opcional: desplazarse al contenedor
-        const cont = document.getElementById('alumnosListContainer');
-        if (cont) cont.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } catch (err) {
-        console.error(err);
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Error al cargar la lista de alumnos.' });
-    }
-}
-
-
-
 function setupModalButtons(id_taller) {
-    document.getElementById('viewStudentsBtn').addEventListener('click', () => viewStudents(id_taller));
-    document.getElementById('editTallerBtn').addEventListener('click', () => editTaller(id_taller));
     document.getElementById('deleteTallerBtn').addEventListener('click', () => deleteTaller(id_taller));
 }
 
-async function editTaller(id_taller) {
-    try {
-        const res = await fetch(`/talleres-personal-alumnos/${id_taller}`, { credentials: 'include' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'No se pudieron cargar los datos');
-
-        const taller = data.taller;
-        const modal = new bootstrap.Modal(document.getElementById('addTallerModal'));
-        document.getElementById('addTallerModal').querySelector('.modal-title').textContent = 'Editar Taller';
-        document.getElementById('tallerNameInput').value = taller.nombre_taller || '';
-        await populateProfesorSelect();
-        document.getElementById('profesorSelect').value = taller.id_personal || '';
-
-        const form = document.getElementById('addTallerForm');
-        form.removeEventListener('submit', handleSaveTaller);
-        form.addEventListener('submit', (e) => handleEditTaller(id_taller, e));
-        modal.show();
-    } catch (error) {
-        console.error('Error al editar taller:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error al cargar datos para edición.',
-            confirmButtonText: 'Aceptar'
-        });
-    }
-}
 
 async function handleEditTaller(id_taller, e) {
     e.preventDefault();
@@ -308,7 +453,7 @@ async function handleEditTaller(id_taller, e) {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
             credentials: 'include',
-            body: JSON.stringify({ nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) })
+            body: JSON.stringify({ nombre_taller: nombreTaller })
         });
 
         const data = await res.json();
@@ -332,6 +477,110 @@ async function handleEditTaller(id_taller, e) {
         });
     }
 }
+
+// Abre modal para reemplazar instructor (reutiliza addTallerModal)
+async function openReplaceInstructorModal(id_taller, oldId) {
+  // Cargar lista de profesores en el select
+  await populateProfesorSelect();
+
+  const modalEl = document.getElementById('addTallerModal');
+  modalEl.querySelector('.modal-title').textContent = 'Reemplazar Instructor';
+  // Deshabilitar input de nombre (no lo usaremos aquí)
+  const nameInput = document.getElementById('tallerNameInput');
+  if (nameInput) {
+    nameInput.value = '';
+    nameInput.disabled = true;
+  }
+
+  // Guardar en dataset para usarlo al enviar
+  modalEl.dataset.replaceMode = 'true';
+  modalEl.dataset.idTaller = id_taller;
+  modalEl.dataset.oldInstructorId = oldId;
+
+  // Preparar formulario: quitar listeners anteriores y añadir el de reemplazo
+  const form = document.getElementById('addTallerForm');
+  form.removeEventListener('submit', handleSaveTaller);
+  // si existiera un handler edit, no lo quitamos por que es con args; nos aseguramos de solo usar este
+  form.removeEventListener('submit', handleReplaceInstructorSubmit); // por si acaso
+  form.addEventListener('submit', handleReplaceInstructorSubmit);
+
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+async function handleReplaceInstructorSubmit(e) {
+  e.preventDefault();
+
+  const modalEl = document.getElementById('addTallerModal');
+  const id_taller = modalEl.dataset.idTaller;
+  const oldId = modalEl.dataset.oldInstructorId;
+  const newId = document.getElementById('profesorSelect').value;
+
+  if (!newId) {
+    Swal.fire({ icon: 'warning', title: 'Selecciona un profesor', text: 'Elige un profesor para reemplazar.' });
+    return;
+  }
+
+  try {
+    const token = await obtenerCsrfToken();
+    const res = await fetch(`/talleres-personal-alumnos/${id_taller}/instructor`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
+      credentials: 'include',
+      body: JSON.stringify({
+        old_id_personal: oldId ? parseInt(oldId) : null,
+        new_id_personal: parseInt(newId),
+        propagate: true
+      })
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.success) {
+      throw new Error((data && data.message) || `Error ${res.status}: No se pudo reemplazar instructor`);
+    }
+
+    // Cerrar modal, limpiar y recargar datos del taller
+    bootstrap.Modal.getInstance(modalEl).hide();
+    // limpiar dataset y reactivar input nombre
+    modalEl.dataset.replaceMode = '';
+    delete modalEl.dataset.oldInstructorId;
+    delete modalEl.dataset.idTaller;
+    const nameInput = document.getElementById('tallerNameInput');
+    if (nameInput) nameInput.disabled = false;
+
+    // Recargar la vista de talleres y el modal de detalles (si sigue abierto)
+    await cargarTalleres();
+    // Reabrir detalles del taller para ver cambios (opcional)
+    showTallerDetails(id_taller);
+
+    Swal.fire({ icon: 'success', title: 'Reemplazado', text: 'Instructor reemplazado y alumnos actualizados.' });
+  } catch (err) {
+    console.error('Error reemplazando instructor:', err);
+    Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'No se pudo reemplazar el instructor.' });
+  }
+}
+
+// Limpieza al cerrar addTallerModal (devuelve a estado por defecto)
+document.getElementById('addTallerModal').addEventListener('hidden.bs.modal', () => {
+  const modalEl = document.getElementById('addTallerModal');
+  const nameInput = document.getElementById('tallerNameInput');
+  if (nameInput) {
+    nameInput.disabled = false;   // volver a habilitarlo
+    nameInput.closest('.mb-3')?.classList.remove('d-none'); // volver a mostrarlo
+  }
+
+  // quitar dataset de modos especiales
+  delete modalEl.dataset.addInstructorMode;
+  delete modalEl.dataset.replaceMode;
+  delete modalEl.dataset.oldInstructorId;
+  delete modalEl.dataset.idTaller;
+
+  // limpiar listeners
+  const form = document.getElementById('addTallerForm');
+  form.removeEventListener('submit', handleAddInstructorSubmit);
+  form.removeEventListener('submit', handleReplaceInstructorSubmit);
+});
+
 
 async function deleteTaller(id_taller) {
     const result = await Swal.fire({
@@ -377,14 +626,13 @@ async function deleteTaller(id_taller) {
 
 async function handleSaveTaller(e) {
     e.preventDefault();
-    const nombreTaller = document.getElementById('tallerNameInput').value;
-    const idProfesor = document.getElementById('profesorSelect').value;
+    const nombreTaller = document.getElementById('tallerNameInput').value.trim();
 
-    if (!nombreTaller || !idProfesor) {
+    if (!nombreTaller) {
         Swal.fire({
             icon: 'warning',
             title: 'Campos incompletos',
-            text: 'Complete todos los campos.',
+            text: 'Escribe el nombre del taller.',
             confirmButtonText: 'Aceptar'
         });
         return;
@@ -399,7 +647,7 @@ async function handleSaveTaller(e) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
             credentials: 'include',
-            body: JSON.stringify({ nombre_taller: nombreTaller, id_personal: parseInt(idProfesor) })
+            body: JSON.stringify({ nombre_taller: nombreTaller })
         });
 
         const data = await res.json();
@@ -419,7 +667,7 @@ async function handleSaveTaller(e) {
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'Error al agregar el taller.',
+            text: error.message || 'Error al agregar el taller.',
             confirmButtonText: 'Aceptar'
         });
     }
@@ -460,31 +708,59 @@ function debounce(func, wait) {
     };
 }
 
+// Reemplaza tu setupEventListeners por este (usa delegación y chequeos)
 function setupEventListeners() {
-    document.getElementById('addTallerBtn').addEventListener('click', async () => {
-        const modal = new bootstrap.Modal(document.getElementById('addTallerModal'));
-        document.getElementById('addTallerModal').querySelector('.modal-title').textContent = 'Agregar Nuevo Taller';
-        document.getElementById('addTallerForm').reset();
-        await populateProfesorSelect();
-        const form = document.getElementById('addTallerForm');
-        form.removeEventListener('submit', handleEditTaller);
-        form.addEventListener('submit', handleSaveTaller);
-        modal.show();
-    });
+  // boton Nuevo Taller
+  const addBtn = document.getElementById('addTallerBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', async () => {
+      const modalEl = document.getElementById('addTallerModal');
+      if (!modalEl) return;
+      const modal = new bootstrap.Modal(modalEl);
+      document.getElementById('addTallerModal').querySelector('.modal-title').textContent = 'Agregar Nuevo Taller';
+      document.getElementById('addTallerForm').reset();
+      await populateProfesorSelect();
 
-    document.getElementById('talleresTableBody').addEventListener('click', (e) => {
-        const button = e.target.closest('.view-details-btn');
-        if (button) {
-            const id_taller = button.getAttribute('data-id');
-            showTallerDetails(id_taller);
+      const profSelect = document.getElementById('profesorSelect');
+      if (profSelect) {
+        const profSelectDiv = profSelect.closest('.mb-3');
+        if (profSelectDiv) {
+          profSelectDiv.classList.add('d-none');
+          profSelect.removeAttribute('required');
         }
-    });
+      }
 
-    // Escuchar eventos del buscador con debounce
-    const buscador = document.getElementById('buscadorTalleres');
+      const form = document.getElementById('addTallerForm');
+      if (form) {
+        form.removeEventListener('submit', handleEditTaller);
+        form.removeEventListener('submit', handleSaveTaller); // por si algo quedó
+        form.addEventListener('submit', handleSaveTaller);
+      }
+
+      modal.show();
+    });
+  }
+
+  // delegado para los botones "Ver detalles" dentro del listado responsive
+  const listContainer = document.getElementById('talleresListContainer');
+  if (listContainer) {
+    listContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.view-details-btn');
+      if (!btn) return;
+      const id_taller = btn.getAttribute('data-id');
+      if (id_taller) {
+        showTallerDetails(id_taller);
+      }
+    });
+  }
+
+  // buscador (si existe)
+  const buscador = document.getElementById('buscadorTalleres');
+  if (buscador) {
     const buscarConDebounce = debounce((term) => buscarTalleres(term), 300);
     buscador.addEventListener('input', (e) => {
-        const term = e.target.value.trim();
-        buscarConDebounce(term);
+      const term = e.target.value.trim();
+      buscarConDebounce(term);
     });
+  }
 }

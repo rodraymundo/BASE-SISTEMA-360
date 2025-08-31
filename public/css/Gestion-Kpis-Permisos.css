@@ -278,3 +278,51 @@
     padding: 1rem;
   }
 }
+
+/* contenedor list-group para KPIs (igual que materias/talleres) */
+#listaKpisList {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* estilo de cada item parecida a tarjetas */
+#listaKpisList .list-group-item {
+  cursor: default;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: box-shadow .18s ease;
+}
+
+/* hover leve */
+#listaKpisList .list-group-item:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* diseño interno parecido a materias: título a la izquierda, meta/tipo en pequeño, botón a la derecha */
+.kpi-title {
+  font-weight: 700;
+  color: #dc3545;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-meta {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+#listaKpisList .btn, #listaKpisList .editBtn {
+  cursor: pointer;
+}
+
+/* responsive adjustments */
+@media (max-width: 768px) {
+  #listaKpisList .list-group-item {
+    padding: 0.5rem 0.75rem;
+  }
+}

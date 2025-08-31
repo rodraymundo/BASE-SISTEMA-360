@@ -1,157 +1,9 @@
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  font-family: 'Roboto', sans-serif;
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.gestion-personal h3 {
-  font-weight: 700;
-  font-size: 1.8rem;
-  color: #dc3545;
-  margin-bottom: 1.5rem;
-}
-
-.gestion-personal .container-fluid {
-  flex: 1;
-  padding: 0 1rem; /* Solo padding horizontal, dejamos el margen superior al HTML */
-  overflow: hidden;
-}
-
-.gestion-personal #buscadorPersonal {
-  min-width: 200px;
-  max-width: 300px;
-}
-
-/* Ajustes para la fila del buscador y botones */
-.gestion-personal .d-flex.align-items-center {
-  flex-wrap: wrap;
-  gap: 1rem; /* Espaciado consistente */
-  justify-content: flex-start;
-}
-
-/* Asegura que los botones no se estiren demasiado */
-.gestion-personal .btn-danger,
-.gestion-personal .btn-secondary {
-  white-space: nowrap;
-  padding: 0.5rem 1rem;
-}
-
-/* Estiliza los botones btn-danger (rojo) */
-.gestion-personal .btn-danger {
-  background-color: #dc3545;
-  border-color: #dc3545;
-}
-
-/* Efecto hover para btn-danger */
-.gestion-personal .btn-danger:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
-}
-
-/* Estiliza los botones btn-secondary (gris) */
-.gestion-personal .btn-secondary {
-  background-color: #6c757d;
-  border-color: #6c757d;
-}
-
-/* Efecto hover para btn-secondary */
-.gestion-personal .btn-secondary:hover {
-  background-color: #5a6268;
-  border-color: #545b62;
-}
-
-.gestion-personal #listaPersonalContainer {
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  overflow-y: auto;
-  height: calc(80vh - 6rem);
-  min-height: 500px;
-  width: 100%;
-}
-
-.gestion-personal .table {
-  margin-bottom: 0;
-  font-size: 0.95rem;
-  width: 100%;
-  table-layout: fixed;
-  background-color: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.gestion-personal .table th {
-  background-color: #dc3545;
-  color: white;
-  font-weight: 600;
-  padding: 1rem;
-  text-align: left;
-  vertical-align: middle;
-}
-
-.gestion-personal .table th:nth-child(1) { width: 15%; } /* Nombre */
-.gestion-personal .table th:nth-child(2) { width: 15%; } /* Apellido Paterno */
-.gestion-personal .table th:nth-child(3) { width: 15%; } /* Apellido Materno */
-.gestion-personal .table th:nth-child(4) { width: 20%; } /* Puesto */
-.gestion-personal .table th:nth-child(5) { width: 47%; } /* Correo */
-.gestion-personal .table th:nth-child(6) { width: 12%; } /* Estado */
-.gestion-personal .table th:nth-child(7) { width: 12%; min-width: 50px; } /* Acciones */
-
-.gestion-personal .table td {
-  padding: 1rem;
-  vertical-align: middle;
-  border-top: 1px solid #dee2e6;
-  word-wrap: break-word;
-}
-
-.gestion-personal .table td:nth-child(5) { /* Correo column */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 0;
-}
-
-.gestion-personal .table-hover tbody tr:hover {
-  background-color: #f8f9fa;
-}
-
-.gestion-personal .table-responsive {
-  overflow-x: hidden;
-}
-
-.gestion-personal .editBtn {
-  font-size: 0.9rem;
-  padding: 0.1rem;
-  transition: transform 0.2s;
-}
-
-.gestion-personal .editBtn:hover {
-  transform: scale(1.2);
-}
-
-.gestion-personal .modal-content {
-  border: none;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
 
 .gestion-personal .modal-header {
   background-color: #dc3545;
   color: white;
   border-bottom: none;
   padding: 1rem;
-}
-
-.gestion-personal .modal-header.bg-secondary {
-  background-color: #6c757d;
-  color: white;
 }
 
 .gestion-personal .modal-title {
@@ -221,12 +73,6 @@ body {
     max-height: 350px;
   }
 
-  .gestion-personal .d-flex.align-items-center {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
   .gestion-personal #buscadorPersonal {
     max-width: 100%;
     margin-bottom: 0.5rem;
@@ -249,3 +95,183 @@ body {
     padding: 1rem;
   }
 }
+
+/* ===== List-group style (igual que Talleres/Materias) ===== */
+#listaPersonalContainer {
+  overflow-x: hidden;
+  width: 100%;
+  background: #fff;
+}
+
+#listaPersonalList {
+  overflow-x: hidden;
+  width: 100%;
+  padding: 0.5rem;
+}
+
+/* items tipo tarjeta (verticales) */
+#listaPersonalList .list-group-item {
+  cursor: default;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  display: flex;
+  align-items: start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* contenido principal flex */
+#listaPersonalList .item-body {
+  flex: 1 1 auto;
+  min-width: 0; /* para que ellipsis funcione */
+}
+
+/* encabezado dentro del item (nombre + pequeño meta) */
+#listaPersonalList .item-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap: 0.5rem;
+}
+
+/* texto secundario */
+#listaPersonalList .small-muted {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* boton de acciones */
+#listaPersonalList .item-actions {
+  flex: 0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+}
+
+/* correo con truncado */
+#listaPersonalList .mail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 280px;
+}
+
+/* responsivo: items apilen mejor en pantallas pequeñas */
+@media (max-width: 768px) {
+  #listaPersonalList .list-group-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #listaPersonalList .item-actions {
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Estado: solo color del texto, sin bordes ni fondo */
+.estado {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Activo: verde (usa tu variable si quieres) */
+.estado-activo { color: #198754; } /* bootstrap-success green */
+
+/* Inactivo: rojo institucional */
+.estado-inactivo { color: var(--rojo); } 
+
+/* Opcional: estado desconocido / neutro */
+.estado-unknown { color: var(--gris-oscuro); }
+
+
+
+/* Palette / variables (ajusta si quieres otros tonos) */
+:root{
+  --rojo: #dc3545;
+  --rojo-oscuro: #b52b39;
+  --negro: #000000;
+  --gris: #c4c4c4;
+  --gris-oscuro: #6c757d;
+  --blanco: #ffffff;
+}
+
+/* Botones de acciones: compactos, uniformes */
+.item-actions {
+  display: flex;
+  flex-direction: column;      /* vertical por defecto */
+  gap: 0.4rem;                 /* separación entre botones */
+  width: 120px;                /* ancho del conjunto */
+  margin-left: auto;           /* empuja los botones al final del item */
+}
+
+/* Botones: tamaño reducido, centrado icon+texto */
+.item-actions .btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: .25rem .5rem;
+  min-height: 36px;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+/* Iconos tamaño adaptado */
+.item-actions .btn .fas { 
+  font-size: 0.95rem;
+}
+
+/* Editar (rojo institucional, outline sobre blanco) */
+.btn-edit {
+  background: var(--blanco);
+  border: 1px solid var(--rojo);
+  color: var(--rojo);
+}
+.btn-edit:hover, .btn-edit:focus {
+  background: rgba(220,53,69,0.06);
+  border-color: var(--rojo-oscuro);
+  color: var(--rojo-oscuro);
+}
+
+/* Ajustar KPIs (gris / neutro) */
+.btn-kpi {
+  background: var(--blanco);
+  border: 1px solid var(--gris);
+  color: var(--gris-oscuro);
+}
+.btn-kpi:hover, .btn-kpi:focus {
+  background: rgba(0,0,0,0.03);
+  border-color: #a9a9a9;
+  color: var(--negro);
+}
+
+/* Si quieres que en pantallas grandes estén lado a lado */
+@media (min-width: 768px) {
+  .item-actions {
+    flex-direction: column; /* deja como column; si quieres row, cambia a row */
+    width: 120px;
+  }
+  /* si prefieres fila en desktop, descomenta:
+  .item-actions { flex-direction: row; width: auto; }
+  .item-actions .btn { min-width: 120px; }
+  */
+}
+
+/* Móvil: reduce ancho para que no desborde */
+@media (max-width: 576px) {
+  .item-actions {
+    width: 100%;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+  .item-actions .btn { flex: 1 1 0; min-height: 40px; font-size: 0.9rem; }
+}
+
+

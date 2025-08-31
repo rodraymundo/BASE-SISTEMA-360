@@ -14,8 +14,19 @@ async function fetchWithRetry(url, options, retries = 3) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const listaMaterias = document.querySelector('#listaMaterias tbody');
-  listaMaterias.innerHTML = '<tr><td colspan="6" class="text-muted text-center">Cargando materias...</td></tr>';
+  // nuevo selector para el list-group
+  const listaMateriasList = document.getElementById('listaMateriasList');
+  listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
 
   try {
     const response = await fetch('/auth-check', { credentials: 'include' });
@@ -72,59 +83,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   let nivelesIngles = [];
   let asignaciones = [];
 
-  async function cargarMaterias() {
-    try {
-      listaMaterias.innerHTML = '<tr><td colspan="6" class="text-muted text-center">Cargando materias...</td></tr>';
-      const data = await fetchWithRetry('/materias', { credentials: 'include' });
-      todasMaterias = data.materias;
-      mostrarMaterias(todasMaterias);
-    } catch (error) {
-      console.error('Error al cargar materias:', error);
-      listaMaterias.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No se pudo cargar las materias. Verifique que el servidor esté corriendo.</td></tr>';
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404') 
-          ? 'El servidor no tiene configurada la lista de materias (/materias). Contacte al administrador.'
-          : 'No se pudo conectar con el servidor. Asegúrese de que esté corriendo.',
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonText: 'Reintentar',
-        cancelButtonText: 'Ir al inicio'
-      }).then(result => {
-        if (result.isConfirmed) cargarMaterias();
-        else window.location.href = '/';
-      });
-    }
+async function cargarMaterias() {
+  try {
+    listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
+    const data = await fetchWithRetry('/materias', { credentials: 'include' });
+    todasMaterias = data.materias;
+    mostrarMaterias(todasMaterias);
+  } catch (error) {
+    console.error('Error al cargar materias:', error);
+    listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar las materias. Verifique que el servidor esté corriendo.</div>';
+    Swal.fire({
+      title: 'Error',
+      text: error.message.includes('404') 
+        ? 'El servidor no tiene configurada la lista de materias (/materias). Contacte al administrador.'
+        : 'No se pudo conectar con el servidor. Asegúrese de que esté corriendo.',
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonText: 'Reintentar',
+      cancelButtonText: 'Ir al inicio'
+    }).then(result => {
+      if (result.isConfirmed) cargarMaterias();
+      else window.location.href = '/';
+    });
+  }
+}
+
+
+function mostrarMaterias(materias) {
+  const textoBusqueda = buscadorMaterias.value.trim().toLowerCase();
+  const filtrados = materias.filter(m =>
+    `${m.nombre_materia || ''} ${m.modelo_materia || ''} ${m.grado_materia || ''} ${m.nombre_academia || ''} ${m.profesores_grupos || ''}`
+      .toLowerCase()
+      .includes(textoBusqueda)
+  );
+
+  if (filtrados.length === 0) {
+    listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">No se encontraron materias.</div>';
+    return;
   }
 
-  function mostrarMaterias(materias) {
-    const textoBusqueda = buscadorMaterias.value.trim().toLowerCase();
-    const filtrados = materias.filter(m => 
-      `${m.nombre_materia} ${m.modelo_materia} ${m.grado_materia} ${m.nombre_academia} ${m.profesores_grupos || ''}`.toLowerCase().includes(textoBusqueda)
-    );
+  listaMateriasList.innerHTML = filtrados.map(m => {
+    const nombre = escapeHtml(m.nombre_materia || 'Sin nombre');
+    const modelo = escapeHtml(m.modelo_materia || '');
+    const grado = escapeHtml(String(m.grado_materia ?? ''));
+    const academia = escapeHtml(m.nombre_academia || 'Sin academia');
+    const asignaciones = m.profesores_grupos ? escapeHtml(m.profesores_grupos).split('; ').join('<br>') : 'Sin asignaciones';
 
-    if (filtrados.length === 0) {
-      listaMaterias.innerHTML = '<tr><td colspan="6" class="text-muted text-center">No se encontraron materias.</td></tr>';
-      return;
-    }
+    return `
+      <div class="list-group-item list-group-item-action shadow-sm mb-2 p-3 d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1 me-3" style="min-width:0;">
+          <div class="d-flex justify-content-between align-items-start">
+            <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
+            <small class="text-muted ms-2">${modelo} ${grado ? '· Grado ' + grado : ''}</small>
+          </div>
+          <div class="text-muted small mt-1">
+            <div><strong>Academia:</strong> ${academia}</div>
+            <div class="mt-1"><strong>Profesores y Grupos:</strong><br>${asignaciones}</div>
+          </div>
+        </div>
+        <div class="ms-3 d-flex align-items-center" style="flex: 0 0 auto;">
+          <button class="btn btn-outline-danger btn-sm editBtn" data-id="${m.id_materia}" title="Asignar/Editar">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
-    listaMaterias.innerHTML = filtrados.map(m => {
-      // Separar profesores_grupos en líneas para el formato deseado
-      const asignaciones = m.profesores_grupos ? m.profesores_grupos.split('; ').join('<br>') : 'Sin asignaciones';
-      return `
-        <tr>
-          <td>${m.nombre_materia || 'Sin nombre'}</td>
-          <td>${m.modelo_materia}</td>
-          <td>${m.grado_materia}</td>
-          <td>${m.nombre_academia || 'Sin academia'}</td>
-          <td>${asignaciones}</td>
-          <td>
-            <i class="fas fa-pencil-alt text-warning editBtn" data-id="${m.id_materia}" style="cursor: pointer; padding: 0.1rem;"></i>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
 
   async function cargarAcademias() {
     try {
@@ -639,30 +665,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  listaMaterias.parentElement.addEventListener('click', async (e) => {
-    const editBtn = e.target.closest('.editBtn');
-    if (editBtn) {
-      const id = editBtn.dataset.id;
-      try {
-        const data = await fetchWithRetry(`/materias/${id}`, { credentials: 'include' });
-        await abrirModalAsignar(data.materia);
-      } catch (error) {
-        console.error('Error al cargar datos de materia:', error);
-        Swal.fire({
-          title: 'Error',
-          text: error.message.includes('404') 
-            ? 'El servidor no tiene configurada la funcionalidad de edición (/materias/:id). Contacte al administrador.'
-            : 'No se pudieron cargar los datos de la materia. Asegúrese de que el servidor esté corriendo.',
-          icon: 'error',
-          showCancelButton: true,
-          confirmButtonText: 'Reintentar',
-          cancelButtonText: 'Cancelar'
-        }).then(result => {
-          if (result.isConfirmed) listaMaterias.parentElement.dispatchEvent(new Event('click'));
-        });
+  listaMateriasList.addEventListener('click', async (e) => {
+      const editBtn = e.target.closest('.editBtn');
+      if (editBtn) {
+        const id = editBtn.dataset.id;
+        try {
+          const data = await fetchWithRetry(`/materias/${id}`, { credentials: 'include' });
+          await abrirModalAsignar(data.materia);
+        } catch (error) {
+          console.error('Error al cargar datos de materia:', error);
+          Swal.fire({
+            title: 'Error',
+            text: error.message.includes('404')
+              ? 'El servidor no tiene configurada la funcionalidad de edición (/materias/:id). Contacte al administrador.'
+              : 'No se pudieron cargar los datos de la materia. Asegúrese de que el servidor esté corriendo.',
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: 'Reintentar',
+            cancelButtonText: 'Cancelar'
+          }).then(result => {
+            if (result.isConfirmed) listaMateriasList.dispatchEvent(new Event('click'));
+          });
+        }
       }
-    }
-  });
+    });
+
 
   buscadorMaterias.addEventListener('input', () => {
     mostrarMaterias(todasMaterias);

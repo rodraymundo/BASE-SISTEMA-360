@@ -497,11 +497,16 @@ router.post('/guardar-eleccion-taller', authMiddleware, async (req, res) => {
         // Contador global por taller (puede ser un campo en memoria o simple random si quieres)
         // Aquí simplemente asignamos el profesor con menos alumnos
         const [conteos] = await connection.query(`
-          SELECT id_personal, COUNT(*) AS total FROM Alumno_Taller
-          WHERE id_taller = ?
-          GROUP BY id_personal
+          SELECT p.id_personal, COUNT(at.id_alumno) AS total
+          FROM Personal_taller p
+          LEFT JOIN Alumno_Taller at 
+            ON p.id_personal = at.id_personal AND at.id_taller = ?
+          WHERE p.id_taller = ?
+          GROUP BY p.id_personal
           ORDER BY total ASC
-        `, [id_taller]);
+        `, [id_taller, id_taller]);
+
+
         if (conteos.length) {
           id_personal = conteos[0].id_personal;
         } else {
@@ -544,8 +549,33 @@ router.post('/guardar-eleccion-taller', authMiddleware, async (req, res) => {
   }
 });
 
+// DELETE lógico de un taller (marcar como inactivo)
+router.delete('/talleres/:id_taller', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
 
+  try {
+    // Solo marcar como inactivo
+    await db.query(
+      'UPDATE Taller SET estado = 0 WHERE id_taller = ?',
+      [id_taller]
+    );
 
+    // También puedes opcionalmente desasignar a los alumnos y profesores
+    await db.query('DELETE FROM Alumno_Taller WHERE id_taller = ?', [id_taller]);
+    await db.query('DELETE FROM Personal_taller WHERE id_taller = ?', [id_taller]);
+
+    res.json({
+      success: true,
+      message: 'Taller marcado como inactivo y relaciones eliminadas.'
+    });
+  } catch (error) {
+    console.error('Error al desactivar taller:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al desactivar taller.'
+    });
+  }
+});
 
 
 //TRAER EVALUACIONES PENDIENTES PARA PERSONAL
@@ -553,29 +583,60 @@ router.get('/evaluaciones-pendientes', authMiddleware, async (req, res) => {
   if (!req.session.user || req.session.user.userType !== 'personal') {
     return res.status(403).json({ success: false, message: 'No tienes permiso para acceder a esta información.' });
   }
+
   const id_personal = req.session.user.id_personal;
+
   try {
     const [evaluaciones] = await db.query(`
       SELECT 
-        p_evaluado.id_personal, p_evaluado.nombre_personal, p_evaluado.apaterno_personal, p_evaluado.amaterno_personal,
-        pu_eval.id_puesto, pu_eval.nombre_puesto,
-        k.id_kpi, k.nombre_kpi,
-        c.id_categoria_kpi, c.nombre_categoria_kpi,
-        pc.porcentaje_categoria, k.meta_kpi, k.tipo_kpi,
-        rk.resultado_kpi -- Agregamos el resultado_kpi
+        p_evaluado.id_personal,
+        p_evaluado.nombre_personal,
+        p_evaluado.apaterno_personal,
+        p_evaluado.amaterno_personal,
+        pu_eval.id_puesto,
+        pu_eval.nombre_puesto,
+        k.id_kpi,
+        k.nombre_kpi,
+        c.id_categoria_kpi,
+        c.nombre_categoria_kpi,
+        pc.porcentaje_categoria,
+        k.meta_kpi,
+        k.tipo_kpi,
+        ek.id_evaluador AS asignado_evaluador_id,
+        rk.resultado_kpi
       FROM Personal pevaluador
+
+      -- obtenemos el id_evaluador que corresponde al usuario en sesión: (REQUIRED)
+      INNER JOIN Evaluador ev ON ev.id_personal = pevaluador.id_personal
+
+      -- roles del puesto del evaluador -> KPIs por rol
       JOIN Puesto_Rol pr ON pr.id_puesto = pevaluador.id_puesto
       JOIN Kpi k ON k.id_rol = pr.id_rol
+
       JOIN Categoria_Kpi c ON c.id_categoria_kpi = k.id_categoria_kpi
       JOIN Puesto_Kpi pk ON pk.id_kpi = k.id_kpi
       JOIN Puesto pu_eval ON pu_eval.id_puesto = pk.id_puesto
       JOIN Personal p_evaluado ON p_evaluado.id_puesto = pu_eval.id_puesto
       JOIN Puesto_Categoria pc ON pc.id_puesto = pu_eval.id_puesto AND pc.id_categoria_kpi = c.id_categoria_kpi
-      LEFT JOIN Resultado_Kpi rk ON rk.id_personal = p_evaluado.id_personal AND rk.id_kpi = k.id_kpi AND rk.id_evaluador = (SELECT id_evaluador FROM Evaluador WHERE id_personal = ?)
+
+      -- SOLO KPIs **asignados explícitamente** al evaluador (ek debe existir)
+      INNER JOIN Evaluador_Kpi ek
+        ON ek.id_kpi = k.id_kpi
+       AND ek.id_personal = p_evaluado.id_personal
+       AND ek.id_evaluador = ev.id_evaluador
+
+      -- resultado si ya lo dejó este evaluador (puede ser NULL)
+      LEFT JOIN Resultado_Kpi rk
+        ON rk.id_personal = p_evaluado.id_personal
+       AND rk.id_kpi = k.id_kpi
+       AND rk.id_evaluador = ev.id_evaluador
+
       WHERE pevaluador.id_personal = ?
-      AND p_evaluado.id_personal <> pevaluador.id_personal
+        AND p_evaluado.id_personal <> pevaluador.id_personal
+
+      -- ordenar
       ORDER BY p_evaluado.nombre_personal, c.id_categoria_kpi, k.id_kpi;
-    `, [id_personal, id_personal]);
+    `, [id_personal]);
 
     const [evaluador] = await db.query(
       `SELECT nombre_personal, apaterno_personal, amaterno_personal FROM Personal WHERE id_personal = ?`,
@@ -595,22 +656,29 @@ router.get('/evaluaciones-pendientes', authMiddleware, async (req, res) => {
       }
       if (!acc[key].categorias[row.id_categoria_kpi]) {
         acc[key].categorias[row.id_categoria_kpi] = {
+          id_categoria_kpi: row.id_categoria_kpi,
           nombre_categoria: row.nombre_categoria_kpi,
           porcentaje_categoria: row.porcentaje_categoria,
           kpis: []
         };
       }
+
       acc[key].categorias[row.id_categoria_kpi].kpis.push({
         id_kpi: row.id_kpi,
         nombre_kpi: row.nombre_kpi,
         meta_kpi: row.meta_kpi,
         tipo_kpi: row.tipo_kpi,
-        resultado_kpi: row.resultado_kpi //AGREGAMOS EL RESULTADO DEL KPI
+        resultado_kpi: row.resultado_kpi || null,
+        asignado_evaluador_id: row.asignado_evaluador_id || null,
+        asignado_a_mi: !!row.asignado_evaluador_id
       });
+
       return acc;
     }, {});
 
-    const evaluadorNombre = `${evaluador[0].nombre_personal} ${evaluador[0].apaterno_personal} ${evaluador[0].amaterno_personal || ''}`.trim();
+    const evaluadorNombre = evaluador.length
+      ? `${evaluador[0].nombre_personal} ${evaluador[0].apaterno_personal} ${evaluador[0].amaterno_personal || ''}`.trim()
+      : '';
 
     res.json({ success: true, evaluaciones: Object.values(groupedEvaluations), userName: evaluadorNombre });
   } catch (error) {
@@ -618,6 +686,8 @@ router.get('/evaluaciones-pendientes', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: 'Error en el servidor.' });
   }
 });
+
+
 
 //GUARDAR RESULTADOS DE KPIS PARA PERSONAL
 router.post('/guardar-multiples-resultados', authMiddleware, async (req, res) => {
@@ -2880,11 +2950,12 @@ router.delete('/personal/:id', authMiddleware, async (req, res) => {
 // RUTA PARA OBTENER TODOS LOS TALLERES
 router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
   try {
-    // 1) Obtener talleres y número de alumnos
+    // 1) Obtener talleres activos y número de alumnos
     const [tallerRows] = await db.query(`
       SELECT t.id_taller, t.nombre_taller, COUNT(at.id_alumno) AS num_alumnos
       FROM Taller t
       LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
+      WHERE t.estado = 1
       GROUP BY t.id_taller, t.nombre_taller
       ORDER BY t.nombre_taller
     `);
@@ -2894,7 +2965,7 @@ router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
       return res.json({ success: true, talleres: [] });
     }
 
-    // 2) Obtener todos los instructores para esos talleres
+    // 2) Obtener todos los instructores para esos talleres activos
     const [instrRows] = await db.query(`
       SELECT pt.id_taller, p.id_personal, CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS nombre_personal
       FROM Personal_taller pt
@@ -2923,6 +2994,7 @@ router.get('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
   }
 });
+
 
 
 // RUTA PARA OBTENER DETALLES DE UN TALLER ESPECÍFICO
@@ -3012,51 +3084,69 @@ router.get('/talleres-personal-alumnos/:id_taller/alumnos', authMiddleware, asyn
 router.post('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
     const { nombre_taller, id_personal } = req.body;
 
-    // Depuración: Mostrar el cuerpo completo de la solicitud
-    console.log('Cuerpo recibido en POST /talleres-personal-alumnos:', req.body);
-
-    // Validar que no se envíe un id_taller en la creación
     if (req.body.id_taller) {
         return res.status(400).json({ success: false, message: 'No se puede especificar un ID para crear un nuevo taller.' });
     }
 
-    if (!nombre_taller || !id_personal) {
-        return res.status(400).json({ success: false, message: 'Faltan nombre_taller o id_personal.' });
+    if (!nombre_taller) {
+        return res.status(400).json({ success: false, message: 'El nombre del taller es obligatorio.' });
     }
 
     try {
         await db.query('START TRANSACTION');
 
-        // Verificar que id_personal exista en la tabla Personal
-        const [personalCheck] = await db.query('SELECT id_personal FROM Personal WHERE id_personal = ?', [id_personal]);
-        if (personalCheck.length === 0) {
-            throw new Error('El ID de personal especificado no existe.');
+        // Revisar si el taller ya existe (ignorar mayúsculas/minúsculas y espacios extra)
+        const [tallerExistente] = await db.query(
+            'SELECT id_taller FROM Taller WHERE LOWER(TRIM(nombre_taller)) = LOWER(TRIM(?))',
+            [nombre_taller]
+        );
+
+        if (tallerExistente.length > 0) {
+            await db.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Ya existe un taller con ese nombre.' });
         }
 
+        const nombreMayus = nombre_taller.trim().toUpperCase();
+
         // Insertar el nuevo taller
-        const [result] = await db.query('INSERT INTO Taller (nombre_taller) VALUES (?)', [nombre_taller]);
+        const [result] = await db.query(
+            'INSERT INTO Taller (nombre_taller) VALUES (?)',
+
+            [nombreMayus]
+        );
         const id_taller = result.insertId;
 
-        // Asociar el personal al taller
-        await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [id_personal, id_taller]);
+        // Si se manda un id_personal, validar y asociar
+        if (id_personal) {
+            const [personalCheck] = await db.query(
+                'SELECT id_personal FROM Personal WHERE id_personal = ?',
+                [id_personal]
+            );
+
+            if (personalCheck.length === 0) {
+                await db.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: 'El ID de personal especificado no existe.' });
+            }
+
+            await db.query(
+                'INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)',
+                [id_personal, id_taller]
+            );
+        }
 
         await db.query('COMMIT');
 
         // Obtener el taller recién creado
         const [newTaller] = await db.query(
-            'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", COALESCE(p.apaterno_personal, "")) AS profesor ' +
-            'FROM Taller t ' +
-            'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
-            'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
-            'WHERE t.id_taller = ?',
+            `SELECT t.id_taller, t.nombre_taller, p.id_personal, 
+                    CONCAT(p.nombre_personal, " ", COALESCE(p.apaterno_personal, "")) AS profesor
+             FROM Taller t
+             LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+             LEFT JOIN Personal p ON pt.id_personal = p.id_personal
+             WHERE t.id_taller = ?`,
             [id_taller]
         );
 
-        if (newTaller.length === 0) {
-            throw new Error('No se pudo recuperar el taller creado.');
-        }
-
-        console.log('Taller creado con éxito, ID:', id_taller, 'Datos:', newTaller[0]);
         res.json({ success: true, taller: newTaller[0] });
     } catch (error) {
         await db.query('ROLLBACK');
@@ -3064,6 +3154,46 @@ router.post('/talleres-personal-alumnos', authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
     }
 });
+
+
+// Agregar un profesor a un taller
+router.post('/talleres-personal-alumnos/:id_taller/instructor', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  const { id_personal } = req.body;
+
+  if (!id_personal) {
+    return res.status(400).json({ success: false, message: 'Debes enviar un profesor válido.' });
+  }
+
+  try {
+    // Verificar que el profesor exista
+    const [profCheck] = await db.query('SELECT id_personal FROM Personal WHERE id_personal = ?', [id_personal]);
+    if (profCheck.length === 0) {
+      return res.status(404).json({ success: false, message: 'El profesor no existe.' });
+    }
+
+    // Verificar que ya no esté asignado
+    const [exists] = await db.query(
+      'SELECT * FROM Personal_taller WHERE id_personal = ? AND id_taller = ?',
+      [id_personal, id_taller]
+    );
+    if (exists.length > 0) {
+      return res.status(400).json({ success: false, message: 'Este profesor ya imparte el taller.' });
+    }
+
+    // Insertar en la tabla intermedia
+    await db.query(
+      'INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)',
+      [id_personal, id_taller]
+    );
+
+    res.json({ success: true, message: 'Profesor agregado al taller correctamente.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
 
 // RUTA PARA ACTUALIZAR UN TALLER EXISTENTE
 router.put('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
@@ -3105,6 +3235,57 @@ router.put('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, 
   }
 });
 
+// PUT /talleres-personal-alumnos/:id_taller/instructor
+router.put('/talleres-personal-alumnos/:id_taller/instructor', authMiddleware, async (req, res) => {
+  const { id_taller } = req.params;
+  const { old_id_personal, new_id_personal, propagate = true } = req.body;
+
+  if (!new_id_personal) return res.status(400).json({ success: false, message: 'Falta new_id_personal' });
+
+  try {
+    // 1) comprobar taller
+    const [tallerRows] = await db.query('SELECT id_taller FROM Taller WHERE id_taller = ?', [id_taller]);
+    if (tallerRows.length === 0) return res.status(404).json({ success: false, message: 'Taller no encontrado' });
+
+    // 2) actualizar o insertar en Personal_taller
+    const [exists] = await db.query('SELECT id_personal FROM Personal_taller WHERE id_taller = ? AND id_personal = ?', [id_taller, new_id_personal]);
+    if (exists.length === 0) {
+      // si old_id_personal existe, podemos actualizar ese registro; sino insertamos nuevo
+      if (old_id_personal) {
+        const [updated] = await db.query('UPDATE Personal_taller SET id_personal = ? WHERE id_taller = ? AND id_personal = ?', [new_id_personal, id_taller, old_id_personal]);
+        if (updated.affectedRows === 0) {
+          await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
+        }
+      } else {
+        await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
+      }
+    }
+
+    // 3) (opcional) propagar a los alumnos que tenían old_id_personal -> new_id_personal
+    if (propagate && old_id_personal) {
+      await db.query('UPDATE Alumno_Taller SET id_personal = ? WHERE id_taller = ? AND id_personal = ?', [new_id_personal, id_taller, old_id_personal]);
+    }
+
+    // 4) devolver estado actualizado (puedes ajustar la consulta para devolver la info que quieras)
+    const [tallerActual] = await db.query(
+      `SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS profesor,
+              COUNT(at.id_alumno) AS num_alumnos
+       FROM Taller t
+       LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+       LEFT JOIN Personal p ON pt.id_personal = p.id_personal
+       LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
+       WHERE t.id_taller = ?
+       GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal`,
+      [id_taller]
+    );
+
+    res.json({ success: true, taller: tallerActual[0] });
+  } catch (err) {
+    console.error('Error reemplazando instructor:', err);
+    res.status(500).json({ success: false, message: err.message || 'Error del servidor' });
+  }
+});
+
 // RUTA PARA ELIMINAR UN TALLER
 router.delete('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
   const { id_taller } = req.params;
@@ -3120,37 +3301,48 @@ router.delete('/talleres-personal-alumnos/:id_taller', authMiddleware, async (re
 
 // RUTA PARA BUSCAR TALLERES POR NOMBRE O PROFESOR
 router.get('/talleres-personal-alumnos/buscar', authMiddleware, async (req, res) => {
-    const term = req.query.term?.toLowerCase() || '';
-    try {
-        const [talleres] = await db.query(
-            'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
-            'FROM Taller t ' +
-            'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
-            'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
-            'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
-            'WHERE LOWER(t.nombre_taller) LIKE ? OR LOWER(CONCAT(p.nombre_personal, " ", p.apaterno_personal)) LIKE ? ' +
-            'GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal',
-            [`%${term}%`, `%${term}%`]
-        );
-        res.json({ success: true, talleres });
-    } catch (error) {
-        console.error('Error al buscar talleres:', error);
-        res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
-    }
+  const term = req.query.term?.toLowerCase() || '';
+  try {
+    const [talleres] = await db.query(
+      `SELECT 
+          t.id_taller, 
+          t.nombre_taller, 
+          p.id_personal, 
+          CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, 
+          COUNT(at.id_alumno) AS num_alumnos
+       FROM Taller t
+       LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+       LEFT JOIN Personal p ON pt.id_personal = p.id_personal
+       LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
+       WHERE t.estado = 1
+         AND (LOWER(t.nombre_taller) LIKE ? 
+              OR LOWER(CONCAT(p.nombre_personal, " ", p.apaterno_personal)) LIKE ?)
+       GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal
+       ORDER BY t.nombre_taller`,
+      [`%${term}%`, `%${term}%`]
+    );
+
+    res.json({ success: true, talleres });
+  } catch (error) {
+    console.error('Error al buscar talleres:', error);
+    res.status(500).json({ success: false, message: error.message || 'Error en el servidor.' });
+  }
 });
+
 
 //RUTA PARA BUSCADOR DE TALLERES
 router.get('/buscar-talleres', authMiddleware, async (req, res) => {
     const term = req.query.term?.trim().toLowerCase() || '';
     try {
         const likeTerm = `%${term}%`;
-        const [talleres] = await db.query(
+        const [rows] = await db.query(
           `SELECT 
               t.id_taller, 
-              t.nombre_taller, 
-              p.id_personal, 
-              CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, 
-              COUNT(at.id_alumno) AS num_alumnos
+              t.nombre_taller,
+              p.id_personal,
+              p.nombre_personal,
+              p.apaterno_personal,
+              COUNT(DISTINCT at.id_alumno) AS num_alumnos
            FROM Taller t
            LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
            LEFT JOIN Personal p ON pt.id_personal = p.id_personal
@@ -3159,8 +3351,30 @@ router.get('/buscar-talleres', authMiddleware, async (req, res) => {
               OR p.nombre_personal LIKE ? 
               OR p.apaterno_personal LIKE ?
            GROUP BY t.id_taller, t.nombre_taller, p.id_personal, p.nombre_personal, p.apaterno_personal`,
-           [likeTerm, likeTerm, likeTerm]
+          [likeTerm, likeTerm, likeTerm]
         );
+
+        // Transformar filas planas en talleres únicos con array de instructores
+        const talleresMap = new Map();
+        rows.forEach(r => {
+            if (!talleresMap.has(r.id_taller)) {
+                talleresMap.set(r.id_taller, {
+                    id_taller: r.id_taller,
+                    nombre_taller: r.nombre_taller,
+                    num_alumnos: r.num_alumnos || 0,
+                    instructors: []
+                });
+            }
+            if (r.id_personal) {
+                talleresMap.get(r.id_taller).instructors.push({
+                    id_personal: r.id_personal,
+                    nombre_personal: r.nombre_personal,
+                    apaterno_personal: r.apaterno_personal
+                });
+            }
+        });
+
+        const talleres = Array.from(talleresMap.values());
         res.json({ success: true, talleres });
     } catch (error) {
         console.error('Error al buscar talleres:', error);
@@ -3928,13 +4142,138 @@ router.get('/personal-kpi-results/:id_personal', authMiddleware, async (req, res
     }
 });
 
+// GET /puesto-categorias?puesto=17
+router.get('/puesto-categorias', async (req, res) => {
+  try {
+    const puesto = parseInt(req.query.puesto);
+    if (!puesto) return res.status(400).json({ success: false, message: 'Falta parámetro puesto' });
+
+    const [rows] = await db.query(
+      `SELECT pc.id_puesto,
+              pc.id_categoria_kpi,
+              pc.porcentaje_categoria,
+              ck.nombre_categoria_kpi
+       FROM Puesto_Categoria pc
+       JOIN Categoria_Kpi ck ON pc.id_categoria_kpi = ck.id_categoria_kpi
+       WHERE pc.id_puesto = ?`,
+      [puesto]
+    );
+
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('Error en /puesto-categorias:', err);
+    return res.status(500).json({ success: false, message: 'Error interno' });
+  }
+});
+
+
+// GET /kpis?categoria=3
+router.get('/kpis', async (req, res) => {
+  try {
+    const categoria = parseInt(req.query.categoria);
+    if (!categoria) return res.status(400).json({ success: false, message: 'Falta parámetro categoria' });
+
+    const [rows] = await db.query(
+      `SELECT id_kpi, nombre_kpi, meta_kpi, tipo_kpi, id_rol, id_categoria_kpi
+       FROM Kpi
+       WHERE id_categoria_kpi = ?`,
+      [categoria]
+    );
+
+    return res.json(rows);
+  } catch (err) {
+    console.error('Error en /kpis:', err);
+    return res.status(500).json({ success: false, message: 'Error interno' });
+  }
+});
+
+// GET /evaluador_kpi?personal=25
+router.get('/evaluador_kpi', async (req, res) => {
+  try {
+    const personal = parseInt(req.query.personal);
+    if (!personal) return res.status(400).json({ success: false, message: 'Falta parámetro personal' });
+
+    const [rows] = await db.query(
+      `SELECT ek.id_kpi,
+              ek.id_evaluador,
+              e.id_personal AS evaluador_personal_id,
+              CONCAT(p.nombre_personal, ' ', IFNULL(p.apaterno_personal,''), ' ', IFNULL(p.amaterno_personal,'')) AS evaluador_nombre
+       FROM Evaluador_Kpi ek
+       JOIN Evaluador e ON ek.id_evaluador = e.id_evaluador
+       JOIN Personal p ON e.id_personal = p.id_personal
+       WHERE ek.id_personal = ?`,
+      [personal]
+    );
+
+    return res.json(rows);
+  } catch (err) {
+    console.error('Error en /evaluador_kpi:', err);
+    return res.status(500).json({ success: false, message: 'Error interno' });
+  }
+});
+
+// POST /evaluador_kpi
+router.post('/evaluador_kpi', async (req, res) => {
+  const { id_kpi, id_personal_target, id_personal_evaluador } = req.body;
+  if (!id_kpi || !id_personal_target) return res.status(400).json({ success: false, message: 'Faltan datos' });
+
+  const conn = await db.getConnection(); // 👈 también aquí
+  try {
+    await conn.beginTransaction();
+
+    if (id_personal_evaluador == null) {
+      await conn.query(`DELETE FROM Evaluador_Kpi WHERE id_kpi = ? AND id_personal = ?`, [id_kpi, id_personal_target]);
+      await conn.commit();
+      return res.json({ success: true, message: 'Asignación eliminada' });
+    }
+
+    const [pers] = await conn.query(
+      `SELECT id_personal, id_puesto, nombre_personal, apaterno_personal 
+       FROM Personal 
+       WHERE id_personal = ?`,
+      [id_personal_evaluador]
+    );
+
+    if (!pers.length) {
+      await conn.rollback();
+      return res.status(400).json({ success: false, message: 'Persona evaluadora no existe' });
+    }
+
+    let [rows] = await conn.query(`SELECT id_evaluador FROM Evaluador WHERE id_personal = ?`, [id_personal_evaluador]);
+    let id_evaluador;
+    if (rows.length) {
+      id_evaluador = rows[0].id_evaluador;
+    } else {
+      const [ins] = await conn.query(`INSERT INTO Evaluador (id_personal) VALUES (?)`, [id_personal_evaluador]);
+      id_evaluador = ins.insertId;
+    }
+
+    await conn.query(
+      `INSERT INTO Evaluador_Kpi (id_kpi, id_personal, id_evaluador)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE id_evaluador = VALUES(id_evaluador)`,
+      [id_kpi, id_personal_target, id_evaluador]
+    );
+
+    await conn.commit();
+    return res.json({ success: true, message: 'Asignación guardada', data: { id_kpi, id_personal_target, id_personal_evaluador } });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Error en POST /evaluador_kpi:', err);
+    return res.status(500).json({ success: false, message: 'Error interno' });
+  } finally {
+    conn.release();
+  }
+});
+
+
 
 //FIN DE RUTAS DE PERSONAL
 
 //RUTAS DE KPIS
 
 // Obtener todos los KPIs
-router.get('/kpis', authMiddleware, async (req, res) => {
+router.get('/kpis-gestion', authMiddleware, async (req, res) => {
   try {
     const [kpis] = await db.query(`
       SELECT 

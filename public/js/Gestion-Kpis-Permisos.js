@@ -14,8 +14,19 @@ async function fetchWithRetry(url, options, retries = 3) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const listaKpis = document.querySelector('#listaKpis tbody');
-  listaKpis.innerHTML = '<tr><td colspan="9" class="text-muted text-center">Cargando KPIs...</td></tr>';
+  const listaKpisList = document.getElementById('listaKpisList');
+  listaKpisList.innerHTML = '<div class="text-muted text-center py-3">Cargando KPIs...</div>';
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
 
   try {
     const response = await fetch('/auth-check', { credentials: 'include' });
@@ -64,13 +75,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function cargarKpis() {
     try {
-      listaKpis.innerHTML = '<tr><td colspan="9" class="text-muted text-center">Cargando KPIs...</td></tr>';
-      const data = await fetchWithRetry('/kpis', { credentials: 'include' });
+      listaKpisList.innerHTML = '<div class="text-muted text-center py-3">Cargando KPIs...</div>';
+      const data = await fetchWithRetry('/kpis-gestion', { credentials: 'include' });
       todosKpis = data.kpis;
       mostrarKpis(todosKpis);
     } catch (error) {
       console.error('Error al cargar KPIs:', error);
-      listaKpis.innerHTML = '<tr><td colspan="9" class="text-muted text-center">No se pudo cargar los KPIs. Verifique que el servidor esté corriendo.</td></tr>';
+      listaKpisList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar los KPIs. Verifique que el servidor esté corriendo.</div>';
       Swal.fire({
         title: 'Error',
         text: error.message.includes('404') 
@@ -87,33 +98,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function mostrarKpis(kpis) {
-    const textoBusqueda = buscadorKpi.value.trim().toLowerCase();
-    const filtrados = kpis.filter(k => 
-      `${k.nombre_kpi} ${k.nombre_categoria_kpi} ${k.nombre_area_estrategica} ${k.nombre_indicador_kpi} ${k.nombre_rol || ''} ${k.nombre_puesto || ''}`.toLowerCase().includes(textoBusqueda)
-    );
+function mostrarKpis(kpis) {
+  const textoBusqueda = buscadorKpi.value.trim().toLowerCase();
+  const filtrados = kpis.filter(k =>
+    `${k.nombre_kpi || ''} ${k.nombre_categoria_kpi || ''} ${k.nombre_area_estrategica || ''} ${k.nombre_indicador_kpi || ''} ${k.nombre_rol || ''} ${k.nombre_puesto || ''}`
+      .toLowerCase()
+      .includes(textoBusqueda)
+  );
 
-    if (filtrados.length === 0) {
-      listaKpis.innerHTML = '<tr><td colspan="9" class="text-muted text-center">No se encontraron KPIs.</td></tr>';
-      return;
-    }
-
-    listaKpis.innerHTML = filtrados.map(k => `
-      <tr>
-        <td>${k.nombre_kpi || 'Sin nombre'}</td>
-        <td>${k.meta_kpi}</td>
-        <td>${k.tipo_kpi}</td>
-        <td>${k.nombre_categoria_kpi || 'Sin categoría'}</td>
-        <td>${k.nombre_area_estrategica} (${k.siglas_area_estrategica})</td>
-        <td>${k.nombre_indicador_kpi} (${k.sigla_indicador_kpi})</td>
-        <td>${k.nombre_rol || 'Ninguno'}</td>
-        <td>${k.nombre_puesto || 'Sin puesto'}</td>
-        <td>
-          <i class="fas fa-pencil-alt text-warning editBtn" data-id="${k.id_kpi}" style="cursor: pointer; padding: 0.1rem;"></i>
-        </td>
-      </tr>
-    `).join('');
+  if (filtrados.length === 0) {
+    listaKpisList.innerHTML = '<div class="text-muted text-center py-3">No se encontraron KPIs.</div>';
+    return;
   }
+
+  listaKpisList.innerHTML = filtrados.map(k => {
+    const nombre = escapeHtml(k.nombre_kpi || 'Sin nombre');
+    const meta = escapeHtml(String(k.meta_kpi ?? ''));
+    const tipo = escapeHtml(k.tipo_kpi || '');
+    const categoria = escapeHtml(k.nombre_categoria_kpi || 'Sin categoría');
+    const area = escapeHtml(k.nombre_area_estrategica ? `${k.nombre_area_estrategica} (${k.siglas_area_estrategica || ''})` : 'Sin área');
+    const indicador = escapeHtml(k.nombre_indicador_kpi ? `${k.nombre_indicador_kpi} (${k.sigla_indicador_kpi || ''})` : 'Sin indicador');
+    const rol = escapeHtml(k.nombre_rol || 'Ninguno');
+    const puesto = escapeHtml(k.nombre_puesto || 'Sin puesto');
+
+    return `
+      <div class="list-group-item list-group-item-action shadow-sm p-3 d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1 me-3" style="min-width:0;">
+          <div class="d-flex justify-content-between align-items-start">
+            <h6 class="kpi-title mb-1">${nombre}</h6>
+            <small class="kpi-meta ms-2">${tipo}${meta ? ' · Meta: ' + meta : ''}</small>
+          </div>
+          <div class="text-muted small mt-1">
+            <div><strong>Categoría:</strong> ${categoria}</div>
+            <div><strong>Área:</strong> ${area}</div>
+            <div><strong>Indicador:</strong> ${indicador}</div>
+            <div><strong>Evaluador:</strong> ${rol} · <strong>Puesto:</strong> ${puesto}</div>
+          </div>
+        </div>
+
+        <div class="ms-3 d-flex align-items-center" style="flex: 0 0 auto;">
+          <button class="btn btn-outline-danger btn-sm editBtn" data-id="${k.id_kpi}" title="Editar">
+            <i class="fas fa-pencil-alt"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 
   async function cargarPuestos() {
     try {
@@ -365,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  listaKpis.parentElement.addEventListener('click', async (e) => {
+  listaKpisList.addEventListener('click', async (e) => {
     const editBtn = e.target.closest('.editBtn');
     if (editBtn) {
       const id = editBtn.dataset.id;
@@ -376,19 +408,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error al cargar datos de KPI:', error);
         Swal.fire({
           title: 'Error',
-          text: error.message.includes('404') 
+          text: error.message.includes('404')
             ? 'El servidor no tiene configurada la funcionalidad de edición (/kpis/:id). Contacte al administrador.'
             : 'No se pudieron cargar los datos del KPI. Asegúrese de que el servidor esté corriendo.',
           icon: 'error',
           showCancelButton: true,
           confirmButtonText: 'Reintentar',
           cancelButtonText: 'Cancelar'
-        }).then(result => {
-          if (result.isConfirmed) listaKpis.parentElement.dispatchEvent(new Event('click'));
         });
       }
     }
   });
+
 
   buscadorKpi.addEventListener('input', () => {
     mostrarKpis(todosKpis);
