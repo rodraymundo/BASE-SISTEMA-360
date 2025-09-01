@@ -1,0 +1,172 @@
+
+/* Estiliza el contenido de los modales */
+.gestion-materias .modal-content {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estiliza el encabezado de los modales principales (rojo) */
+.gestion-materias .modal-header.bg-danger {
+  background-color: #dc3545;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
+}
+
+/* Estiliza el encabezado de los modales secundarios (gris) */
+.gestion-materias .modal-header.bg-secondary {
+  background-color: #6c757d;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
+}
+
+/* Estiliza el título del modal */
+.gestion-materias .modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Estiliza el cuerpo del modal */
+.gestion-materias .modal-body {
+  padding: 1.5rem;
+}
+
+/* Estiliza el pie del modal */
+.gestion-materias .modal-footer {
+  border-top: none;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+/* Estiliza las etiquetas de los formularios */
+.gestion-materias .form-label {
+  font-weight: 500;
+  color: #333;
+}
+
+/* Estiliza los campos de formulario */
+.gestion-materias .form-control,
+.gestion-materias .form-select {
+  height: 2.5rem;
+  font-size: 0.9rem;
+  border-color: #dee2e6;
+}
+
+/* Estiliza el contenedor de asignaciones */
+.gestion-materias #asignacionesContainer {
+  padding: 15px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+}
+
+/* Estiliza el botón de eliminar materia */
+.gestion-materias #deleteMateriaBtn {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Efecto hover para el botón de eliminar */
+.gestion-materias #deleteMateriaBtn:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Ajustes para la fila del título, buscador y botones */
+.gestion-materias .d-flex.align-items-center {
+  flex-wrap: wrap;
+  gap: 1rem; /* Espaciado entre elementos */
+  justify-content: flex-start; /* Justifica los elementos a la izquierda */
+}
+
+/* Ajusta el tamaño del input */
+.gestion-materias #buscadorMaterias {
+  min-width: 200px;
+  max-width: 300px; /* Limita el ancho máximo */
+}
+
+/* Asegura que los botones no se estiren demasiado */
+.gestion-materias .btn-danger, .gestion-materias .btn-secondary {
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+}
+
+/* Media query para pantallas pequeñas */
+@media (max-width: 768px) {
+  #listaMateriasList .list-group-item {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .gestion-materias #buscadorMaterias {
+    max-width: 100%; /* Ocupa todo el ancho en pantallas pequeñas */
+    margin-bottom: 0.5rem;
+  }
+
+
+  .gestion-materias .btn-danger, .gestion-materias .btn-secondary {
+    width: 100%; /* Botones ocupan todo el ancho en pantallas pequeñas */
+  }
+
+  .gestion-materias .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .gestion-materias .modal-body {
+    padding: 1rem;
+  }
+}
+
+/* Estiliza los botones btn-danger (rojo) */
+.gestion-materias .btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Efecto hover para btn-danger */
+.gestion-materias .btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Estiliza los botones btn-secondary (gris) */
+.gestion-materias .btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+/* Efecto hover para btn-secondary */
+.gestion-materias .btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+/* Contenedor de materias */
+#listaMateriasList {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Lista vertical con separación tipo talleres */
+#listaMateriasList .list-group-item {
+  cursor: default;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem; /* similar a la card-body de talleres */
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: all 0.2s;
+}
+
+/* Hover ligero */
+#listaMateriasList .list-group-item:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Si hay tarjetas internas */
+#listaMateriasList .card {
+  width: 100%;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+

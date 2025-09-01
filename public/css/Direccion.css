@@ -1,0 +1,215 @@
+/* Original Navbar and Layout Styles */
+body {
+    overflow-x: hidden; /* Evita desplazamiento horizontal en toda la página */
+}
+
+.navbar {
+    background-color: #fff;
+    padding: 5px 10px; /* Reducido el padding vertical a 5px */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand img {
+    height: 65px; /* Tamaño deseado del logo */
+    max-height: 65px; /* Limita la altura máxima */
+    object-fit: contain; /* Asegura que el logo mantenga proporciones */
+    vertical-align: middle; /* Alinea verticalmente */
+}
+
+.navbar-brand {
+    padding: 0; /* Elimina padding interno para reducir espacio */
+    margin-left: -10px;
+}
+
+.navbar-nav {
+    flex: 1;
+    justify-content: space-between;
+    max-width: 70%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.nav-link {
+    color: #dc3545 !important;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0 10px;
+    transition: color 0.3s, transform 0.3s;
+}
+
+.nav-link:hover {
+    color: #ff0000 !important;
+    transform: scale(1.1);
+}
+
+.nav-link.active {
+    color: #dc3545 !important;
+}
+
+.dropdown-toggle::after {
+    display: none;
+}
+
+.dropdown-toggle i {
+    color: #000;
+    font-size: 28px;
+    transition: color 0.3s, transform 0.3s;
+}
+
+.dropdown-toggle:hover i {
+    color: #dc3545;
+    transform: scale(1.2);
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+    font-family: 'Roboto', sans-serif;
+    color: #dc3545;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #ff0000;
+}
+
+.dropdown {
+    margin-right: -10px;
+}
+
+/* Card Styles */
+.card-middle {
+    transform: scale(1.05); /* Reduced scale to minimize overlap */
+    z-index: 1;
+}
+
+.card-side {
+    transform: scale(0.95); /* Reduced scale to minimize overlap */
+}
+
+.card {
+    transition: transform 0.3s;
+    background-color: #e3f2fd; /* Match original profile-card background */
+    border: 1px solid #ccc; /* Match original profile-card border */
+    border-radius: 10px;
+    max-height: 140rem; /* Reduced from 300px */
+    max-width: 62rem;
+    margin: 2rem auto; /* Centered with margin */
+    padding: 1rem; /* Added padding for better spacing */
+}
+
+.card:hover {
+    transform: scale(1.02); /* Reduced scale on hover */
+}
+
+.card-img-top.profile-img {
+    width: 90px; /* Reduced default size */
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: radial-gradient(circle, #ffd700, #4169e1); /* Match original profile-img */
+}
+
+.card-title {
+    background-color: #dc3545; /* Match original card-title */
+    color: white;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+.rating-bar {
+    background: #e9ecef;
+    height: 8px; /* Reduced from 10px */
+    border-radius: 4px; /* Reduced from 5px */
+    overflow: hidden;
+    margin: 5px 0;
+}
+
+.rating-fill {
+    background: #36a2eb;
+    height: 100%;
+    border-radius: 4px;
+}
+
+/* Custom Chart Styles */
+.custom-chart {
+    padding: 8px; /* Reduced from 10px */
+}
+
+.custom-chart-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    height: 135px; /* Reduced by ~10% from 150px */
+    padding: 7px; /* Reduced from 8px */
+    min-height: 100px; /* Ensure minimum height for visibility */
+    position: relative; /* Ensure proper positioning */
+}
+
+.chart-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 28%; /* Slightly reduced from 30% */
+    min-height: 100px; /* Ensure bars have space to grow */
+    justify-content: flex-end; /* Push bars to bottom */
+}
+
+.custom-bar {
+    width: 100%;
+    height: 0; /* Initial height, updated dynamically */
+    max-height: 100%;
+    transition: height 0.5s ease;
+    background-color: #36a2eb; /* Ensure visible color */
+}
+
+.bar-label {
+    font-size: 9px; /* Reduced from 10px */
+    text-align: center;
+    margin-top: 5px; /* Increased for better spacing */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* Single-Screen Layout */
+.dashboard-container {
+    max-height: calc(100vh - 70px);
+    width: 100vw;
+    overflow: hidden;
+    padding: 20px 0 0 0; /* Added padding-top to lower content */
+}
+
+/* Filter Button */
+.btn-primary {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-primary:hover {
+    background-color: #ff0000;
+    border-color: #ff0000;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 700px) {
+    .card-middle, .card-side {
+        transform: scale(1);
+    }
+    .card {
+        width: 90% !important;
+        min-height: 200px; /* Reduced from 250px */
+    }
+    .custom-chart-container {
+        height: 108px; /* Reduced by ~10% from 120px */
+    }
+    .bar-label {
+        font-size: 7px; /* Reduced from 8px */
+    }
+}

@@ -1,0 +1,131 @@
+
+.main-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 100px);
+    margin-top: 20px;
+}
+
+.selection-panel {
+    background-color: #fff;
+    border: 2px solid #e57373;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.selection-panel h2 {
+    font-size: 26px;
+    color: #d32f2f;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.selection-panel h3 {
+    font-size: 20px;
+    color: #d32f2f;
+    margin-bottom: 15px;
+}
+
+.form-label {
+    font-size: 16px;
+    color: #333;
+    font-weight: 500;
+}
+
+.form-select {
+    border: 1px solid #e57373;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-select:focus {
+    border-color: #d32f2f;
+    box-shadow: 0 0 5px rgba(211, 47, 47, 0.3);
+}
+
+.permissions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-check-input {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    border: 1px solid #e57373;
+}
+
+.form-check-input:checked {
+    background-color: #d32f2f;
+    border-color: #d32f2f;
+}
+
+.form-check-label {
+    font-size: 16px;
+    color: #333;
+}
+
+.btn-primary {
+    background-color: #d32f2f;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #ef5350;
+}
+
+.d-none {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding: 15px;
+    }
+    .selection-panel {
+        padding: 15px;
+    }
+    .selection-panel h2 {
+        font-size: 20px;
+    }
+    .selection-panel h3 {
+        font-size: 18px;
+    }
+    .form-label {
+        font-size: 14px;
+    }
+    .form-select {
+        font-size: 12px;
+        padding: 6px;
+    }
+    .form-check-label {
+        font-size: 14px;
+    }
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+    }
+    .btn-primary {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+}

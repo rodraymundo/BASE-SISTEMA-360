@@ -1,0 +1,295 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.navbar {
+    background-color: #fff;
+    padding: 5px 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.navbar-brand img {
+    height: 65px;
+    max-height: 65px;
+    object-fit: contain;
+    vertical-align: middle;
+}
+.navbar-brand {
+    padding: 0;
+    margin-left: -10px;
+}
+.navbar-nav {
+    flex: 1;
+    justify-content: space-between;
+    max-width: 70%;
+    margin-left: auto;
+    margin-right: auto;
+}
+.nav-link {
+    color: #dc3545 !important;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0 10px;
+    transition: color 0.3s, transform 0.3s;
+}
+.nav-link:hover {
+    color: #ff0000 !important;
+    transform: scale(1.1);
+}
+.nav-link.active {
+    color: #dc3545 !important;
+}
+.dropdown-toggle::after {
+    display: none;
+}
+.dropdown-toggle i {
+    color: #000;
+    font-size: 28px;
+    transition: color 0.3s, transform 0.3s;
+}
+.dropdown-toggle:hover i {
+    color: #dc3545;
+    transform: scale(1.2);
+}
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.dropdown-item {
+    font-family: 'Roboto', sans-serif;
+    color: #dc3545;
+    transition: background-color 0.3s, color 0.3s;
+}
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #ff0000;
+}
+.dropdown {
+    margin-right: -10px;
+}
+.welcome-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+}
+.welcome-content {
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.welcome-content h2 {
+    color: #dc3545;
+    font-size: 3rem;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+.welcome-content p {
+    font-size: 1.6rem;
+    color: #444;
+    margin-bottom: 30px;
+}
+.btn-continuar {
+    background-color: #28a745;
+    color: #fff;
+    padding: 15px 40px;
+    font-size: 1.3rem;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.btn-continuar:hover {
+    background-color: #218838;
+    transform: scale(1.05);
+}
+.btn-continuar i {
+    font-size: 1.2rem;
+}
+.main-content {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+}
+.evaluations-content {
+    display: flex;
+    gap: 20px;
+    height: calc(100vh - 80px);
+    width: 100vw;
+    margin: 0;
+    padding-top: 5px;
+    box-sizing: border-box;
+}
+.puestos-container, .kpis-container {
+    background-color: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 10px;
+    overflow-y: auto;
+    height: 100%;
+    flex: 1;
+}
+.puestos-container {
+    width: 50%;
+    max-width: none;
+}
+.kpis-container {
+    width: 50%;
+    max-width: none;
+    padding-top: 0px;
+}
+.puesto-acordeon {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.puesto-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgb(104, 104, 104);
+    color: white;
+    padding: 12px 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size: 0.8rem;
+}
+.puesto-header:hover {
+    background-color: rgb(61, 58, 58);
+}
+.toggle-icon {
+    font-size: 1.3rem;
+    transition: transform 0.3s ease;
+}
+.personas-lista {
+    display: none;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+}
+.persona-item {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.persona-item:hover {
+    background-color: #e9ecef;
+}
+.persona-item i {
+    color: rgb(104, 104, 104);
+}
+.kpi-card {
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.kpi-header {
+    font-size: 1.4rem;
+    color: #000000;
+    margin-bottom: 10px;
+}
+.form-control {
+    border-radius: 6px;
+    font-size: 1rem;
+}
+.btn-primary {
+    background-color: #28a745;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 15px;
+    font-size: 1rem;
+}
+.btn-primary:hover {
+    background-color: #218838;
+}
+.btn-primary:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+@media (max-width: 768px) {
+    .evaluations-content {
+        flex-direction: column;
+        height: auto;
+    }
+    .puestos-container, .kpis-container {
+        max-width: 100%;
+        height: 500px;
+    }
+}
+.persona-kpi-header {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 10;
+    padding: 15px 10px 10px 10px;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 10px;
+}
+.persona-nombre {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #dc3545;
+}
+.persona-puesto {
+    font-size: 1.1rem;
+    color: #555;
+    margin-top: 5px;
+}
+.evaluaciones-restantes {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 0px;
+}
+#welcomeSection,
+#mainContent {
+  display: none;
+}
+.persona-item.evaluado {
+    background-color: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    color: #2e7d32;
+}
+
+.puesto-acordeon.evaluado .puesto-header {
+    background-color: #f1f8e9;
+    border-left: 4px solid #8bc34a;
+    color: #33691e;
+}
+.persona-item.no-evaluado {
+    background-color: #fdecea;
+    border-left: 4px solid #e53935;
+    color: #b71c1c;
+}
+
+.puesto-acordeon.no-evaluado .puesto-header {
+    background-color: #ffebee;
+    border-left: 4px solid #ef5350;
+    color: #b71c1c;
+}
+

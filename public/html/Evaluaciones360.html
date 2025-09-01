@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balmoral-Evaluaciones</title>
+    <link rel="icon" type="image/x-icon" href="./assets/img/favicon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/Dashboard.css"> 
+    <!-- MOVER LO DE HEADER A OTRO CSS -->
+    </head>
+
+    <body>
+        <div id="header-container"></div>
+
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="card shadow-lg border-0 rounded-4">
+                        <div class="card-body text-center p-4">
+                            <h2 class="fw-bold text-danger mb-3" id="nombrePersona"></h2>
+                            <p class="fs-5">Tienes un total de <strong class="text-primary" id="cantidadEvaluaciones"></strong> evaluaciones pendientes.</p>
+
+                            <hr class="my-4">
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-center flex-wrap" id="listaBotones">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <a class="btn btn-success px-4 py-2 m-1 fw-bold" id="btnCerrarCiclo">Cerrar Ciclo</a>
+
+        <!-- SCRIPTS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="./assets/js/DashboardPersonal.js" type="module"></script>
+        <script src="./assets/js/RenderHeader.js" type="module"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    </body>
+
+</html>

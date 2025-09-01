@@ -1,0 +1,328 @@
+
+
+/* Estiliza el título h2 dentro de la clase .gestion-kpis */
+.gestion-kpis h2 {
+  font-weight: 700; /* Usa peso de fuente negrita para destacar el título */
+  font-size: 1.8rem; /* Establece el tamaño de fuente a 1.8rem (≈28.8px) para un título prominente */
+  color: #dc3545; /* Usa rojo (tema de la aplicación) para el color del texto */
+  margin-bottom: 1.5rem; /* Añade un margen inferior de 1.5rem (24px) para separar del contenido siguiente */
+}
+
+/* Estiliza el contenedor principal de la página */
+.gestion-kpis .container {
+  flex: 1; /* Hace que el contenedor ocupe todo el espacio disponible en el diseño flexible */
+  max-width: 1550px; /* Limita el ancho máximo a 1200px para mantener el contenido centrado */
+  padding: 1rem 0; /* Añade padding vertical de 1rem (16px) para espacio interno */
+  overflow: hidden; /* Evita que el contenido se desborde del contenedor */
+}
+
+/* Estiliza el grupo de entrada (input y botón de agregar KPI) */
+.gestion-kpis .input-group {
+  width: 100%; /* Hace que el grupo de entrada ocupe todo el ancho disponible */
+  max-width: 600px; /* Limita el ancho máximo a 600px para un diseño compacto */
+}
+
+/* Estiliza el campo de búsqueda de KPIs */
+.gestion-kpis #buscadorKpi {
+  margin-bottom: 0; /* Elimina el margen inferior para alinear con el botón de agregar */
+  height: 2.2rem; /* Establece una altura de 2.2rem (≈35.2px) para consistencia con el botón */
+  font-size: 0.9rem; /* Usa un tamaño de fuente de 0.9rem (≈14.4px) para legibilidad */
+  padding: 0.3rem 0.5rem; /* Añade padding interno de 0.3rem (4.8px) vertical y 0.5rem (8px) horizontal */
+
+}
+
+/* Estiliza el botón de agregar KPI */
+.gestion-kpis #addKpiBtn {
+  padding: 0.375rem 1rem; /* Añade padding de 0.375rem (6px) vertical y 1rem (16px) horizontal */
+  font-size: 0.9rem; /* Usa un tamaño de fuente de 0.9rem (≈14.4px) para consistencia */
+  height: 2.2rem; /* Establece la misma altura que el campo de búsqueda para alineación */
+}
+
+/* Estiliza el contenedor de la tabla de KPIs */
+.gestion-kpis #listaKpisContainer {
+  border: 1px solid #dee2e6; /* Añade un borde gris claro para delimitar el contenedor */
+  border-radius: 4px; /* Redondea las esquinas del contenedor con un radio de 4px */
+  overflow-y: auto; /* Permite desplazamiento vertical si el contenido excede la altura */
+  height: calc(80vh - 6rem); /* Establece la altura a 80% de la ventana menos 6rem (96px) para el encabezado y márgenes */
+  min-height: 500px; /* Garantiza una altura mínima de 500px para evitar contenedores demasiado pequeños */
+  width: 100%; /* Hace que el contenedor ocupe todo el ancho disponible */
+}
+
+/* Estiliza la tabla de KPIs */
+.gestion-kpis .table {
+  margin-bottom: 0; /* Elimina el margen inferior para que la tabla encaje en el contenedor */
+  font-size: 0.95rem; /* Usa un tamaño de fuente de 0.95rem (≈15.2px) para legibilidad */
+  width: 100%; /* Hace que la tabla ocupe todo el ancho del contenedor */
+  table-layout: fixed; /* Fija los anchos de las columnas para un diseño consistente */
+  background-color: #fff; /* Establece un fondo blanco para la tabla */
+  border-radius: 8px; /* Redondea las esquinas de la tabla (aunque puede ser recortado por overflow) */
+  overflow: hidden; /* Evita que el contenido se desborde de las esquinas redondeadas */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Añade una sombra sutil para profundidad */
+}
+
+/* Estiliza las celdas de encabezado de la tabla (th) */
+.gestion-kpis .table th {
+  background-color: #dc3545;
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* Define los anchos de las columnas */
+.gestion-kpis .table th:nth-child(1) { width: 30%; } /* Nombre */
+.gestion-kpis .table th:nth-child(2) { width: 6%; }  /* Meta */
+.gestion-kpis .table th:nth-child(3) { width: 10%; } /* Tipo */
+.gestion-kpis .table th:nth-child(4) { width: 15%; } /* Categoría */
+.gestion-kpis .table th:nth-child(5) { width: 15%; } /* Área Estratégica */
+.gestion-kpis .table th:nth-child(6) { width: 12%; } /* Indicador */
+.gestion-kpis .table th:nth-child(7) { width: 15%; } /* Rol Evaluador */
+.gestion-kpis .table th:nth-child(8) { width: 15%; } /* Puesto */
+.gestion-kpis .table th:nth-child(9) { width: 7%; min-width: 50px; } /* Acciones */
+
+/* Estiliza las celdas de datos */
+.gestion-kpis .table td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-top: 1px solid #dee2e6;
+  word-wrap: break-word;
+}
+
+/* Estiliza específicamente la columna "Nombre" */
+.gestion-kpis .table td:nth-child(1) {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
+}
+
+/* Añade un efecto de hover a las filas de la tabla */
+.gestion-kpis .table-hover tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Evita desbordamiento horizontal en el contenedor de la tabla */
+.gestion-kpis .table-responsive {
+  overflow-x: hidden;
+}
+
+/* Estiliza el contenedor de la tabla de KPIs */
+.gestion-kpis #listaKpisContainer {
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow-y: auto;
+  height: calc(80vh - 6rem);
+  min-height: 500px;
+  width: 100%;
+}
+
+/* Estiliza la tabla de KPIs */
+.gestion-kpis .table {
+  margin-bottom: 0;
+  font-size: 0.95rem;
+  width: 100%;
+  table-layout: fixed;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Estiliza los botones de edición en la columna "Acciones" */
+.gestion-kpis .editBtn {
+  font-size: 0.9rem;
+  padding: 0.1rem;
+  transition: transform 0.2s;
+}
+
+/* Efecto de hover para los botones de edición */
+.gestion-kpis .editBtn:hover {
+  transform: scale(1.2);
+}
+
+/* Estiliza el contenedor del modal */
+.gestion-kpis .modal-content {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estiliza el encabezado del modal */
+.gestion-kpis .modal-header {
+  background-color: #dc3545;
+  color: white;
+  border-bottom: none;
+  padding: 1rem;
+}
+
+/* Estiliza el título del modal */
+.gestion-kpis .modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Estiliza el cuerpo del modal */
+.gestion-kpis .modal-body {
+  padding: 1.5rem;
+}
+
+/* Estiliza el pie del modal */
+.gestion-kpis .modal-footer {
+  border-top: none;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+/* Estiliza las etiquetas de los campos del formulario */
+.gestion-kpis .form-label {
+  font-weight: 500;
+  color: #333;
+}
+
+/* Estiliza los campos de entrada y selección del formulario */
+.gestion-kpis .form-control,
+.gestion-kpis .form-select {
+  height: 2.5rem;
+  font-size: 0.9rem;
+  border-color: #dee2e6;
+}
+
+/* Ajustes para la fila del título, buscador y botones */
+.gestion-kpis .d-flex.align-items-center {
+  flex-wrap: wrap;
+  gap: 1rem; /* Ajustado a 1rem para coincidir con Gestión de Materias */
+  justify-content: flex-start;
+}
+
+/* Ajusta el tamaño del input */
+.gestion-kpis #buscadorKpi {
+  min-width: 200px;
+  max-width: 300px; /* Añadido para consistencia con Gestión de Materias */
+}
+
+/* Asegura que los botones no se estiren demasiado */
+.gestion-kpis .btn-danger,
+.gestion-kpis .btn-secondary {
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+}
+
+/* Estiliza los botones btn-danger (rojo) */
+.gestion-kpis .btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Efecto hover para btn-danger */
+.gestion-kpis .btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Estiliza los botones btn-secondary (gris) */
+.gestion-kpis .btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+/* Efecto hover para btn-secondary */
+.gestion-kpis .btn-secondary:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+/* Media query para pantallas pequeñas */
+@media (max-width: 768px) {
+  .gestion-kpis .table {
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  .gestion-kpis .table th,
+  .gestion-kpis .table td {
+    padding: 0.5rem;
+    width: auto;
+  }
+
+  .gestion-kpis #listaKpisContainer {
+    height: 350px;
+    max-height: 350px;
+  }
+
+  .gestion-kpis .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .gestion-kpis #buscadorKpi {
+    max-width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .gestion-kpis h3 {
+    margin-bottom: 0.5rem;
+  }
+
+  .gestion-kpis .btn-danger,
+  .gestion-kpis .btn-secondary {
+    width: 100%;
+  }
+
+  .gestion-kpis .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .gestion-kpis .modal-body {
+    padding: 1rem;
+  }
+}
+
+/* contenedor list-group para KPIs (igual que materias/talleres) */
+#listaKpisList {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* estilo de cada item parecida a tarjetas */
+#listaKpisList .list-group-item {
+  cursor: default;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: box-shadow .18s ease;
+}
+
+/* hover leve */
+#listaKpisList .list-group-item:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* diseño interno parecido a materias: título a la izquierda, meta/tipo en pequeño, botón a la derecha */
+.kpi-title {
+  font-weight: 700;
+  color: #dc3545;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-meta {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+#listaKpisList .btn, #listaKpisList .editBtn {
+  cursor: pointer;
+}
+
+/* responsive adjustments */
+@media (max-width: 768px) {
+  #listaKpisList .list-group-item {
+    padding: 0.5rem 0.75rem;
+  }
+}

@@ -1,0 +1,20 @@
+/* ESTILOS PARA LAS CARTAS DE LOS PROFESORES/COUNSELOR/SERVICIOS */
+.card-img-top {
+    height: 180px;
+    object-fit: contain;
+}
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* PARA QUE EL TEXT AREA DE LOS COMENTARIOS NO SE PUEDA REDIMENCIONAR */
+textarea{
+    resize: none;
+    height: 100px;
+}
