@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     personalContainer.innerHTML = filtrados.map(p => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-          <img src="/assets/img/${p.img_personal || '/assets/img/user.png'}" alt="Foto de ${p.nombre_personal}">
+          <img src="/assets/img/${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
           <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
           <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
           <div>

@@ -28,7 +28,7 @@ export function renderHeader(user) {
           <li class="nav-item"><a class="nav-link" id="nav-personal" href="/Gestion-Personal-Permisos" style="display: none;">Personal</a></li>
           <li class="nav-item"><a class="nav-link" id="nav-talleres" href="/Gestion-Talleres-Permisos" style="display: none;">Talleres</a></li>
           <li class="nav-item"><a class="nav-link" id="nav-alumnos" href="/Gestion-Alumnos" style="display: none;">Alumnos</a></li>
-          <li class="nav-item"><a class="nav-link" id="personal-dir-general" href="/Gestion-Personal-Resultados" style="display: none;">Personal</a></li>
+          <li class="nav-item"><a class="nav-link" id="personal-dir-general" href="/Gestion-Personal-Resultados" style="display: none;">Resultados</a></li>
           <li class="nav-item"><a class="nav-link" id="permisos-dir-general" href="/Gestion-Permisos" style="display: none;">Permisos</a></li>
           <li class="nav-item"><a class="nav-link" id="historico-dir-general" href="/Historico-Evaluaciones" style="display: none;">Histórico</a></li>
         </ul>

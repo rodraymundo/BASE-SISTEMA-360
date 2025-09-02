@@ -1,6 +1,10 @@
 export function permisoMiddleware(nombrePermiso) {
   return (req, res, next) => {
-    const permisos = req.user?.permisos || {}; // Asegúrate que ya están cargados en el login
+    console.log('req.user:', req.user);
+    console.log('req.user.permisos:', req.user?.permisos);
+    console.log('nombrePermiso:', nombrePermiso);
+
+    const permisos = req.user?.permisos || {}; 
 
     if (permisos[nombrePermiso]) {
       return next();
