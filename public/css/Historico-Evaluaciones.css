@@ -1,0 +1,294 @@
+
+body.historico-evaluaciones {
+  font-family: 'Arial', sans-serif;
+  background-color: #f8f9fa;
+}
+
+.sidebar {
+  height: 100vh;
+  border-right: 1px solid #dee2e6;
+}
+
+.sidebar-heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.list-group-item {
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.list-group-item:hover {
+  background-color: #f1f3f5;
+}
+
+.list-group-item.active {
+  background-color: #dc3545;
+  color: #fff;
+  font-weight: 500;
+}
+
+.personal-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  padding: 1rem;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.personal-card:hover {
+  transform: translateY(-5px);
+}
+
+.personal-card img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 0.5rem;
+}
+
+.personal-card h5 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.personal-card p {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.personal-card .btn {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  margin: 0.2rem;
+}
+
+.btn-perfil {
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+}
+
+.btn-perfil:hover {
+  background-color: #c82333;
+}
+
+.btn-kpis, .btn-evaluaciones {
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+}
+
+.btn-kpis:hover, .btn-evaluaciones:hover {
+  background-color: #5a6268;
+}
+
+#perfilModal .modal-title {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+#perfilModal .modal-body {
+  padding: 2rem;
+}
+
+#perfilModal .perfil-img {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+#perfilModal .perfil-details h5 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+#perfilModal .perfil-details p {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+#kpisModal .kpi-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+#kpisModal .kpi-header-table {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+#kpisModal .kpi-header-table th {
+  width: 30%;
+  font-weight: 600;
+  color: #333;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+#kpisModal .kpi-header-table td {
+  padding: 0.5rem;
+  color: #666;
+}
+
+#kpisModal .kpi-category {
+  margin-bottom: 2rem;
+}
+
+#kpisModal .category-header {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+#kpisModal .kpi-table, #kpisModal .kpi-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+#kpisModal .kpi-table th, #kpisModal .kpi-summary-table th {
+  background-color: #f1f3f5;
+  font-weight: 600;
+  padding: 0.75rem;
+  text-align: center;
+  border: 1px solid #dee2e6;
+}
+
+#kpisModal .kpi-table td, #kpisModal .kpi-summary-table td {
+  padding: 0.75rem;
+  text-align: center;
+  border: 1px solid #dee2e6;
+}
+
+#kpisModal .sub-header th {
+  background-color: #e9ecef;
+}
+
+#evaluacionesModal .btn-evaluacion {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+}
+
+#evaluacionesModal .btn-evaluacion:hover {
+  background-color: #c82333;
+}
+
+#evaluacionResultsModal .results-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+#evaluacionResultsModal .results-header h4 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+#evaluacionResultsModal .results-header h5 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+#evaluacionResultsModal .results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+#evaluacionResultsModal .results-table th, #evaluacionResultsModal .results-table td {
+  border: 1px solid #dee2e6;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+#evaluacionResultsModal .results-table th {
+  background-color: #f1f3f5;
+  font-weight: 600;
+}
+
+#evaluacionResultsModal .comments-section {
+  margin-top: 2rem;
+}
+
+#evaluacionResultsModal .comments-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+#evaluacionResultsModal .comments-section ul {
+  list-style: none;
+  padding: 0;
+}
+
+#evaluacionResultsModal .comments-section li {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  padding-left: 1rem;
+  position: relative;
+}
+
+#evaluacionResultsModal .comments-section li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #dc3545;
+}
+
+@media (max-width: 767.98px) {
+  .personal-card {
+    margin-bottom: 1rem;
+  }
+
+  #perfilModal .perfil-img {
+    width: 100px;
+    height: 100px;
+  }
+
+  #perfilModal .modal-body {
+    padding: 1rem;
+  }
+
+  #kpisModal .modal-body, #evaluacionResultsModal .modal-body {
+    font-size: 0.8rem;
+  }
+
+  #kpisModal .kpi-table th, #kpisModal .kpi-table td,
+  #kpisModal .kpi-summary-table th, #kpisModal .kpi-summary-table td,
+  #evaluacionResultsModal .results-table th, #evaluacionResultsModal .results-table td {
+    padding: 0.5rem;
+  }
+}

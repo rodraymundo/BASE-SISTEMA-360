@@ -113,12 +113,12 @@
               </div>
             </div>
             <div class="accordion-item">
-              <h2 class="accordion-header" id="headingServicios">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServicios" aria-expanded="false" aria-controls="collapseServicios">
-                  Servicios y Mantenimiento
+              <h2 class="accordion-header" id="headingMantenimientos">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMantenimientos" aria-expanded="false" aria-controls="collapseMantenimientos">
+                  Mantenimiento
                 </button>
               </h2>
-              <div id="collapseServicios" class="accordion-collapse collapse" aria-labelledby="headingServicios" data-bs-parent="#rolesAccordion">
+              <div id="collapseMantenimientos" class="accordion-collapse collapse" aria-labelledby="headingMantenimientos" data-bs-parent="#rolesAccordion">
                 <div class="accordion-body">
                   <ul class="list-group list-group-flush">
                     <li class="list-group-item role-item" data-role="Encargado de Disciplina y Deportes">Encargado de Disciplina y Deportes</li>
@@ -133,6 +133,26 @@
                 </div>
               </div>
             </div>
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingServicios">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServicios" aria-expanded="false" aria-controls="collapseServicios">
+                  Servicios
+                </button>
+              </h2>
+              <div id="collapseServicios" class="accordion-collapse collapse" aria-labelledby="headingServicios" data-bs-parent="#rolesAccordion">
+                <div class="accordion-body">
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item role-item" data-role="Disciplinas">Disciplina</li>
+                    <li class="list-group-item role-item" data-role="La Loma">La Loma</li>
+                    <li class="list-group-item role-item" data-role="Psicopedagógico">Psicopedagógico</li>
+                    <li class="list-group-item role-item" data-role="Paramédico">Paramédico</li>
+                    <li class="list-group-item role-item" data-role="Limpieza">Limpieza</li>
+                    <li class="list-group-item role-item" data-role="Cafetería">Cafetería</li>
+                    <li class="list-group-item role-item" data-role="Transporte">Transporte</li>
+                    <li class="list-group-item role-item" data-role="Ligas deportivas">Ligas deportivas</li>
+                  </ul>
+                </div>
+              </div>
           </div>
         </div>
       </nav>
@@ -225,6 +245,21 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="servicioModal" tabindex="-1" aria-labelledby="servicioModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="servicioModalLabel">Ficha Técnica del Servicio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script type="module" src="/js/Gestion-Personal-Resultados.js"></script>
