@@ -5723,53 +5723,57 @@ router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) 
     let comments = [];
 
     // Definir mapeos de tablas
-    const responseTables = {
-      materias: { table: 'Respuesta_Alumno_Docente', idField: 'id_materia', nameField: 'nombre_materia', joinTable: 'Materia', joinCondition: 'id_materia' },
-      ingles: { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
-      artes: { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
-      servicios: { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-      talleres: { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
-      counselors: { table: 'Respuesta_Alumno_Counselor', single: true },
-      psicopedagogico: { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
-      coordinadores: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      '360': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true, fixedTipoPregunta: 5 },
-      pares: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      jefes: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      disciplina_deportiva: { table: 'Respuesta_Alumno_Disciplina_Deportiva', single: true, idField: 'id_disciplia_deportiva' },
-      liga_deportiva: { table: 'Respuesta_Alumno_Liga_Deportiva', single: true, idField: 'id_liga_deportiva' }
-    };
+    // Mapeos de tablas
+const responseTables = {
+  'materias': { table: 'Respuesta_Alumno_Docente', idField: 'id_materia', nameField: 'nombre_materia', joinTable: 'Materia', joinCondition: 'id_materia' },
+  'ingles': { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
+  'artes': { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
+  'servicios': { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
+  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
+  'counselors': { table: 'Respuesta_Alumno_Counselor', single: true },
+  'psicopedagogico': { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
+  'coordinadores': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
+  '360': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true, fixedTipoPregunta: 5 },
+  'pares': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
+  'jefes': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
+  'subordinados': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },  // Agregado aquí
+  'disciplina_deportiva': { table: 'Respuesta_Alumno_Disciplina_Deportiva', single: true, idField: 'id_disciplia_deportiva' },
+  'liga_deportiva': { table: 'Respuesta_Alumno_Liga_Deportiva', single: true, idField: 'id_liga_deportiva' }
+};
 
-    const commentTables = {
-      materias: 'Comentario_Docente',
-      ingles: 'Comentario_Docente_Ingles',
-      artes: 'Comentario_Docente_Arte',
-      servicios: 'Comentario_Servicio',
-      talleres: 'Comentario_Taller',
-      counselors: 'Comentario_Counselor',
-      psicopedagogico: 'Comentario_Psicopedagogico',
-      coordinadores: 'Comentario_Personal',
-      '360': 'Comentario_Personal',
-      pares: 'Comentario_Personal',
-      jefes: 'Comentario_Personal',
-      disciplina_deportiva: 'Comentario_Disciplina_Deportiva',
-      liga_deportiva: 'Comentario_Liga_Deportiva'
-    };
+const commentTables = {
+  'materias': 'Comentario_Docente',
+  'ingles': 'Comentario_Docente_Ingles',
+  'artes': 'Comentario_Docente_Arte',
+  'servicios': 'Comentario_Servicio',
+  'talleres': 'Comentario_Taller',
+  'counselors': 'Comentario_Counselor',
+  'psicopedagogico': 'Comentario_Psicopedagogico',
+  'coordinadores': 'Comentario_Personal',
+  '360': 'Comentario_Personal',
+  'pares': 'Comentario_Personal',
+  'jefes': 'Comentario_Personal',
+  'subordinados': 'Comentario_Personal',  // Agregado aquí
+  'disciplina_deportiva': 'Comentario_Disciplina_Deportiva',
+  'liga_deportiva': 'Comentario_Liga_Deportiva'
+};
 
-    const commentColumnNames = {
-      materias: 'comentario_docente',
-      ingles: 'comentario_docente_ingles',
-      artes: 'comentario_docente_arte',
-      servicios: 'comentario_servicio',
-      talleres: 'comentario_taller',
-      counselors: 'comentario_counselor',
-      psicopedagogico: 'comentario_psicopedagogico',
-      coordinadores: 'comentario_personal',
-      '360': 'comentario_personal',
-      pares: 'comentario_personal',
-      jefes: 'comentario_personal',
-      disciplina_deportiva: 'comentario_disciplina_deportiva',
-      liga_deportiva: 'comentario_liga_deportiva'
-    };
+const commentColumnNames = {
+  'materias': 'comentario_docente',
+  'ingles': 'comentario_docente_ingles',
+  'artes': 'comentario_docente_arte',
+  'servicios': 'comentario_servicio',
+  'talleres': 'comentario_taller',
+  'counselors': 'comentario_counselor',
+  'psicopedagogico': 'comentario_psicopedagogico',
+  'coordinadores': 'comentario_personal',
+  '360': 'comentario_personal',
+  'pares': 'comentario_personal',
+  'jefes': 'comentario_personal',
+  'subordinados': 'comentario_personal',  // Agregado aquí
+  'disciplina_deportiva': 'comentario_disciplina_deportiva',
+  'liga_deportiva': 'comentario_liga_deportiva'
+};
 
     const tableConfig = responseTables[type.toLowerCase()];
     if (!tableConfig) {
@@ -5859,15 +5863,15 @@ router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) 
       const tipoPreguntaValue = tableConfig.fixedTipoPregunta || idTipoPregunta;
 
       const [data] = await db.query(`
-        SELECT COUNT(DISTINCT ${type.toLowerCase() === 'coordinadores' || type.toLowerCase() === '360' || type.toLowerCase() === 'pares' || type.toLowerCase() === 'jefes' ? 'id_evaluador' : 'id_alumno'}) AS totalAlumnos,
-          pr.id_pregunta AS no, pr.nombre_pregunta AS criterio,
-          SUM(IF(r.id_respuesta IN (?), 1, 0)) AS si_count,
-          COUNT(*) AS total_count
-        FROM ${tableConfig.table} rad
-        JOIN Pregunta pr ON rad.id_pregunta = pr.id_pregunta
-        JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
-        WHERE rad.${idField} = ? ${tableConfig.tipoPregunta ? `AND rad.id_tipo_pregunta = ?` : `AND pr.id_tipo_pregunta = ?`}
-        GROUP BY pr.id_pregunta
+        SELECT COUNT(DISTINCT ${type.toLowerCase() === 'coordinadores' || type.toLowerCase() === '360' || type.toLowerCase() === 'pares' || type.toLowerCase() === 'jefes' || type.toLowerCase() === 'subordinados' ? 'id_evaluador' : 'id_alumno'}) AS totalAlumnos,
+        pr.id_pregunta AS no, pr.nombre_pregunta AS criterio,
+        SUM(IF(r.id_respuesta IN (?), 1, 0)) AS si_count,
+        COUNT(*) AS total_count
+      FROM ${tableConfig.table} rad
+      JOIN Pregunta pr ON rad.id_pregunta = pr.id_pregunta
+      JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
+      WHERE rad.${idField} = ? ${tableConfig.tipoPregunta ? `AND rad.id_tipo_pregunta = ?` : `AND pr.id_tipo_pregunta = ?`}
+      GROUP BY pr.id_pregunta
       `, tableConfig.tipoPregunta ? [goodIds, idPersonal, tipoPreguntaValue] : [goodIds, idPersonal, idTipoPregunta]);
       console.log(`[${type}] Criteria data:`, JSON.stringify(data, null, 2));
 
@@ -5931,7 +5935,7 @@ router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) 
   }
 });
 
-router.get('/personal-evaluaciones-types/:idPersonal', async (req, res) => {
+router.get('/personal-evaluaciones-types/:idPersonal', authMiddleware, async (req, res) => {
   const { idPersonal } = req.params;
   try {
     const types = [];
@@ -5947,6 +5951,7 @@ router.get('/personal-evaluaciones-types/:idPersonal', async (req, res) => {
       { type: '360', query: `SELECT 1 FROM Respuesta_Personal WHERE id_personal = ? AND id_tipo_pregunta = 5 LIMIT 1` },
       { type: 'pares', query: `SELECT 1 FROM Respuesta_Personal WHERE id_personal = ? AND id_tipo_pregunta = 6 LIMIT 1` },
       { type: 'jefes', query: `SELECT 1 FROM Respuesta_Personal WHERE id_personal = ? AND id_tipo_pregunta = 7 LIMIT 1` },
+      { type: 'subordinados', query: `SELECT 1 FROM Respuesta_Personal WHERE id_personal = ? AND id_tipo_pregunta = 4 LIMIT 1` },
       { type: 'disciplina_deportiva', query: `SELECT 1 FROM Respuesta_Alumno_Disciplina_Deportiva WHERE id_disciplia_deportiva = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` },
       { type: 'liga_deportiva', query: `SELECT 1 FROM Respuesta_Alumno_Liga_Deportiva WHERE id_liga_deportiva = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` }
     ];
@@ -5955,16 +5960,12 @@ router.get('/personal-evaluaciones-types/:idPersonal', async (req, res) => {
       const [result] = await db.query(check.query, [idPersonal]);
       if (result.length > 0) {
         types.push(check.type);
-        console.log(`[idPersonal=${idPersonal}] Type ${check.type} found in database`);
-      } else {
-        console.log(`[idPersonal=${idPersonal}] Type ${check.type} NOT found in database`);
       }
     }
-    console.log(`[idPersonal=${idPersonal}] Evaluation types:`, JSON.stringify(types, null, 2));
     res.json(types);
   } catch (error) {
-    console.error(`[idPersonal=${idPersonal}] Error fetching evaluation types:`, error);
-    res.status(500).json({ success: false, message: 'Error fetching types', error: error.message });
+    console.error('Error al obtener tipos de evaluaciones:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
   }
 });
 
