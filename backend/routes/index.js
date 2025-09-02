@@ -6291,15 +6291,23 @@ router.get('/historico-personal-resultados/:id/:ciclo', async (req, res) => {
     }
 
     const [materias] = await db.query(`
-      SELECT 
-        m.nombre_materia, 
-        gm.grado_materia, 
-        gm.grupo
-      FROM Alumno_Materia_Historico am
-      JOIN Materia m ON am.id_materia = m.id_materia
-      JOIN Grupo_Materia_Historico gm ON am.id_grupo_materia = gm.id_grupo_materia
-      WHERE am.id_personal = ? AND am.ciclo = ?
-    `, [id, ciclo]);
+  SELECT 
+    m.nombre_materia, 
+    gg.grado, 
+    gg.grupo
+  FROM Alumno_Materia_Historico am
+  INNER JOIN Materia m 
+    ON am.id_materia = m.id_materia
+  INNER JOIN Grupo_Materia gm 
+    ON am.id_materia = gm.id_materia 
+   AND am.id_personal = gm.id_personal
+  INNER JOIN Grado_Grupo gg 
+    ON gm.id_grado_grupo = gg.id_grado_grupo
+  WHERE am.id_personal = ? 
+    AND am.ciclo = ?
+`, [id, ciclo]);
+
+
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
@@ -6321,24 +6329,38 @@ router.get('/historico-personal-kpis/:id/:ciclo', async (req, res) => {
   const { id, ciclo } = req.params;
   try {
     console.log(`Fetching KPIs for id: ${id}, ciclo: ${ciclo}`);
+
     const [kpis] = await db.query(`
       SELECT 
         ck.nombre_categoria_kpi, 
-        ck.porcentaje_categoria,
+        pc.porcentaje_categoria,   -- AHORA VIENE DE Puesto_Categoria
         k.id_kpi, 
         k.nombre_kpi, 
         k.meta_kpi, 
         k.tipo_kpi, 
-        k.siglas_area_estrategica,
-        k.sigla_indicador_kpi, 
-        k.responsable_medicion, 
+        ae.siglas_area_estrategica,   -- AHORA VIENE DE Area_Estrategica
+        ik.sigla_indicador_kpi, 
+        k.id_rol, 
         rk.resultado_kpi
       FROM Categoria_Kpi ck
-      JOIN Kpi k ON ck.id_categoria_kpi = k.id_categoria_kpi
-      LEFT JOIN Resultado_Kpi_Historico rk ON k.id_kpi = rk.id_kpi AND rk.id_personal = ? AND rk.ciclo = ?
+      JOIN Kpi k 
+        ON ck.id_categoria_kpi = k.id_categoria_kpi
+      JOIN Personal p 
+        ON p.id_personal = ?
+      JOIN Puesto_Categoria pc 
+        ON pc.id_puesto = p.id_puesto 
+       AND pc.id_categoria_kpi = ck.id_categoria_kpi
+      JOIN Area_Estrategica ae 
+        ON ae.id_area_estrategica = k.id_area_estrategica
+      JOIN Indicador_Kpi ik
+        ON ik.id_indicador_kpi = k.id_indicador_kpi
+      LEFT JOIN Resultado_Kpi_Historico rk 
+        ON k.id_kpi = rk.id_kpi 
+       AND rk.id_personal = ? 
+       AND rk.ciclo = ?
       WHERE rk.id_personal IS NOT NULL
       ORDER BY ck.id_categoria_kpi, k.id_kpi
-    `, [id, ciclo]);
+    `, [id, id, ciclo]);
 
     const categorias = [];
     const grouped = kpis.reduce((acc, row) => {
@@ -6384,7 +6406,7 @@ router.get('/historico-personal-evaluaciones-types/:idPersonal/:ciclo', async (r
       { type: 'materias', query: `SELECT 1 FROM Respuesta_Alumno_Docente_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` },
       { type: 'ingles', query: `SELECT 1 FROM Respuesta_Alumno_Docente_Ingles_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` },
       { type: 'artes', query: `SELECT 1 FROM Respuesta_Alumno_Docente_Arte_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` },
-      { type: 'servicios', query: `SELECT 1 FROM Respuesta_Alumno_Servicio_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 8) LIMIT 1` },
+      { type: 'servicios', query: `SELECT 1 FROM Respuesta_Alumno_Servicio_Historico WHERE id_servicio = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 8) LIMIT 1` },
       { type: 'talleres', query: `SELECT 1 FROM Respuesta_Alumno_Taller_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 9) LIMIT 1` },
       { type: 'counselors', query: `SELECT 1 FROM Respuesta_Alumno_Counselor_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 2) LIMIT 1` },
       { type: 'psicopedagogico', query: `SELECT 1 FROM Respuesta_Alumno_Psicopedagogico_Historico WHERE id_personal = ? AND ciclo = ? AND id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = 1) LIMIT 1` },
@@ -6411,9 +6433,26 @@ router.get('/historico-personal-evaluaciones-types/:idPersonal/:ciclo', async (r
 
 // Fetch evaluation results for a specific personal, type, and cycle
 router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', async (req, res) => {
+  const tipoToIdPregunta = {
+  'materias': 1,
+  'counselors': 2,
+  'coordinadores': 3,
+  'subordinados': 4,
+  '360': 5,
+  'pares': 6,
+  'jefes': 7,
+  'servicios': 8,
+  'talleres': 9,
+  'instalaciones': 10,
+  'ingles': 1,
+  'artes': 1,
+  'psicopedagogico': 1
+};
   const { idPersonal, type, ciclo } = req.params;
   const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()] || 1;
   const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
+
+  
 
   try {
     console.log(`Fetching evaluation results for idPersonal: ${idPersonal}, type: ${type}, ciclo: ${ciclo}`);
@@ -7014,7 +7053,7 @@ router.get('/personal-kpi-results/:id_personal', async (req, res) => {
     }
 });
 
-router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) => {
+/*router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) => {
   const { idPersonal, type } = req.params;
   const idTipoPregunta = req.query.id_tipo_pregunta;
   const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
@@ -7255,7 +7294,7 @@ router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) 
     console.error(`[idPersonal=${idPersonal}, type=${type}, idTipoPregunta=${idTipoPregunta}] Error:`, error);
     res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
   }
-});
+}); */
 
 router.get('/servicios', async (req, res) => {
   try {
@@ -7474,6 +7513,7 @@ router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
 
 
 //FIN RUTAS HISTORICO
+
 
   // HACER CIERRE DE CICLO
   router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {

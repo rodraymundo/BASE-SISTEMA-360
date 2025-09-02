@@ -177,6 +177,7 @@
         <div class="modal-body"></div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-resultados-pdf"><i class="fas fa-download me-2"></i>Resultados</button>
         </div>
       </div>
     </div>
@@ -260,8 +261,14 @@
     </div>
   </div>
 </div>
+
+<canvas id="chart-canvas" width="800" height="400"></canvas>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
   <script type="module" src="/js/Gestion-Personal-Resultados.js"></script>
 </body>
 </html>

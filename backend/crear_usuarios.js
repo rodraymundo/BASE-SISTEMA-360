@@ -1,4 +1,4 @@
-// backend/crear_usuarios.js
+// backend/crear_usuarios_batch_hash_after.js
 const pool = require('./config/db'); // ajusta la ruta si tu config está en otra carpeta
 const bcrypt = require('bcrypt');
 
@@ -43,13 +43,14 @@ async function main() {
 
   try {
     console.log('Conectando a la base de datos...');
+    await conn.beginTransaction();
 
     // Traer correos ya existentes
     const [rowsExisting] = await conn.query("SELECT id_usuario, correo_usuario FROM Usuario");
     const existingEmails = new Map(rowsExisting.map(r => [ (r.correo_usuario || '').toLowerCase(), r.id_usuario ]));
     const existingLocals = new Set([...existingEmails.keys()].map(e => e.split('@')[0]));
 
-    const createdMap = [];
+    const createdMap = []; // guardará contraseñas en texto plano (ten cuidado)
     let createdCount = 0;
 
     // ---------- ALUMNOS ----------
@@ -61,19 +62,17 @@ async function main() {
       let correoCandidate = `${chosenLocal}@balmoralescoces.edu.mx`.toLowerCase();
       let assignedUserId = null;
 
-      // Bucle para encontrar local/correo reutilizable o crear uno nuevo si está ocupado
       while (true) {
         const existingId = existingEmails.get(correoCandidate);
         if (!existingId) {
           // no existe usuario con ese correo -> creamos
           const plain = 'pass' + chosenLocal;
-          const hash = await bcrypt.hash(plain, 10);
+          // INSERTAMOS la contraseña en texto plano tal como pediste
           const [ins] = await conn.query(
             "INSERT INTO Usuario (correo_usuario, contraseña_usuario, estado_usuario) VALUES (?, ?, 1)",
-            [correoCandidate, hash]
+            [correoCandidate, plain]
           );
           assignedUserId = ins.insertId;
-          // registrar en estructuras
           existingEmails.set(correoCandidate, assignedUserId);
           existingLocals.add(chosenLocal);
           createdCount++;
@@ -81,38 +80,28 @@ async function main() {
           break;
         } else {
           // existe un usuario con ese correo
-          // obtener si ese usuario está referenciado por otra fila distinta a esta
           const referencedElsewhere = await isUsuarioReferencedElsewhere(conn, existingId, { table: 'Alumno', idField: 'id_alumno', idValue: a.id_alumno });
           if (!referencedElsewhere) {
-            // si no está referenciado por nadie más -> podemos reutilizarlo
             assignedUserId = existingId;
-            // actualizar estructuras (no creado nuevo)
             break;
           } else {
-            // ya está en uso por otra persona -> generar sufijo y probar otra local
-            // usar ensureUniqueLocalInSet para mantener la coherencia con otros nuevos
             chosenLocal = await ensureUniqueLocalInSet(chosenLocal, existingLocals);
             correoCandidate = `${chosenLocal}@balmoralescoces.edu.mx`.toLowerCase();
             continue;
           }
         }
-      } // end while
+      }
 
       // actualizar Alumno.id_usuario si es distinto
       if (assignedUserId && assignedUserId !== currentUserId) {
-        // guarda el id viejo para posible limpieza
         const oldId = currentUserId;
-
         await conn.query("UPDATE Alumno SET id_usuario = ? WHERE id_alumno = ?", [assignedUserId, a.id_alumno]);
 
-        // si había un id viejo y ya no es referenciado por nadie -> eliminar usuario viejo
         if (oldId && oldId !== 0 && oldId !== assignedUserId) {
           const stillReferenced = await isUsuarioReferencedElsewhere(conn, oldId, { table: 'Alumno', idField: 'id_alumno', idValue: a.id_alumno });
           if (!stillReferenced) {
             await conn.query("DELETE FROM Usuario WHERE id_usuario = ?", [oldId]);
             console.log(`Eliminado usuario antiguo id ${oldId} (ya no referenciado).`);
-            // limpiar mapas
-            // buscar correo del viejo para quitar de existingEmails si aparece
             for (const [c, idu] of existingEmails.entries()) {
               if (idu === oldId) {
                 existingEmails.delete(c);
@@ -122,7 +111,7 @@ async function main() {
             }
           }
         }
-      } // end update alumno
+      }
     } // end for alumnos
 
     // ---------- PERSONAL ----------
@@ -148,12 +137,11 @@ async function main() {
       while (true) {
         const existingId = existingEmails.get(correoCandidate);
         if (!existingId) {
-          // crear usuario nuevo
+          // crear usuario nuevo (guardando contraseña en texto plano)
           const plain = 'pass' + chosenLocal;
-          const hash = await bcrypt.hash(plain, 10);
           const [ins] = await conn.query(
             "INSERT INTO Usuario (correo_usuario, contraseña_usuario, estado_usuario) VALUES (?, ?, 1)",
-            [correoCandidate, hash]
+            [correoCandidate, plain]
           );
           assignedUserId = ins.insertId;
           existingEmails.set(correoCandidate, assignedUserId);
@@ -162,13 +150,11 @@ async function main() {
           createdMap.push({ tipo: 'personal', id_personal: p.id_personal, correo: correoCandidate, contraseña: plain, id_usuario: assignedUserId });
           break;
         } else {
-          // existe usuario con ese correo, verificar referencias
           const referencedElsewhere = await isUsuarioReferencedElsewhere(conn, existingId, { table: 'Personal', idField: 'id_personal', idValue: p.id_personal });
           if (!referencedElsewhere) {
             assignedUserId = existingId;
             break;
           } else {
-            // ocupado por otra persona => generar sufijo
             chosenLocal = await ensureUniqueLocalInSet(chosenLocal, existingLocals);
             correoCandidate = `${chosenLocal}@balmoralescoces.edu.mx`.toLowerCase();
             continue;
@@ -198,16 +184,80 @@ async function main() {
       }
     } // end for personal
 
+    // ------ Ahora: hasheamos en lote todas las contraseñas que NO parecen bcrypt ------
+    console.log('Iniciando paso final: hashear contraseñas en texto plano...');
+
+    // Selecciona usuarios cuya contraseña NO empieza por $2 (bcrypt)
+    const [toHash] = await conn.query("SELECT id_usuario, contraseña_usuario FROM Usuario WHERE contraseña_usuario IS NOT NULL AND contraseña_usuario NOT LIKE '$2%'");
+    console.log(`Encontrados ${toHash.length} usuarios con contraseña no-hasheada (potencialmente en texto plano).`);
+
+    let hashedCount = 0;
+    for (const u of toHash) {
+      const plain = u.contraseña_usuario;
+      if (!plain || plain.length === 0) {
+        console.log(`Skipping id ${u.id_usuario} porque contraseña vacía/null.`);
+        continue;
+      }
+      const hash = await bcrypt.hash(plain, 10);
+      await conn.query("UPDATE Usuario SET contraseña_usuario = ? WHERE id_usuario = ?", [hash, u.id_usuario]);
+      hashedCount++;
+    }
+
+    // ------ Paso extra: asignar permisos especiales a amontes ------
+    console.log('Asignando permisos a amontes@balmoralescoces.edu.mx...');
+    const [rowsAmontes] = await conn.query(
+      "SELECT id_usuario FROM Usuario WHERE correo_usuario = ?",
+      ["amontes@balmoralescoces.edu.mx"]
+    );
+
+    if (rowsAmontes.length > 0) {
+      const idAmontes = rowsAmontes[0].id_usuario;
+
+      // Revisar si ya existe registro en Permisos
+      const [permRows] = await conn.query(
+        "SELECT id_usuario FROM Permisos WHERE id_usuario = ?",
+        [idAmontes]
+      );
+
+      if (permRows.length > 0) {
+        // UPDATE
+        await conn.query(
+          `UPDATE Permisos 
+           SET permiso_personal_dir_general = 1, 
+               permiso_permisos_dir_general = 1, 
+               permiso_historico_dir_general = 1
+           WHERE id_usuario = ?`,
+          [idAmontes]
+        );
+        console.log("Permisos de amontes actualizados correctamente.");
+      } else {
+        // INSERT
+        await conn.query(
+          `INSERT INTO Permisos 
+           (id_usuario, permiso_personal_dir_general, permiso_permisos_dir_general, permiso_historico_dir_general) 
+           VALUES (?, 1, 1, 1)`,
+          [idAmontes]
+        );
+        console.log("Permisos de amontes insertados correctamente.");
+      }
+    } else {
+      console.log("⚠️ Usuario amontes@balmoralescoces.edu.mx no encontrado, no se asignaron permisos.");
+    }
+
+    await conn.commit();
+
     console.log('--- RESUMEN ---');
-    console.log(`Usuarios creados/actualizados: ${createdCount}`);
+    console.log(`Usuarios creados: ${createdCount}`);
+    console.log(`Usuarios hasheados en paso final: ${hashedCount}`);
+    // ADVERTENCIA: createdMap contiene contraseñas en texto plano. Maneja con cuidado.
     console.table(createdMap);
 
     conn.release();
-    // opcional: await pool.end(); // si quieres cerrar pool
     console.log('Terminado con éxito.');
   } catch (err) {
     console.error('Error:', err);
-    try { conn.release(); } catch (e) {}
+    try { await conn.rollback(); } catch(e) {}
+    try { conn.release(); } catch(e) {}
     process.exit(1);
   }
 }

@@ -153,10 +153,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     personalContainer.innerHTML = filtrados.map(p => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-          <img src="/assets/img/${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
+        <div class="card-content">
+          <img src="/assets/img/${p.img_personal || '/assets/img/user.png'}" alt="Foto de ${p.nombre_personal}">
           <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
           <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
-          <div>
+          </div>
+          <div class="card-buttons">
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>
           </div>
@@ -232,67 +234,337 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function mostrarFichaCompleta(id_personal) {
-    try {
-      const modalElement = document.getElementById('perfilModal');
-      console.log('Perfil modal element:', modalElement);
-      if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
+  try {
+    const modalElement = document.getElementById('perfilModal');
+    console.log('Perfil modal element:', modalElement);
+    if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
 
-      const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
-      const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
-      const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
-      const groupedMaterias = materias.reduce((acc, materia) => {
+    const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
+    const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
+    const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
+    const groupedMaterias = materias.reduce((acc, materia) => {
+      const key = `${materia.nombre_materia}|${materia.grado_materia}`;
+      if (!acc[key]) {
+        acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
+      }
+      acc[key].grupos.push(materia.grupo);
+      return acc;
+    }, {});
+    const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
+    const modalBody = document.querySelector('#perfilModal .modal-body');
+    modalBody.innerHTML = `
+      <div class="text-center">
+        <img src="/assets/img/${img_personal || '/assets/img/user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
+        <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
+        <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
+      </div>
+      <div class="perfil-details">
+        <h5>Datos Personales</h5>
+        <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
+        <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
+        <h5>Materias Impartidas</h5>
+        ${materiasList.length > 0 ? `
+          <ul class="list-group mb-3">
+            ${materiasList.map(m => `
+              <li class="list-group-item">
+                <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
+              </li>
+            `).join('')}
+          </ul>
+        ` : '<p class="text-muted">No imparte materias</p>'}
+        <h5>Talleres Asignados</h5>
+        ${talleres.length > 0 ? `
+          <ul class="list-group">
+            ${talleres.map(t => `
+              <li class="list-group-item">${t.nombre_taller}</li>
+            `).join('')}
+          </ul>
+        ` : '<p class="text-muted">No está asignado a talleres</p>'}
+      </div>
+    `;
+
+    // Agregar botón de Resultados al footer del modal
+    const modalFooter = document.querySelector('#perfilModal .modal-footer');
+    const existingDownloadButton = modalFooter.querySelector('.btn-resultados-pdf');
+    if (existingDownloadButton) existingDownloadButton.remove(); // Evitar duplicados
+    const downloadButton = document.createElement('button');
+    downloadButton.className = 'btn btn-resultados-pdf';
+    downloadButton.innerHTML = '<i class="fas fa-download"></i> Resultados';
+    downloadButton.addEventListener('click', () => generarPDFResultados(id_personal, data));
+    modalFooter.insertBefore(downloadButton, modalFooter.firstChild);
+
+    const modal = new bootstrap.Modal(modalElement);
+    console.log('Perfil modal inicializado:', modal);
+    modal.show();
+  } catch (error) {
+    console.error('Error en mostrarFichaCompleta:', error);
+    Swal.fire({
+      title: 'Error',
+      text: error.message.includes('404') ? 'Personal no encontrado.' : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
+      icon: 'error',
+      confirmButtonText: 'Aceptar'
+    });
+  }
+}
+
+async function generarPDFResultados(id_personal, personalData) {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const margin = 15;
+
+    // ====== HEADER (encabezado institucional arriba del todo, suave) ======
+    const logo = "/assets/img/logo_balmoral.png"; // ruta de tu logo
+    doc.addImage(logo, "PNG", margin, 8, 25, 12); // Logo arriba izquierda
+
+    // Nombre de la escuela (centrado, en gris medio para efecto "transparente")
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(120, 120, 120); // gris suave
+    doc.text("Preparatoria Balmoral Escocés", 105, 14, { align: "center" });
+
+    // Slogan (más pequeño, en gris claro)
+    doc.setFontSize(9);
+    doc.setFont("times", "italic");
+    doc.setTextColor(150, 150, 150); // aún más claro
+    doc.text(
+      '"Inspiro a creer que es posible lo que pareciera imposible"',
+      105,
+      20,
+      { align: "center" }
+    );
+
+    // Quitamos la línea divisoria y dejamos solo espacio
+    let y = 40;
+
+    // ====== TÍTULO DEL REPORTE ======
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#000000");
+    doc.text("Resultados del Personal", 105, y, { align: "center" });
+    y += 12;
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#555555");
+    doc.text(
+      `Este reporte muestra los resultados de las evaluaciones aplicadas a ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}.`,
+      105,
+      y,
+      { align: "center", maxWidth: 180 }
+    );
+    y += 18;
+
+    // Línea divisoria de la sección de contenido
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, 195, y);
+    y += 10;
+
+    // ... 🔽 aquí sigue igual el resto de tu código
+
+
+    // ====== DATOS DEL PERSONAL ======
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#000000");
+    doc.text("Datos del Personal", margin, y);
+    y += 8;
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#333333");
+    doc.text(
+      `Nombre: ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}`,
+      margin,
+      y
+    );
+    y += 6;
+    doc.text(`Teléfono: ${personalData.telefono_personal || "No disponible"}`, margin, y);
+    y += 6;
+    doc.text(
+      `Fecha de Nacimiento: ${
+        personalData.fecha_nacimiento_personal
+          ? new Date(personalData.fecha_nacimiento_personal).toLocaleDateString("es-MX")
+          : "No disponible"
+      }`,
+      margin,
+      y
+    );
+    y += 6;
+    doc.text(
+      `Roles: ${personalData.roles_puesto || personalData.roles || "Sin roles"}`,
+      margin,
+      y
+    );
+    y += 12;
+
+    // ====== SECCIONES (Materias y Talleres) ======
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#d9534f");
+    doc.text("Materias Impartidas:", margin, y);
+    y += 6;
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#000000");
+
+    if (personalData.materias && personalData.materias.length > 0) {
+      const groupedMaterias = personalData.materias.reduce((acc, materia) => {
         const key = `${materia.nombre_materia}|${materia.grado_materia}`;
         if (!acc[key]) {
-          acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
+          acc[key] = {
+            nombre_materia: materia.nombre_materia,
+            grado_materia: materia.grado_materia,
+            grupos: []
+          };
         }
-        acc[key].grupos.push(materia.grupo);
+        acc[key].grupos.push(materia.grupo || "N/A");
         return acc;
       }, {});
-      const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
-      const modalBody = document.querySelector('#perfilModal .modal-body');
-      modalBody.innerHTML = `
-        <div class="text-center">
-          <img src="/assets/img/${img_personal || '/assets/img/user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
-          <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
-          <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
-        </div>
-        <div class="perfil-details">
-          <h5>Datos Personales</h5>
-          <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
-          <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
-          <h5>Materias Impartidas</h5>
-          ${materiasList.length > 0 ? `
-            <ul class="list-group mb-3">
-              ${materiasList.map(m => `
-                <li class="list-group-item">
-                  <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
-                </li>
-              `).join('')}
-            </ul>
-          ` : '<p class="text-muted">No imparte materias</p>'}
-          <h5>Talleres Asignados</h5>
-          ${talleres.length > 0 ? `
-            <ul class="list-group">
-              ${talleres.map(t => `
-                <li class="list-group-item">${t.nombre_taller}</li>
-              `).join('')}
-            </ul>
-          ` : '<p class="text-muted">No está asignado a talleres</p>'}
-        </div>
-      `;
-      const modal = new bootstrap.Modal(modalElement);
-      console.log('Perfil modal inicializado:', modal);
-      modal.show();
-    } catch (error) {
-      console.error('Error en mostrarFichaCompleta:', error);
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404') ? 'Personal no encontrado.' : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
-        icon: 'error',
-        confirmButtonText: 'Aceptar'
+      Object.values(groupedMaterias).forEach(m => {
+        doc.text(
+          `- ${m.nombre_materia} (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(", ")})`,
+          margin + 5,
+          y
+        );
+        y += 6;
       });
+    } else {
+      doc.text("No imparte materias", margin + 5, y);
+      y += 6;
     }
+    y += 6;
+
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor("#d9534f");
+    doc.text("Talleres Asignados:", margin, y);
+    y += 6;
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor("#000000");
+
+    if (personalData.talleres && personalData.talleres.length > 0) {
+      personalData.talleres.forEach(t => {
+        doc.text(`- ${t.nombre_taller}`, margin + 5, y);
+        y += 6;
+      });
+    } else {
+      doc.text("No asignado a talleres", margin + 5, y);
+      y += 6;
+    }
+    y += 12;
+
+    // ====== EVALUACIONES ======
+    const tipos = await fetchWithRetry(`/personal-evaluaciones-types/${id_personal}`, {
+      credentials: "include"
+    });
+    if (tipos.length === 0) {
+      doc.text("No hay evaluaciones calificadas disponibles.", margin, y);
+      doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+      return;
+    }
+
+    const labels = [];
+    const dataScores = [];
+    for (const tipo of tipos) {
+      const idTipoPregunta = tipoToIdPregunta[tipo];
+      const results = await fetchWithRetry(
+        `/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`,
+        { credentials: "include" }
+      );
+      if (results.generalAverage !== "N/A" && !isNaN(parseFloat(results.generalAverage))) {
+        labels.push(tipo.toUpperCase());
+        dataScores.push(parseFloat(results.generalAverage));
+      }
+    }
+
+    if (labels.length === 0) {
+      doc.text("No hay resultados de evaluaciones calificadas disponibles.", margin, y);
+      doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+      return;
+    }
+
+    // ====== GRÁFICA DE BARRAS ======
+    const canvas = document.getElementById("chart-canvas");
+    const ctx = canvas.getContext("2d");
+    const chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "Porcentaje obtenido",
+            data: dataScores,
+            backgroundColor: ["#d9534f", "#0275d8", "#5cb85c", "#f0ad4e"]
+          }
+        ]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: "Resultados por Evaluación",
+            font: { size: 16 }
+          },
+          datalabels: {
+            anchor: "end",
+            align: "right",
+            color: "#000",
+            font: { size: 14, weight: "bold" },
+            formatter: value => value + "%"
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: value => value + "%",
+              font: { size: 14 }
+            }
+          },
+          y: {
+            ticks: { font: { size: 14 } }
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const chartImage = canvas.toDataURL("assets/img/profesor.png");
+    doc.addImage(chartImage, "PNG", margin, y, 180, 80);
+    y += 90;
+
+    chart.destroy();
+
+    // ====== PIE DE PÁGINA ======
+    const fecha = new Date().toLocaleDateString("es-MX");
+    doc.setFontSize(10);
+    doc.setTextColor("#555555");
+    doc.text(`Generado el ${fecha}`, 105, 290, { align: "center" });
+
+    // ====== GUARDAR ======
+    doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+  } catch (error) {
+    console.error("Error generando PDF:", error);
+    Swal.fire({
+      title: "Error",
+      text: "No se pudo generar el PDF. Intenta nuevamente.",
+      icon: "error",
+      confirmButtonText: "Aceptar"
+    });
   }
+}
+
+
 
   async function mostrarKPIs(id_personal) {
     try {

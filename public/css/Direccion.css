@@ -1,23 +1,19 @@
-/* Original Navbar and Layout Styles */
-body {
-    overflow-x: hidden; /* Evita desplazamiento horizontal en toda la página */
-}
 
 .navbar {
     background-color: #fff;
-    padding: 5px 10px; /* Reducido el padding vertical a 5px */
+    padding: 5px 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .navbar-brand img {
-    height: 65px; /* Tamaño deseado del logo */
-    max-height: 65px; /* Limita la altura máxima */
-    object-fit: contain; /* Asegura que el logo mantenga proporciones */
-    vertical-align: middle; /* Alinea verticalmente */
+    height: 65px;
+    max-height: 65px;
+    object-fit: contain;
+    vertical-align: middle;
 }
 
 .navbar-brand {
-    padding: 0; /* Elimina padding interno para reducir espacio */
+    padding: 0;
     margin-left: -10px;
 }
 
@@ -84,48 +80,14 @@ body {
 
 /* Card Styles */
 .card-middle {
-    transform: scale(1.05); /* Reduced scale to minimize overlap */
+    transform: scale(1.05);
     z-index: 1;
-}
-
-.card-side {
-    transform: scale(0.95); /* Reduced scale to minimize overlap */
-}
-
-.card {
-    transition: transform 0.3s;
-    background-color: #e3f2fd; /* Match original profile-card background */
-    border: 1px solid #ccc; /* Match original profile-card border */
-    border-radius: 10px;
-    max-height: 140rem; /* Reduced from 300px */
-    max-width: 62rem;
-    margin: 2rem auto; /* Centered with margin */
-    padding: 1rem; /* Added padding for better spacing */
-}
-
-.card:hover {
-    transform: scale(1.02); /* Reduced scale on hover */
-}
-
-.card-img-top.profile-img {
-    width: 90px; /* Reduced default size */
-    height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: radial-gradient(circle, #ffd700, #4169e1); /* Match original profile-img */
-}
-
-.card-title {
-    background-color: #dc3545; /* Match original card-title */
-    color: white;
-    padding: 5px;
-    margin-bottom: 10px;
 }
 
 .rating-bar {
     background: #e9ecef;
-    height: 8px; /* Reduced from 10px */
-    border-radius: 4px; /* Reduced from 5px */
+    height: 8px;
+    border-radius: 4px;
     overflow: hidden;
     margin: 5px 0;
 }
@@ -138,44 +100,28 @@ body {
 
 /* Custom Chart Styles */
 .custom-chart {
-    padding: 8px; /* Reduced from 10px */
-}
-
-.custom-chart-container {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    height: 135px; /* Reduced by ~10% from 150px */
-    padding: 7px; /* Reduced from 8px */
-    min-height: 100px; /* Ensure minimum height for visibility */
-    position: relative; /* Ensure proper positioning */
-}
-
-.chart-bar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 28%; /* Slightly reduced from 30% */
-    min-height: 100px; /* Ensure bars have space to grow */
-    justify-content: flex-end; /* Push bars to bottom */
-}
-
-.custom-bar {
     width: 100%;
-    height: 0; /* Initial height, updated dynamically */
-    max-height: 100%;
-    transition: height 0.5s ease;
-    background-color: #36a2eb; /* Ensure visible color */
+    height: 150px; /* Reduced height for main charts */
+    max-height: 150px;
+    margin: 0 auto;
 }
 
+/* Larger chart height for personnel modal */
+#personnelModal .custom-chart {
+    height: 200px;
+    max-height: 200px;
+}
+
+.card-body .custom-chart {
+    padding: 8px;
+}
+
+/* Hide old CSS-based chart elements */
+.custom-chart-container,
+.chart-bar,
+.custom-bar,
 .bar-label {
-    font-size: 9px; /* Reduced from 10px */
-    text-align: center;
-    margin-top: 5px; /* Increased for better spacing */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+    display: none;
 }
 
 /* Single-Screen Layout */
@@ -183,7 +129,7 @@ body {
     max-height: calc(100vh - 70px);
     width: 100vw;
     overflow: hidden;
-    padding: 20px 0 0 0; /* Added padding-top to lower content */
+    padding: 20px 0 0 0;
 }
 
 /* Filter Button */
@@ -197,19 +143,559 @@ body {
     border-color: #ff0000;
 }
 
+/* Personnel Modal Styles */
+.modal-content.rounded-4 {
+    border-radius: 1.5rem;
+    overflow: hidden;
+    background-color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header.bg-light {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-bottom: none;
+}
+
+.modal-title.text-danger {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.profile-img-modal {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #dc3545;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.personnel-info p {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+
+.personnel-info p strong {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+.personnel-info p span.text-muted {
+    color: #6c757d !important;
+}
+
+.btn-comment-positive {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn-comment-positive:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+    transform: translateY(-2px);
+}
+
+.btn-comment-negative {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.btn-comment-negative:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
+    transform: translateY(-2px);
+}
+
 /* Responsive Adjustments */
 @media (max-width: 700px) {
-    .card-middle, .card-side {
-        transform: scale(1);
-    }
     .card {
         width: 90% !important;
-        min-height: 200px; /* Reduced from 250px */
+        min-height: 200px;
     }
-    .custom-chart-container {
-        height: 108px; /* Reduced by ~10% from 120px */
+    .custom-chart {
+        height: 120px; /* Further reduced for mobile */
     }
-    .bar-label {
-        font-size: 7px; /* Reduced from 8px */
+    #personnelModal .custom-chart {
+        height: 180px;
     }
+    .profile-img-modal {
+        width: 100px;
+        height: 100px;
+    }
+    .modal-title.text-danger {
+        font-size: 1.25rem;
+    }
+    .btn-comment-positive, .btn-comment-negative {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+:root{
+  --brand-red: #dc3545;
+  --muted-bg: #f8f9fa;
+  --card-bg: #ffffff;         /* blanco en lugar de azul */
+  --card-border: rgba(0,0,0,0.06);
+  --card-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+
+/* ---------------------------
+   Layout principal
+   --------------------------- */
+.dashboard-container {
+    max-height: auto; /* evita recortes raros */
+    width: 100%;
+    padding: 20px;
+    overflow: auto;
+    background: linear-gradient(180deg, #fff 0%, #fff 100%); /* fondo neutro */
+}
+
+/* ---------------------------
+   Cards: quitar azul y mejorar
+   --------------------------- */
+.card {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    transition: transform .18s ease, box-shadow .18s ease;
+    margin: 0.6rem;
+    padding: 0.75rem;
+    width: 100%;
+}
+
+.card:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+}
+
+
+.card:hover {
+    transform: translateY(-6px) scale(1.01);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+}
+
+/* perfil redondo más neutro */
+.card-img-top.profile-img {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: none; /* quitar gradiente amarillo/azul */
+    border: 2px solid rgba(0,0,0,0.04);
+}
+
+/* rating */
+.rating-bar { background: #e9ecef; height: 8px; border-radius: 8px; overflow: hidden; }
+.rating-fill { background: var(--brand-red); height: 100%; border-radius: 8px; }
+
+/* ---------------------------
+   Grid responsivo para las cards
+   --------------------------- */
+#personnelCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  align-items: start;
+  justify-items: center;
+  padding: 0.5rem 0.25rem;
+}
+/* tamaños de card más coherentes */
+.person-card {
+    max-width: 220px;      /* control del tamaño */
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* variante para card destacada (centro) */
+.card-middle {
+    transform: scale(1.03);
+    max-width: 260px;
+}
+
+/* charts: hacerlos más visibles y centrados */
+.custom-chart {
+    width: 100%;
+    height: 220px; /* un poco más alto para mejor lectura */
+    max-height: 260px;
+    margin: 0 auto;
+}
+
+/* modal: asegurar espacio para el chart */
+#personnelModal .custom-chart { height: 260px; max-height: 320px; }
+
+/* Botones y colores */
+.btn-primary { background-color: var(--brand-red); border-color: var(--brand-red); }
+.btn-primary:hover { background-color: #b71c2a; border-color: #b71c2a; }
+
+/* responsive tweaks */
+@media (max-width: 700px) {
+  #personnelCards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
+  .person-card { max-width: 100%; min-height: 180px; }
+  .custom-chart { height: 160px; }
+}
+
+/* ---------------------------
+   Flat / low-visual-weight cards
+   --------------------------- */
+
+/* Anular efectos globales de card-hover y sombras */
+.card:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Regla para tarjetas "planas" (aplica a las containers principales) */
+.flat-card {
+    background: transparent !important;      /* sin fondo */
+    border: none !important;                 /* sin borde fuerte */
+    box-shadow: none !important;             /* sin sombra */
+    border-radius: 6px !important;           /* esquina suave pero discreta */
+    transition: none !important;             /* sin movimiento al pasar mouse */
+    padding: 0 !important;
+}
+
+/* Ajuste interno para que el contenido no "flote" */
+.flat-card .card-body {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Cards dentro de #personnelCards (las pequeñas) menos llamativas */
+#personnelCards .card {
+  width: 100%;
+  max-width: 220px;         /* ancho máximo por card */
+  height: 400px;           /* altura fija: ajustar si quieres más/menos */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* mantiene rating abajo */
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08); /* borde más visible */
+  border-radius: 10px;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  overflow: hidden;        /* evita que el contenido 'salga' */
+  transition: transform 260ms cubic-bezier(.22,1,.36,1), box-shadow 260ms;
+}
+
+/* Mantener la estructura interna con espaciado controlado */
+#personnelCards .card .card-body {
+  /* ya es flex column; garantizamos comportamiento consistente */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important; /* rating abajo */
+  padding: 0.5rem 0.75rem !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Perfil: mantener imagen circular pero más neutra */
+.card-img-top.profile-img,
+.profile-img-modal {
+    background: none;
+    box-shadow: none;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* Rating: menos llamativo (usa el color de marca pero sin sobresalir) */
+.rating-bar { background: #f1f1f1; height: 8px; border-radius: 6px; }
+.rating-fill { background: var(--brand-red); height: 100%; border-radius: 6px; }
+
+/* Botones: mantener legibilidad pero sin brillos */
+.btn-primary {
+    background-color: var(--brand-red);
+    border-color: var(--brand-red);
+    box-shadow: none;
+}
+
+/* Charts: contenedores neutrales */
+.col-lg-4 .card, .col-lg-8 .card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+}
+
+/* Si quieres que las cards pequeñas no tengan efecto pointer */
+#personnelCards .card { cursor: default; }
+
+/* Responsive keep subtle */
+@media (max-width: 700px) {
+    #personnelCards .card { margin: 0.35rem; }
+    .flat-card .card-body { padding: 0.5rem; }
+}
+
+/* ===========================
+   Ajustes de layout y espacio
+   =========================== */
+
+/* Mueve el título un poco hacia arriba y reduce espacios internos */
+.card.flat-card .card-body {
+  padding-top: 0.35rem;  /* menos espacio arriba del contenido */
+  padding-bottom: 0.5rem;
+}
+
+.card.flat-card .card-body .d-flex.justify-content-between {
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Título Top Personal más "pegado" al borde superior del card */
+.card.flat-card .card-body h2,
+.card.flat-card .card-body .fw-bold {
+  margin-top: 0;
+  margin-bottom: 0.15rem;
+  line-height: 1.05;
+}
+
+/* Reduce altura del párrafo de subtítulo */
+.card.flat-card p.fs-6 {
+  margin-top: 0.1rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.95rem;
+}
+
+/* Quitar hr grande y hacerla más sutil */
+.card.flat-card hr {
+  margin: 0.3rem 0;
+  border-top: 1px solid rgba(0,0,0,0.04);
+}
+
+/* ===========================
+   Grid para personnelCards
+   =========================== */
+/* Aseguramos que use grid en vez de flex horizontal */
+#personnelCards {
+  display: grid; /* override a clases d-flex si existen (ID tiene prioridad) */
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.8rem;
+  align-items: start;
+  justify-items: center;
+  padding: 0.5rem 0.25rem;
+  overflow: visible;
+}
+
+/* Si en tu HTML todavía existe "d-flex ... flex-nowrap", puedes reemplazar el atributo de clase
+   por: id="personnelCards" para evitar scroll horizontal innecesario. */
+
+/* ===========================
+   Cards de personal: movimiento suave
+   =========================== */
+
+/* Estado base: más limpio y compacto */
+#personnelCards .card {
+  background: transparent !important;
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: none;
+  border-radius: 10px;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 220px;
+  cursor: pointer;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              filter 320ms;
+  will-change: transform, box-shadow;
+}
+
+/* Hover — *suave pero notorio* (reestablece override !important global) */
+#personnelCards .card:hover {
+  transform: translateY(-6px) scale(1.02) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.06) !important;
+  filter: saturate(1.02);
+}
+
+/* Card central (card-middle) ligeramente más destacada sin romper la suavidad */
+#personnelCards .card.card-middle {
+  transform: none;
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms;
+  max-width: 260px;
+}
+#personnelCards .card.card-middle:hover {
+  transform: translateY(-8px) scale(1.04) !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.08) !important;
+}
+
+/* Texto: evitar saltos bruscos al escalar la card */
+#personnelCards .card .card-title {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Rating: tamaño y separación más contenida */
+#personnelCards .card .rating-bar { margin-top: 6px; margin-bottom: 2px; }
+
+/* ===========================
+   Mantener otros contenedores planos
+   =========================== */
+.col-lg-4 .card, .col-lg-8 > .card.flat-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0.25rem 0; /* poco padding para título y chart */
+}
+
+/* Charts: ajustar títulos para que queden más pegados */
+.col-lg-4 .card .card-title,
+.col-lg-8 .card .card-title {
+  margin-top: 0.2rem;
+  margin-bottom: 0.2rem;
+  font-size: 1rem;
+}
+
+/* ===========================
+   Responsive (ajustes móviles)
+   =========================== */
+@media (max-width: 700px) {
+  .card.flat-card .card-body { padding-top: 0.3rem; }
+  #personnelCards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; }
+  #personnelCards .card { max-width: 100%; }
+  #personnelCards .card .card-img-top.profile-img { width: 64px; height: 64px; }
+}
+
+
+/* =========================
+   PERSONNEL CARDS - FIXED SIZE + BORDER
+   Pegar al final de Direccion.css
+   ========================= */
+
+#personnelCards {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 1rem !important;
+  align-items: start !important;
+  justify-items: center !important;
+  padding: 0.5rem 0.25rem !important;
+}
+
+/* Card homogénea (ancho y alto fijos) */
+#personnelCards .card {
+  width: 100% !important;
+  max-width: 220px !important;    /* ancho fijo por card */
+  height: 360px !important;       /* altura fija (ajustable) */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important; /* rating abajo */
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important; /* borde sutil visible */
+  border-radius: 10px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  transition: transform 240ms cubic-bezier(.22,1,.36,1), box-shadow 240ms !important;
+}
+
+/* Card destacada ligeramente más grande */
+#personnelCards .card.card-middle {
+  max-width: 260px !important;
+  height: 360px !important;
+}
+
+#personnelCards .card .card-body {
+  /* ya es flex column; garantizamos comportamiento consistente */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important; /* rating abajo */
+  padding: 0.5rem 0.75rem !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+}
+/* Bloque con info para truncado */
+#personnelCards .card .content-block {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;   /* CENTRADO vertical */
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0px 6px 0 !important; /* <- antes era 0 6px */
+  text-align: center !important;
+}
+
+/* Imagen consistente */
+#personnelCards .card .card-img-top.profile-img {
+  width: 76px !important;
+  height: 76px !important;
+  margin: 60px auto 8px !important; /* subimos margen superior a 16px */
+  border-radius: 50% !important;
+  object-fit: cover !important;
+}
+
+/* Titular y textos con truncado */
+#personnelCards .card .card-title {
+  font-size: 0.95rem !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+}
+
+#personnelCards .card .card-text.small {
+  font-size: 0.85rem !important;
+  margin: 0 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 1 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  color: #555 !important;
+}
+
+/* Rating fijo abajo */
+#personnelCards .card .rating-wrapper {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  padding: 6px 10px 8px !important;
+}
+
+/* Barra rating */
+#personnelCards .card .rating-bar {
+  background: #f1f1f1 !important;
+  height: 8px !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+#personnelCards .card .rating-fill {
+  background: var(--brand-red) !important;
+  height: 100% !important;
+  border-radius: 6px !important;
+}
+
+/* Hover suave */
+#personnelCards .card:hover {
+  transform: translateY(-6px) scale(1.02) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.06) !important;
+}
+
+/* Mobile tweaks */
+@media (max-width: 700px) {
+  #personnelCards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; gap: 0.6rem !important; }
+  #personnelCards .card { height: 230px !important; max-width: 200px !important; }
+  #personnelCards .card.card-middle { height: 250px !important; max-width: 220px !important; }
+  #personnelCards .card .card-img-top.profile-img { width: 64px !important; height: 64px !important; }
+  #personnelCards .card .card-title { -webkit-line-clamp: 2 !important; }
 }

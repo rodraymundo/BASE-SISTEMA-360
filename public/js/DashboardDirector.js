@@ -9,20 +9,25 @@ const improvementAreasBtn = document.getElementById('improvementAreasBtn');
 let commentsModalInstance = null;
 
 const tipoToIdPregunta = {
-    'materias': 1, // DOCENTE
-    'ingles': 1, // DOCENTE
-    'artes': 1, // DOCENTE
-    'servicios': 8, // SERVICIO
-    'talleres': 9, // TALLERES EXTRA CLASE
-    'counselors': 2, // COUNSELOR
-    'psicopedagogico': 1, // DOCENTE
-    'coordinadores': 3, // COORDINADOR
-    '360': 5, // 360
-    'pares': 6, // PARES
-    'jefes': 7, // JEFE
-    'disciplina_deportiva': 1, // DOCENTE
-    'liga_deportiva': 1 // DOCENTE
+    'materias': 1,
+    'ingles': 1,
+    'artes': 1,
+    'servicios': 8,
+    'talleres': 9,
+    'counselors': 2,
+    'psicopedagogico': 1,
+    'coordinadores': 3,
+    '360': 5,
+    'pares': 6,
+    'jefes': 7,
+    'disciplina_deportiva': 1,
+    'liga_deportiva': 1
 };
+
+// Store Chart.js instances to destroy them before re-rendering
+let evaluationChartInstance = null;
+let goalChartInstance = null;
+let roleEvaluationChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!personnelCards || !personalCount) {
@@ -104,27 +109,62 @@ async function loadTopPersonnel(role = '', sortOrder = 'top') {
         personnel.forEach((person, index) => {
             const cardSizeClass = index === 1 ? 'card-middle' : 'card-side';
             const card = document.createElement('div');
-            card.className = `card mx-3 ${cardSizeClass}`;
-            card.style.width = index === 1 ? '16rem' : '12rem';
-            const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
-            const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
-            card.innerHTML = `
-                <img src="./assets/img/${person.img_personal || 'iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo" style="width: ${index === 1 ? '90px' : '70px'}; height: ${index === 1 ? '90px' : '70px'}; border-radius: 50%; margin: 10px auto;">
-                <div class="card-body text-center p-3">
-                    <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
-                    <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto}</p>
-                    ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
-                    <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
-                    <div class="rating-bar">
-                        <div class="rating-fill" style="width: ${percentage}%;"></div>
-                    </div>
-                </div>
-            `;
+// usa person-card para estilos y opcional cardSizeClass (card-middle)
+card.className = `card person-card ${cardSizeClass}`;
+
+// quitamos cualquier estilo inline de width/height (no usar card.style.width)
+
+// calcular porcentaje como antes
+const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
+const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
+
+// nueva estructura con content-block y rating-wrapper
+card.innerHTML = `
+  <img src="./assets/img/${person.img_personal || 'iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
+  <div class="card-body text-center p-3">
+    <div class="content-block">
+      <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
+      <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto || ''}</p>
+      ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
+      <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
+    </div>
+    <div class="rating-wrapper">
+      <div class="rating-bar">
+        <div class="rating-fill" style="width: ${percentage}%;"></div>
+      </div>
+    </div>
+  </div>
+`;
+
             card.addEventListener('click', () => showPersonnelModal(person));
             personnelCards.appendChild(card);
         });
 
-        renderCharts(personnel, evalData.evaluations || []);
+        // Fetch KPI data for goal chart
+        let kpiData = [];
+        try {
+            console.log('Fetching KPIs for personnel IDs:', personnelIds);
+            const kpiPromises = personnel.map(person =>
+                fetch(`/personal-kpis/${person.id_personal}`, { credentials: 'include' })
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                        return res.json();
+                    })
+                    .then(data => ({ id_personal: person.id_personal, kpis: data }))
+                    .catch(err => {
+                        console.error(`Error fetching KPIs for id_personal ${person.id_personal}:`, err);
+                        return { id_personal: person.id_personal, kpis: [] };
+                    })
+            );
+            kpiData = await Promise.all(kpiPromises);
+            console.log('KPI data:', kpiData);
+        } catch (fetchError) {
+            console.error('Error fetching KPIs:', fetchError);
+            Swal.fire('Advertencia', 'No se pudieron cargar los datos de KPIs, usando valores por defecto', 'warning');
+            kpiData = personnel.map(p => ({ id_personal: p.id_personal, kpis: [] }));
+        }
+
+        renderCharts(personnel, evalData.evaluations || [], kpiData);
     } catch (error) {
         console.error('Error al cargar personal:', error);
         personnelCards.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar personal.</div>';
@@ -158,8 +198,10 @@ async function renderRoleEvaluationChart(idPersonal) {
         console.error('Chart container not found');
         return;
     }
-    chartContainer.innerHTML = '<div class="custom-chart-container"></div>';
-    const container = chartContainer.querySelector('.custom-chart-container');
+
+    if (roleEvaluationChartInstance) {
+        roleEvaluationChartInstance.destroy();
+    }
 
     try {
         console.log(`[idPersonal=${idPersonal}] Fetching evaluation types`);
@@ -200,20 +242,62 @@ async function renderRoleEvaluationChart(idPersonal) {
 
         if (evaluations.length === 0) {
             console.log(`[idPersonal=${idPersonal}] No evaluations found for rendering`);
-            container.innerHTML = '<p class="text-center text-muted">No hay evaluaciones disponibles.</p>';
+            chartContainer.getContext('2d').clearRect(0, 0, chartContainer.width, chartContainer.height);
+            chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay evaluaciones disponibles.</p>');
             return;
         }
 
         console.log(`[idPersonal=${idPersonal}] Rendering evaluations:`, JSON.stringify(evaluations, null, 2));
-        container.innerHTML = evaluations.map(evaluation => `
-            <div class="chart-bar">
-                <div class="custom-bar" style="height: ${Math.min(evaluation.value, 100)}%; background-color: #36a2eb;"></div>
-                <span class="bar-label">${evaluation.label} (${evaluation.value > 0 ? evaluation.value + '%' : 'No evaluado'})</span>
-            </div>
-        `).join('');
+
+        roleEvaluationChartInstance = new Chart(chartContainer, {
+            type: 'bar',
+            data: {
+                labels: evaluations.map(e => e.label),
+                datasets: [{
+                    label: 'Evaluaciones por Tipo',
+                    data: evaluations.map(e => e.value),
+                    backgroundColor: '#36a2eb',
+                    borderColor: '#2b8bc6',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Porcentaje (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Tipo de Evaluación'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.parsed.y}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     } catch (error) {
         console.error(`[idPersonal=${idPersonal}] Error fetching role evaluations:`, error);
-        container.innerHTML = '<p class="text-center text-muted">Error al cargar evaluaciones.</p>';
+        chartContainer.getContext('2d').clearRect(0, 0, chartContainer.width, chartContainer.height);
+        chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">Error al cargar evaluaciones.</p>');
     }
 }
 
@@ -266,35 +350,147 @@ function displayComments(title, comments) {
     commentsModalInstance.show();
 }
 
-function renderCharts(personnel, evaluations) {
-    evaluationChart.innerHTML = '';
-    goalChart.innerHTML = '';
+function calculateKPIAverage(categorias) {
+    let totalWeightedResult = 0;
+    let totalWeight = 0;
 
-    evaluationChart.innerHTML = `
-        <div class="custom-chart-container">
-            ${personnel.map(p => {
-                const evalData = (evaluations || []).find(e => e.id_personal === p.id_personal) || { positive_count: 0, total_count: 0 };
-                const positiveCount = evalData.positive_count || 0;
-                const totalCount = evalData.total_count || 1;
-                const percentage = Math.min((positiveCount / totalCount) * 100, 100);
-                return `
-                    <div class="chart-bar">
-                        <div class="custom-bar" style="height: ${percentage}%; background-color: #36a2eb;"></div>
-                        <span class="bar-label">${p.nombre_personal} ${p.apaterno_personal} (${positiveCount}/${totalCount})</span>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
+    if (!categorias || !Array.isArray(categorias) || categorias.length === 0) {
+        return 0;
+    }
 
-    goalChart.innerHTML = `
-        <div class="custom-chart-container">
-            ${personnel.map(p => `
-                <div class="chart-bar">
-                    <div class="custom-bar" style="height: ${p.goalAchievement || 0}%; background-color: #ff6384;"></div>
-                    <span class="bar-label">${p.nombre_personal} ${p.apaterno_personal}</span>
-                </div>
-            `).join('')}
-        </div>
-    `;
+    categorias.forEach(categoria => {
+        const totalKPIs = categoria.kpis?.length || 0;
+        if (totalKPIs > 0 && categoria.porcentaje_categoria) {
+            const pesoPorKPI = categoria.porcentaje_categoria / totalKPIs;
+            let resultadoCategoria = 0;
+            categoria.kpis.forEach(kpi => {
+                if (kpi.resultado_kpi !== 'No evaluado' && kpi.resultado_kpi !== null) {
+                    const resultado = parseFloat(kpi.resultado_kpi);
+                    const meta = parseFloat(kpi.meta_kpi);
+                    if (!isNaN(resultado) && !isNaN(meta) && meta > 0) {
+                        resultadoCategoria += (resultado / meta) * pesoPorKPI;
+                    }
+                }
+            });
+            totalWeightedResult += resultadoCategoria;
+            totalWeight += categoria.porcentaje_categoria;
+        }
+    });
+
+    return totalWeight > 0 ? Math.round(totalWeightedResult / totalWeight * 10000) / 100 : 0;
+}
+
+function renderCharts(personnel, evaluations, kpiData) {
+    if (evaluationChartInstance) {
+        evaluationChartInstance.destroy();
+    }
+    if (goalChartInstance) {
+        goalChartInstance.destroy();
+    }
+
+    // Evaluation Chart
+    const evalLabels = personnel.map(p => `${p.nombre_personal} ${p.apaterno_personal}`);
+    const evalData = personnel.map(p => {
+        const evalInfo = (evaluations || []).find(e => e.id_personal === p.id_personal) || { positive_count: 0, total_count: 0 };
+        return evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
+    });
+
+    evaluationChartInstance = new Chart(evaluationChart, {
+        type: 'bar',
+        data: {
+            labels: evalLabels,
+            datasets: [{
+                label: 'Evaluación',
+                data: evalData,
+                backgroundColor: '#36a2eb',
+                borderColor: '#2b8bc6',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Porcentaje (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Personal'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.y}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Goal Chart (KPI Results)
+    const goalLabels = personnel.map(p => `${p.nombre_personal} ${p.apaterno_personal}`);
+    const goalData = personnel.map(p => {
+        const kpiInfo = kpiData.find(k => k.id_personal === p.id_personal) || { kpis: [] };
+        return calculateKPIAverage(kpiInfo.kpis);
+    });
+
+    goalChartInstance = new Chart(goalChart, {
+        type: 'bar',
+        data: {
+            labels: goalLabels,
+            datasets: [{
+                label: 'Cumplimiento de Metas (KPIs)',
+                data: goalData,
+                backgroundColor: '#ff6384',
+                borderColor: '#d84c6a',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Porcentaje (%)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Personal'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.y}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
