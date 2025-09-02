@@ -2634,32 +2634,87 @@ router.get('/roles', authMiddleware, async (req, res) => {
 
 // Agregar un nuevo personal
 router.post('/personal', authMiddleware, async (req, res) => {
-  const { nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado, id_puesto, correo, contrasena } = req.body;
+  const {
+    nombre,
+    apaterno,
+    amaterno,
+    fecha_nacimiento,
+    telefono,
+    estado,      // opcional desde frontend (puede venir undefined)
+    id_puesto,
+    correo,
+    contrasena
+  } = req.body;
+
   console.log('Datos recibidos para personal:', { nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado, id_puesto, correo, contrasena });
 
   let connection;
   try {
+    // Validaciones mínimas
+    if (!nombre || !apaterno || !correo) {
+      return res.status(400).json({ success: false, message: 'Faltan datos obligatorios (nombre, apellidos, correo o contraseña).' });
+    }
+
+    // Normalizar/decidir valor de estado para almacenar en BD (default = activo)
+    const estado_personal = (typeof estado === 'undefined' || estado === null || estado === '')
+      ? 1
+      : (String(estado).toLowerCase() === 'activo' || String(estado) === '1' || String(estado).toLowerCase() === 'true' ? 1 : 0);
+
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // Validate id_puesto exists
-    const [puesto] = await connection.query('SELECT id_puesto FROM Puesto WHERE id_puesto = ?', [id_puesto]);
-    if (!puesto.length) {
+    // Validate id_puesto exists and is numeric
+    if (!id_puesto || isNaN(parseInt(id_puesto, 10))) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'Puesto inválido' });
+    }
+    const [puestoRows] = await connection.query('SELECT id_puesto FROM Puesto WHERE id_puesto = ?', [id_puesto]);
+    if (!puestoRows || puestoRows.length === 0) {
       await connection.rollback();
       return res.status(400).json({ success: false, message: 'El puesto seleccionado no existe' });
     }
 
-    // Insert user
+    // Verificar que no exista ya el correo en Usuario
+    const [correoExistente] = await connection.query('SELECT 1 FROM Usuario WHERE correo_usuario = ?', [correo]);
+    if (correoExistente.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({ success: false, message: 'Ya existe un usuario con ese correo.' });
+    }
+
+    // Si no se envió contraseña, generar una por defecto.
+    let generatedPassword = null;
+    let plainPasswordToHash = contrasena && String(contrasena).trim() !== '' ? contrasena : null;
+    if (!plainPasswordToHash) {
+      // Intentar crear una password basada en la parte local del correo
+      const local = (correo && correo.split && correo.split('@')[0]) ? correo.split('@')[0] : null;
+      if (local) {
+        // ejemplo: pass<usuario>
+        generatedPassword = `pass${local}`.slice(0, 60); // límite por si el local es muy largo
+      } else {
+        // fallback: aleatoria
+        const rnd = () => Math.random().toString(36).slice(2, 10);
+        generatedPassword = `p${rnd()}`;
+      }
+      plainPasswordToHash = generatedPassword;
+    }
+
+     // Hash de la contraseña
+    const hashed = await bcrypt.hash(plainPasswordToHash, 10);
+
+    // Insert Usuario (dejar que la BD asigne id_usuario si es AUTO_INCREMENT)
     const [userResult] = await connection.query(
       'INSERT INTO Usuario (correo_usuario, contraseña_usuario) VALUES (?, ?)',
-      [correo, await bcrypt.hash(contrasena, 10)]
+      [correo, hashed]
     );
     const id_usuario = userResult.insertId;
 
-    // Insert personal
+
+    // Insert personal con estado_personal normalizado
     const [personalResult] = await connection.query(
-      'INSERT INTO Personal (nombre_personal, apaterno_personal, amaterno_personal, fecha_nacimiento_personal, telefono_personal, estado_personal, id_puesto, id_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado === 'Activo' ? 1 : 0, id_puesto, id_usuario]
+      `INSERT INTO Personal
+        (nombre_personal, apaterno_personal, amaterno_personal, fecha_nacimiento_personal, telefono_personal, estado_personal, id_puesto, id_usuario)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado_personal, id_puesto, id_usuario]
     );
     const id_personal = personalResult.insertId;
 
@@ -2667,18 +2722,16 @@ router.post('/personal', authMiddleware, async (req, res) => {
     const [evaluadorResult] = await connection.query('INSERT INTO Evaluador (id_personal) VALUES (?)', [id_personal]);
     const id_evaluador = evaluadorResult.insertId;
 
-    // Inline logic to select 5 random Personal records for Personal_360 (excluding id_personal)
+    // Personal_360: seleccionar 5 aleatorios excluyendo al nuevo (misma lógica tuya)
     const count = 5;
-    const [personals] = await connection.query(
-      'SELECT id_personal FROM Personal WHERE id_personal != ?',
-      [id_personal]
-    );
-    const availableIds = personals.map(p => p.id_personal);
+    const [personals] = await connection.query('SELECT id_personal FROM Personal WHERE id_personal != ?', [id_personal]);
+    const availableIds = (personals || []).map(p => p.id_personal);
     if (availableIds.length < count) {
+      // Mantengo tu comportamiento: rollback y error si no hay suficientes
       await connection.rollback();
-      throw new Error(`No hay suficientes personas disponibles para seleccionar ${count}. Solo hay ${availableIds.length}.`);
+      return res.status(400).json({ success: false, message: `No hay suficientes personas disponibles para seleccionar ${count}. Solo hay ${availableIds.length}.` });
     }
-    // Shuffle array and take first 'count' elements
+    // Shuffle (Fisher–Yates) y tomar los primeros `count`
     for (let i = availableIds.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [availableIds[i], availableIds[j]] = [availableIds[j], availableIds[i]];
@@ -2686,7 +2739,6 @@ router.post('/personal', authMiddleware, async (req, res) => {
     const randomPersonalIds = availableIds.slice(0, count);
     console.log('Personas seleccionadas para Personal_360:', randomPersonalIds);
 
-    // Insert into Personal_360
     await Promise.all(randomPersonalIds.map(id_personal_evaluado =>
       connection.query(
         'INSERT INTO Personal_360 (id_evaluador, id_personal, estado_evaluacion_360) VALUES (?, ?, 0)',
@@ -2694,91 +2746,95 @@ router.post('/personal', authMiddleware, async (req, res) => {
       )
     ));
 
-    // Fetch roles associated with id_puesto from Puesto_Rol
-    const [roles] = await connection.query('SELECT id_rol FROM Puesto_Rol WHERE id_puesto = ?', [id_puesto]);
-    const roleIds = roles.map(r => r.id_rol);
+    // Obtener roles asociados al puesto
+    const [rolesRows] = await connection.query('SELECT id_rol FROM Puesto_Rol WHERE id_puesto = ?', [id_puesto]);
+    const roleIds = (rolesRows || []).map(r => r.id_rol);
 
-    // Populate Personal_Jefe based on Jerarquia (bosses)
-    const [jerarquia] = await connection.query('SELECT id_rol, id_jefe FROM Jerarquia WHERE id_rol IN (?)', [roleIds]);
-    const bossRoleIds = jerarquia.map(j => j.id_jefe).filter(id => id !== null);
+    // Personal_Jefe (buscar jefes según Jerarquia)
+    if (roleIds.length > 0) {
+      const [jerarquia] = await connection.query('SELECT id_rol, id_jefe FROM Jerarquia WHERE id_rol IN (?)', [roleIds]);
+      const bossRoleIds = (jerarquia || []).map(j => j.id_jefe).filter(id => id !== null);
 
-    if (bossRoleIds.length > 0) {
-      // Find Personal who have the boss roles
-      const [bossPersonals] = await connection.query(`
-        SELECT DISTINCT p.id_personal
-        FROM Personal p
-        JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-        WHERE pr.id_rol IN (?) AND p.id_personal != ?
-      `, [bossRoleIds, id_personal]);
+      if (bossRoleIds.length > 0) {
+        const [bossPersonals] = await connection.query(`
+          SELECT DISTINCT p.id_personal
+          FROM Personal p
+          JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+          WHERE pr.id_rol IN (?) AND p.id_personal != ?
+        `, [bossRoleIds, id_personal]);
 
-      // Insert into Personal_Jefe: current Personal evaluates their bosses
-      await Promise.all(bossPersonals.map(async ({ id_personal: bossId }) => {
-        await connection.query(
-          'INSERT INTO Personal_Jefe (id_evaluador, id_personal, estado_evaluacion_jefe) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_jefe = 0',
-          [id_evaluador, bossId]
-        );
-      }));
-    }
-
-    // Populate Personal_Subordinado based on Jerarquia (subordinates)
-    const [subordinateRoles] = await connection.query('SELECT id_rol FROM Jerarquia WHERE id_jefe IN (?)', [roleIds]);
-    const subordinateRoleIds = subordinateRoles.map(r => r.id_rol);
-
-    if (subordinateRoleIds.length > 0) {
-      // Find Personal who have the subordinate roles
-      const [subordinatePersonals] = await connection.query(`
-        SELECT DISTINCT p.id_personal
-        FROM Personal p
-        JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-        WHERE pr.id_rol IN (?) AND p.id_personal != ?
-      `, [subordinateRoleIds, id_personal]);
-
-      // Insert into Personal_Subordinado: current Personal evaluates their subordinates
-      await Promise.all(subordinatePersonals.map(async ({ id_personal: subordinateId }) => {
-        await connection.query(
-          'INSERT INTO Personal_Subordinado (id_evaluador, id_personal, estado_evaluacion_subordinado) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_subordinado = 0',
-          [id_evaluador, subordinateId]
-        );
-      }));
-    }
-
-    // Populate Personal_Par (up to 5 random peers with same roles)
-    const [peerPersonals] = await connection.query(`
-      SELECT DISTINCT p.id_personal
-      FROM Personal p
-      JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-      WHERE pr.id_rol IN (?) AND p.id_personal != ?
-    `, [roleIds, id_personal]);
-
-    const peerIds = peerPersonals.map(p => p.id_personal);
-    const maxPeers = 5;
-    let selectedPeerIds = peerIds;
-    if (peerIds.length > maxPeers) {
-      // Shuffle array and take first 'maxPeers' elements
-      for (let i = peerIds.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [peerIds[i], peerIds[j]] = [peerIds[j], peerIds[i]];
+        await Promise.all(bossPersonals.map(async ({ id_personal: bossId }) => {
+          await connection.query(
+            'INSERT INTO Personal_Jefe (id_evaluador, id_personal, estado_evaluacion_jefe) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_jefe = 0',
+            [id_evaluador, bossId]
+          );
+        }));
       }
-      selectedPeerIds = peerIds.slice(0, maxPeers);
     }
-    console.log('Pares seleccionados para Personal_Par:', selectedPeerIds);
 
-    // Insert into Personal_Par: current Personal evaluates their selected peers
-    await Promise.all(selectedPeerIds.map(async peerId =>
-      connection.query(
-        'INSERT INTO Personal_Par (id_evaluador, id_personal, estado_evaluacion_par) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_par = 0',
-        [id_evaluador, peerId]
-      )
-    ));
+    // Personal_Subordinado (buscar subordinates según Jerarquia)
+    if (roleIds.length > 0) {
+      const [subordinateRoles] = await connection.query('SELECT id_rol FROM Jerarquia WHERE id_jefe IN (?)', [roleIds]);
+      const subordinateRoleIds = (subordinateRoles || []).map(r => r.id_rol);
+
+      if (subordinateRoleIds.length > 0) {
+        const [subordinatePersonals] = await connection.query(`
+          SELECT DISTINCT p.id_personal
+          FROM Personal p
+          JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+          WHERE pr.id_rol IN (?) AND p.id_personal != ?
+        `, [subordinateRoleIds, id_personal]);
+
+        await Promise.all(subordinatePersonals.map(async ({ id_personal: subordinateId }) => {
+          await connection.query(
+            'INSERT INTO Personal_Subordinado (id_evaluador, id_personal, estado_evaluacion_subordinado) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_subordinado = 0',
+            [id_evaluador, subordinateId]
+          );
+        }));
+      }
+    }
+
+    // Personal_Par (pares - hasta 5 aleatorios con roles iguales)
+    if (roleIds.length > 0) {
+      const [peerPersonals] = await connection.query(`
+        SELECT DISTINCT p.id_personal
+        FROM Personal p
+        JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+        WHERE pr.id_rol IN (?) AND p.id_personal != ?
+      `, [roleIds, id_personal]);
+
+      const peerIds = (peerPersonals || []).map(p => p.id_personal);
+      const maxPeers = 5;
+      let selectedPeerIds = peerIds;
+      if (peerIds.length > maxPeers) {
+        for (let i = peerIds.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [peerIds[i], peerIds[j]] = [peerIds[j], peerIds[i]];
+        }
+        selectedPeerIds = peerIds.slice(0, maxPeers);
+      }
+      console.log('Pares seleccionados para Personal_Par:', selectedPeerIds);
+
+      await Promise.all(selectedPeerIds.map(async peerId =>
+        connection.query(
+          'INSERT INTO Personal_Par (id_evaluador, id_personal, estado_evaluacion_par) VALUES (?, ?, 0) ON DUPLICATE KEY UPDATE estado_evaluacion_par = 0',
+          [id_evaluador, peerId]
+        )
+      ));
+    }
 
     await connection.commit();
-    res.json({ success: true, message: 'Personal agregado exitosamente', id_personal });
+    return res.json({ success: true, message: 'Personal agregado exitosamente', id_personal });
   } catch (error) {
     console.error('Error al agregar personal:', error);
-    if (connection) await connection.rollback();
-    res.status(500).json({ success: false, message: `Error interno al agregar personal: ${error.message}` });
+    if (connection) {
+      try { await connection.rollback(); } catch (rbErr) { console.error('Rollback error', rbErr); }
+    }
+    return res.status(500).json({ success: false, message: `Error interno al agregar personal: ${error.message}` });
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      try { connection.release(); } catch (relErr) { console.error('Release connection error', relErr); }
+    }
   }
 });
 
@@ -4168,24 +4224,46 @@ router.get('/puesto-categorias', async (req, res) => {
 
 
 // GET /kpis?categoria=3
+// GET /kpis?categoria=3&puesto=17
 router.get('/kpis', async (req, res) => {
   try {
     const categoria = parseInt(req.query.categoria);
-    if (!categoria) return res.status(400).json({ success: false, message: 'Falta parámetro categoria' });
+    const puesto = req.query.puesto ? parseInt(req.query.puesto) : null;
 
-    const [rows] = await db.query(
-      `SELECT id_kpi, nombre_kpi, meta_kpi, tipo_kpi, id_rol, id_categoria_kpi
-       FROM Kpi
-       WHERE id_categoria_kpi = ?`,
-      [categoria]
-    );
+    if (!categoria) {
+      return res.status(400).json({ success: false, message: 'Falta parámetro categoria' });
+    }
 
-    return res.json(rows);
+    let sql, params;
+    if (puesto) {
+      // Trae sólo KPIs de la categoría que estén vinculados al puesto en Puesto_Kpi
+      sql = `
+        SELECT k.id_kpi, k.nombre_kpi, k.meta_kpi, k.tipo_kpi, k.id_rol, k.id_categoria_kpi
+        FROM Kpi k
+        INNER JOIN Puesto_Kpi pk ON pk.id_kpi = k.id_kpi
+        WHERE k.id_categoria_kpi = ? AND pk.id_puesto = ?
+        ORDER BY k.id_kpi;
+      `;
+      params = [categoria, puesto];
+    } else {
+      // fallback: todos los KPIs de la categoría (compatibilidad)
+      sql = `
+        SELECT id_kpi, nombre_kpi, meta_kpi, tipo_kpi, id_rol, id_categoria_kpi
+        FROM Kpi
+        WHERE id_categoria_kpi = ?
+        ORDER BY id_kpi;
+      `;
+      params = [categoria];
+    }
+
+    const [rows] = await db.query(sql, params);
+    return res.json({ success: true, data: rows });
   } catch (err) {
     console.error('Error en /kpis:', err);
     return res.status(500).json({ success: false, message: 'Error interno' });
   }
 });
+
 
 // GET /evaluador_kpi?personal=25
 router.get('/evaluador_kpi', async (req, res) => {

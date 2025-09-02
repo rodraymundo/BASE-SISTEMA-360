@@ -95,12 +95,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   let roles = [];
   let categorias = [];
   let selectedCategorias = [];
+  let todosPersonalAll = []; // guarda todo lo recibido del servidor
+  let showInactive = false;   // por defecto: NO mostramos inactivos
+
+  // helper para decidir si un registro está activo (reusa tu lógica actual)
+  function isActiveRecord(p) {
+    const rawEstado = (p.estado_personal ?? '').toString().trim().toLowerCase();
+    return (/\bactivo\b/i.test(rawEstado) || rawEstado === '1' || rawEstado === 'true');
+  }
 
   async function cargarPersonal() {
   try {
     listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">Cargando personal...</div>';
-    todosPersonal = await fetchWithRetry('/personal', { credentials: 'include' });
-    mostrarPersonal(todosPersonal);
+    // obtenemos TODO desde backend
+    todosPersonalAll = await fetchWithRetry('/personal', { credentials: 'include' });
+    // renderizamos según el flag showInactive
+    mostrarPersonal();
   } catch (error) {
     console.error('Error al cargar personal:', error);
     listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar el personal. Verifique que el servidor esté corriendo.</div>';
@@ -121,16 +131,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 }
 
 
-  function mostrarPersonal(personal) {
+
+  function mostrarPersonal() {
   const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
-  const filtrados = personal.filter(p =>
+
+  // base: si showInactive true => sólo inactivos, si false => sólo activos
+  const base = (todosPersonalAll || []).filter(p => 
+    showInactive ? !isActiveRecord(p) : isActiveRecord(p)
+  );
+
+
+  const filtrados = base.filter(p =>
     `${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''} ${p.correo_usuario || ''}`
       .toLowerCase()
       .includes(textoBusqueda)
   );
 
   if (filtrados.length === 0) {
-    listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">No se encontraron personas.</div>';
+    listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">No se encontró personal inactivo.</div>';
     return;
   }
 
@@ -142,7 +160,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const estadoLower = rawEstado.toLowerCase();
 
     let estadoClass = 'estado-unknown';
-    // comprobaciones con límites de palabra para evitar coincidencias parciales
     if (/\binactivo\b/i.test(rawEstado) || estadoLower === '0' || estadoLower === 'false') {
       estadoClass = 'estado-inactivo';
     } else if (/\bactivo\b/i.test(rawEstado) || estadoLower === '1' || estadoLower === 'true') {
@@ -151,8 +168,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const estadoHtml = `<span class="estado ${estadoClass}">${escapeHtml(rawEstado || 'Sin estado')}</span>`;
 
+    // opcional: destacar los inactivos cuando se muestran (ej. opacidad)
+    const inactiveRowStyle = (estadoClass === 'estado-inactivo') ? 'opacity:0.85;' : '';
+
     return `
-      <div class="list-group-item" data-id="${p.id_personal || ''}">
+      <div class="list-group-item" data-id="${p.id_personal || ''}" style="${inactiveRowStyle}">
         <div class="item-body">
           <div class="item-header">
             <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
@@ -160,7 +180,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="small-muted mt-1">
             <div class="mail"><strong>Correo:</strong> ${correo}</div>
-            <div class="mt-1"><strong>Estado:</strong> ${estadoHtml}</div>
           </div>
         </div>
         <div class="item-actions">
@@ -176,15 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }).join('');
 
   // ====== Después de inyectar el HTML: unir listeners a cada botón ======
-  // Editar
-  listaPersonalList.querySelectorAll('.editBtn').forEach(btn => {
-    // quitamos listeners previos por si acaso (evita duplicados si re-renderizas)
-    btn.replaceWith(btn.cloneNode(true));
-  });
-  // re-query porque clonamos
+  // (mantenemos tu lógica de listeners igual)
+  listaPersonalList.querySelectorAll('.editBtn').forEach(btn => { btn.replaceWith(btn.cloneNode(true)); });
   listaPersonalList.querySelectorAll('.editBtn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
-      e.stopPropagation(); // evita que el click burbujee al item
+      e.stopPropagation();
       const id = btn.dataset.id;
       if (!id) return;
       try {
@@ -192,19 +207,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         abrirModalPersonal(personal);
       } catch (err) {
         console.error('Error al cargar datos de personal:', err);
-        Swal.fire({
-          title: 'Error',
-          text: 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
-          icon: 'error'
-        });
+        Swal.fire({ title: 'Error', text: 'No se pudieron cargar los datos del personal.', icon: 'error' });
       }
     });
   });
 
-  // Ajustar KPIs
-  listaPersonalList.querySelectorAll('.adjustKpiBtn').forEach(btn => {
-    btn.replaceWith(btn.cloneNode(true));
-  });
+  // Ajustar KPIs: reusa tu bloque
+  listaPersonalList.querySelectorAll('.adjustKpiBtn').forEach(btn => { btn.replaceWith(btn.cloneNode(true)); });
   listaPersonalList.querySelectorAll('.adjustKpiBtn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -220,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 }
+
 
 
 
@@ -313,29 +323,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function abrirModalPersonal(personal = null) {
-    if (personal) {
-      modalTitle.textContent = 'Editar Personal';
-      document.getElementById('id_personal').value = personal.id_personal;
-      document.getElementById('nombre').value = personal.nombre_personal;
-      document.getElementById('apaterno').value = personal.apaterno_personal;
-      document.getElementById('amaterno').value = personal.amaterno_personal;
-      document.getElementById('fecha_nacimiento').value = personal.fecha_nacimiento_personal;
-      document.getElementById('telefono').value = personal.telefono_personal;
-      document.getElementById('id_puesto').value = personal.id_puesto || '';
-      document.getElementById('estado').value = personal.estado_personal;
-      document.getElementById('correo').value = personal.correo_usuario || '';
-      document.getElementById('contrasena').value = '';
-      document.getElementById('contrasena').placeholder = 'Dejar en blanco para no cambiar';
-      document.getElementById('contrasena').required = false;
-    } else {
-      modalTitle.textContent = 'Agregar Personal';
-      personalForm.reset();
-      document.getElementById('id_personal').value = '';
-      document.getElementById('contrasena').placeholder = 'Ingrese contraseña';
-      document.getElementById('contrasena').required = true;
+  const estadoField = document.getElementById('estado');
+  // contenedor del campo estado (si en tu HTML lo envolviste con id="estadoFormGroup")
+  const estadoFormGroup = document.getElementById('estadoFormGroup') || (estadoField ? estadoField.closest('.mb-3, .form-group') || estadoField.parentElement : null);
+  const contrasenaField = document.getElementById('contrasena');
+
+  if (personal) {
+    // Modo Editar: mostrar campo estado y rellenar valores
+    modalTitle.textContent = 'Editar Personal';
+    document.getElementById('id_personal').value = personal.id_personal;
+    document.getElementById('nombre').value = personal.nombre_personal;
+    document.getElementById('apaterno').value = personal.apaterno_personal;
+    document.getElementById('amaterno').value = personal.amaterno_personal;
+    document.getElementById('fecha_nacimiento').value = personal.fecha_nacimiento_personal;
+    document.getElementById('telefono').value = personal.telefono_personal;
+    document.getElementById('id_puesto').value = personal.id_puesto || '';
+    if (estadoField) estadoField.value = personal.estado_personal;
+    document.getElementById('correo').value = personal.correo_usuario || '';
+    if (contrasenaField) {
+      contrasenaField.value = '';
+      contrasenaField.placeholder = 'Dejar en blanco para no cambiar';
+      contrasenaField.required = false;
+      contrasenaField.style.display = ''; // aseguramos que sea visible en editar
     }
-    personalModal.show();
+
+    if (estadoFormGroup) estadoFormGroup.style.display = ''; // mostrar
+    if (estadoField) estadoField.removeAttribute('disabled');
+  } else {
+    // Modo Agregar: ocultar campo estado (se usará valor por defecto del DB)
+    modalTitle.textContent = 'Agregar Personal';
+    personalForm.reset();
+    document.getElementById('id_personal').value = '';
+    if (contrasenaField) {
+      // No exigir contraseña en creación: se generará en el backend si se deja vacío
+      contrasenaField.value = '';
+      contrasenaField.placeholder = 'Se generará una contraseña por defecto si lo dejas vacío';
+      contrasenaField.required = false;
+      contrasenaField.style.display = ''; // o 'none' si prefieres ocultarlo totalmente
+    }
+
+    if (estadoFormGroup) estadoFormGroup.style.display = 'none'; // ocultar
+    if (estadoField) {
+      // deshabilitar para evitar que sea enviado/alterado
+      estadoField.setAttribute('disabled', 'true');
+    }
   }
+
+  personalModal.show();
+}
+
 
   function abrirModalPuesto() {
     puestoForm.reset();
@@ -459,12 +495,17 @@ function getPersonalesByRole(idRol) {
   return todosPersonal.filter(p => puestosQueTienenRol.includes(p.id_puesto));
 }
 
-async function cargarKpisPorCategoria(id_categoria) {
+// antes: async function cargarKpisPorCategoria(id_categoria) { ... }
+async function cargarKpisPorCategoria(id_categoria, id_puesto = null) {
   if (!id_categoria) return [];
-  const resp = await fetchWithRetry(`/kpis?categoria=${id_categoria}`, { credentials: 'include' });
-  // backend responde { success: true, data: [...] }
+  const url = id_puesto
+    ? `/kpis?categoria=${encodeURIComponent(id_categoria)}&puesto=${encodeURIComponent(id_puesto)}`
+    : `/kpis?categoria=${encodeURIComponent(id_categoria)}`;
+  // opcional: console.log('GET', url);
+  const resp = await fetchWithRetry(url, { credentials: 'include' });
   return (resp && resp.data) ? resp.data : resp;
 }
+
 
 
 async function cargarAsignacionesEvaluador(personalId) {
@@ -597,7 +638,7 @@ async function openKpiModalForPersonal(personal) {
     }
 
     // Cargar KPIs de la categoría (y filtrar por si acaso hay KPIs con id_categoria_kpi === 3)
-    const kpis = await cargarKpisPorCategoria(idCat);
+    const kpis = await cargarKpisPorCategoria(idCat, personal.id_puesto);
     if (!Array.isArray(kpis)) {
       renderKpiList([], personal.id_personal);
       return;
@@ -706,12 +747,17 @@ async function openKpiModalForPersonal(personal) {
     const amaterno = document.getElementById('amaterno').value;
     const telefono = document.getElementById('telefono').value;
     const id_puesto = document.getElementById('id_puesto').value;
-    const estado = document.getElementById('estado').value;
     const correo = document.getElementById('correo').value;
     const contrasena = document.getElementById('contrasena').value;
 
-    const data = { nombre, apaterno, amaterno, fecha_nacimiento, telefono, estado, id_puesto, correo };
+    const data = { nombre, apaterno, amaterno, fecha_nacimiento, telefono, id_puesto, correo };
     if (contrasena) data.contrasena = contrasena;
+
+    // si estamos editando, tomamos el campo estado (asegúrate de que esté habilitado en modo editar)
+    if (id_personal) {
+      const estado = document.getElementById('estado') ? document.getElementById('estado').value : undefined;
+      if (estado !== undefined) data.estado = estado;
+    }
 
     try {
       const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
@@ -893,6 +939,39 @@ listaPersonalList.addEventListener('click', async (e) => {
 
   addPersonalBtn.addEventListener('click', () => abrirModalPersonal());
   addPuestoBtn.addEventListener('click', () => abrirModalPuesto());
+
+  // crea botón toggle para ver inactivos
+  const toggleInactiveBtn = document.createElement('button');
+  toggleInactiveBtn.id = 'toggleInactiveBtn';
+  toggleInactiveBtn.type = 'button';
+  toggleInactiveBtn.className = 'btn btn-outline-danger ms-2';
+  toggleInactiveBtn.innerHTML = '<i class="fas fa-user-slash"></i>';
+  toggleInactiveBtn.setAttribute('aria-pressed', 'false');
+  toggleInactiveBtn.setAttribute('title', 'Ver personal inactivo'); // tooltip
+
+  // inserta visualmente después del botón "Agregar Puesto"
+  addPuestoBtn.insertAdjacentElement('afterend', toggleInactiveBtn);
+
+  // listener para alternar
+  toggleInactiveBtn.addEventListener('click', () => {
+    showInactive = !showInactive;
+
+    toggleInactiveBtn.innerHTML = showInactive
+      ? '<i class="fas fa-eye-slash"></i>'
+      : '<i class="fas fa-user-slash"></i>';
+
+    toggleInactiveBtn.classList.toggle('btn-outline-danger', !showInactive);
+    toggleInactiveBtn.classList.toggle('btn-danger', showInactive);
+
+    toggleInactiveBtn.setAttribute(
+      'title',
+      showInactive ? 'Ocultar personal inactivo' : 'Ver personal inactivo'
+    );
+    toggleInactiveBtn.setAttribute('aria-pressed', String(showInactive));
+
+    mostrarPersonal(); // re-renderiza con el nuevo filtro
+  });
+
 
   await Promise.all([cargarPersonal(), cargarPuestos(), cargarRoles(), cargarCategorias(), cargarPuestosRolesMap()]);
 });
