@@ -69,67 +69,72 @@ async function cargarProfesores() {
         });
 
         // PROFESOR DE INGLES
-        const ingles = data.ingles[0];
-        switch (ingles.estado_evaluacion_nivel_ingles) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
-            case 0:
-                    estadoEvaluacion = `<button class="btn btn-success rounded-pill px-4 shadow evaluar-btn" id="btnEvaluar-${ingles.id_personal}" data-id_materia="${ingles.id_materia}" data-id_personal="${ingles.id_personal}" data-id_nivel_ingles="${ingles.id_nivel_ingles}">Evaluar</button>`;
-                break;
-            case 1:
-                    estadoEvaluacion = `<p class="fw-bold text-uppercase text-success">Profesor evaluado correctamente</p>`;
-                break;            
-            default:
-                break;
+        if (data.ingles.length != 0){
+            const ingles = data.ingles[0];
+            switch (ingles.estado_evaluacion_nivel_ingles) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
+                case 0:
+                        estadoEvaluacion = `<button class="btn btn-success rounded-pill px-4 shadow evaluar-btn" id="btnEvaluar-${ingles.id_personal}" data-id_materia="${ingles.id_materia}" data-id_personal="${ingles.id_personal}" data-id_nivel_ingles="${ingles.id_nivel_ingles}">Evaluar</button>`;
+                    break;
+                case 1:
+                        estadoEvaluacion = `<p class="fw-bold text-uppercase text-success">Profesor evaluado correctamente</p>`;
+                    break;            
+                default:
+                    break;
+            }
+
+            nombreProfesor = `${ingles.nombre_personal} ${ingles.apaterno_personal} ${ingles.amaterno_personal}`;
+
+            cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
+            cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
+            cardProfesor.innerHTML = `  
+                <div class="card h-100 shadow rounded-4 p-4">
+                    <img src='./assets/img/${ingles.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
+                        <p class="card-text mb-1"><strong>MATERIA:</strong> ${ingles.nombre_materia} / ${ingles.nombre_nivel_ingles}</p>
+                    </div>
+                    <div class="card-footer bg-white border-0 text-center">
+                        ${estadoEvaluacion}
+                    </div>
+                </div>
+            `; 
+            listaProfesores.appendChild(cardProfesor); // SE EL AGREGA EL ELEMENTO CREADO A EL ELEMENTO HTML ORIGINAL EL EL .html
         }
-
-        nombreProfesor = `${ingles.nombre_personal} ${ingles.apaterno_personal} ${ingles.amaterno_personal}`;
-
-        cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
-        cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
-        cardProfesor.innerHTML = `  
-            <div class="card h-100 shadow rounded-4 p-4">
-                <img src='./assets/img/${ingles.img_profesor}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
-                <div class="card-body text-center">
-                    <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
-                    <p class="card-text mb-1"><strong>MATERIA:</strong> ${ingles.nombre_materia} / ${ingles.nombre_nivel_ingles}</p>
-                </div>
-                <div class="card-footer bg-white border-0 text-center">
-                    ${estadoEvaluacion}
-                </div>
-            </div>
-        `; 
-        listaProfesores.appendChild(cardProfesor); // SE EL AGREGA EL ELEMENTO CREADO A EL ELEMENTO HTML ORIGINAL EL EL .html
 
         // PROFESOR DE ARTE
-        const arte = data.arte[0];
-        switch (arte.estado_evaluacion_arte_especialidad) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
-            case 0:
-                    estadoEvaluacion = `<button class="btn btn-success rounded-pill px-4 shadow evaluar-btn" id="btnEvaluar-${arte.id_personal}" data-id_materia="${arte.id_materia}" data-id_personal="${arte.id_personal}" data-id_arte_especialidad="${arte.id_arte_especialidad}">Evaluar</button>`;
-                break;
-            case 1:
-                    estadoEvaluacion = `<p class="fw-bold text-uppercase text-success">Profesor evaluado correctamente</p>`;
-                break;            
-            default:
-                break;
+        if(data.arte.length != 0){
+            const arte = data.arte[0];
+            switch (arte.estado_evaluacion_arte_especialidad) { //SEFUN EL ESTADO DE EVALUACION SE PONE UNA OPCION DIFERENTE 
+                case 0:
+                        estadoEvaluacion = `<button class="btn btn-success rounded-pill px-4 shadow evaluar-btn" id="btnEvaluar-${arte.id_personal}" data-id_materia="${arte.id_materia}" data-id_personal="${arte.id_personal}" data-id_arte_especialidad="${arte.id_arte_especialidad}">Evaluar</button>`;
+                    break;
+                case 1:
+                        estadoEvaluacion = `<p class="fw-bold text-uppercase text-success">Profesor evaluado correctamente</p>`;
+                    break;            
+                default:
+                    break;
+            }
+
+            nombreProfesor = `${arte.nombre_personal} ${arte.apaterno_personal} ${arte.amaterno_personal}`;
+
+            cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
+            cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
+            cardProfesor.innerHTML = `  
+                <div class="card h-100 shadow rounded-4 p-4">
+                    <img src='./assets/img/${arte.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
+                        <p class="card-text mb-1"><strong>MATERIA:</strong> ${arte.nombre_materia} / ${arte.nombre_arte_especialidad}</p>
+                    </div>
+                    <div class="card-footer bg-white border-0 text-center">
+                        ${estadoEvaluacion}
+                    </div>
+                </div>
+            `; 
+            listaProfesores.appendChild(cardProfesor); // SE EL AGREGA EL ELEMENTO CREADO A EL ELEMENTO HTML ORIGINAL EL EL .html
+
         }
-
-        nombreProfesor = `${arte.nombre_personal} ${arte.apaterno_personal} ${arte.amaterno_personal}`;
-
-        cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
-        cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
-        cardProfesor.innerHTML = `  
-            <div class="card h-100 shadow rounded-4 p-4">
-                <img src='./assets/img/${arte.img_profesor}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
-                <div class="card-body text-center">
-                    <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
-                    <p class="card-text mb-1"><strong>MATERIA:</strong> ${arte.nombre_materia} / ${arte.nombre_arte_especialidad}</p>
-                </div>
-                <div class="card-footer bg-white border-0 text-center">
-                    ${estadoEvaluacion}
-                </div>
-            </div>
-        `; 
-        listaProfesores.appendChild(cardProfesor); // SE EL AGREGA EL ELEMENTO CREADO A EL ELEMENTO HTML ORIGINAL EL EL .html
-
+        
         const cards = listaProfesores.querySelectorAll('.col');
         if (cards.length % 2 !== 0) {//EN CASO DE QUE EL NUMERO DE CARDS SEA IMPAR EL ULTIMO SE CENTRARA
             const ultimaCard = cards[cards.length - 1];
@@ -157,7 +162,7 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
         // HEADER - MODAL
         const tituloModal = 'DOCENTE';// AGREGAR TITULO 
         modalEvaluacionHeader.innerHTML =  `
-            <h5 class="modal-title fw-bold">${tituloModal}</h5>
+            <h5 class="modal-title fw-bold text-white">${tituloModal}</h5>
             </button>
         `;
 
@@ -179,7 +184,7 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
                 cardPregunta.style.background = '#eF2d3b';
 
                 const tituloPregunta = document.createElement('p'); // CREAR ELEMENTO PARA EL TITULO DE AL PREGUNTA 
-                tituloPregunta.className = 'fw-bold text-center';
+                tituloPregunta.className = 'fw-bold text-center text-white text-white';
                 tituloPregunta.innerText = data.preguntas[preguntaActual].nombre_pregunta;
                 
                 const respuestasPregunta = document.createElement('div'); // CREAR ELEMENTO DIV QUE ALMACENARA LOS DIV QUE ALMACENAN CADA INPUT
@@ -187,7 +192,7 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
                 data.respuestas.forEach(respuesta =>{
                     if(respuesta.id_pregunta==data.preguntas[preguntaActual].id_pregunta){
                         const posibleRespuesta = document.createElement('div'); // CREAR DIV QUE ALACENARA EL INPUT
-                        posibleRespuesta.className = 'form-check form-check-inline';
+                        posibleRespuesta.className = 'form-check form-check-inline text-white text-white';
                         posibleRespuesta.innerHTML = ` 
                             <input class="form-check-input" type="radio" name="p-${preguntaActual+1}" value="${respuesta.id_respuesta}" data-id_pregunta="${respuesta.id_pregunta}"> ${respuesta.nombre_respuesta}
                         `; // AGREGAR EL INPUT AL DIV / ES +1 PARA QUE EL NUMERO DE PREGUNTA VAYA INICIANDO EN 1 Y ASI SE SIGA EN LUAGAR DE 0 COMO EN EL ARREGLO / ES NAME PORQUE ESE NAME SE DEBE DE PODER REPETIR DEPENDIENDO DE LA CANTIDAD DE POSIBLES RESPUESTAS
@@ -213,29 +218,29 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
             paginaModalBody.innerHTML = `
                 <h5 class="fw-bold">COMENTARIOS</h5>
                 <div class="mb-3 p-3 rounded-4" style="background-color: #eF2d3b">
-                    <p class="fw-bold">¿TIENES COMENTARIOS POSITIVOS?</p>
+                    <p class="fw-bold text-white">¿TIENES COMENTARIOS DE ADMIRACION?</p>
                     <div class="d-flex justify-content-center">
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="1"> SI
                         </div>
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="0"> NO
                         </div>
                     </div>
                 </div>
-                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a positivos en ${tituloModal.toLowerCase()}: ..." id="comentarioDocentePositivo"></textarea>
+                <textarea class="form-control mb-3 d-none" placeholder="Aspectos admirables en ${tituloModal.toLowerCase()}: ..." id="comentarioDocentePositivo"></textarea>
                 <div class="mb-3 p-3 rounded-4" style="background-color: #eF2d3b">
-                    <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                    <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                     <div class="d-flex justify-content-center">
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="1"> SI
                         </div>
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="0"> NO
                         </div>
                     </div>
                 </div>
-                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a negativos en ${tituloModal.toLowerCase()}: ..." id="comentarioDocenteNegativo"></textarea>
+                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a mejorar en ${tituloModal.toLowerCase()}: ..." id="comentarioDocenteNegativo"></textarea>
                 <button id="btnTerminarEvaluacion" class="btn btn-danger fw-bold">Terminar Evaluación</button>
             `; // AGREGAR CARDS PARA PREGUNTAR SI DESEA DEJAR COMENTARIOS
             modalEvaluacionBody.appendChild(paginaModalBody);
@@ -251,12 +256,12 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
             preguntaComentarioPositivo.className = 'mb-3 p-3 rounded-4';
             preguntaComentarioPositivo.style.background = '#eF2d3b';
             preguntaComentarioPositivo.innerHTML = `
-                <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                 <div class="d-flex justify-content-center">
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="1"> SI
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="0"> NO
                     </div>
                 </div>
@@ -265,12 +270,12 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
             preguntaComentarioNegativo.className = 'mb-3 p-3 rounded-4';
             preguntaComentarioNegativo.style.background = '#eF2d3b';
             preguntaComentarioNegativo.innerHTML = `
-                <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                 <div class="d-flex justify-content-center">
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="1"> SI
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="0"> NO
                     </div>
                 </div>
@@ -278,11 +283,11 @@ async function cargarPreguntasModal(id_materia, id_personal, id_nivel_ingles, id
             const contenidoComentarioPositivo = document.createElement('textarea'); // TEXT AREA PARA COMENTARIO POSITIVO
             contenidoComentarioPositivo.className = 'form-control mb-3 d-none';
             contenidoComentarioPositivo.id = 'comentarioDocentePositivo';
-            contenidoComentarioPositivo.placeholder = `Aspectos a positivos en ${tituloModal.toLowerCase()}: ...`;
+            contenidoComentarioPositivo.placeholder = `Aspectos admirables en ${tituloModal.toLowerCase()}: ...`;
             const contenidoComentarioNegativo = document.createElement('textarea'); // TEXT AREA PARA COMENTARIO NEGATIVO
             contenidoComentarioNegativo.className = 'form-control mb-3 d-none';
             contenidoComentarioNegativo.id = 'comentarioDocenteNegativo';
-            contenidoComentarioNegativo.placeholder = `Aspectos a negativos en ${tituloModal.toLowerCase()}: ...`;
+            contenidoComentarioNegativo.placeholder = `Aspectos a mejorar en ${tituloModal.toLowerCase()}: ...`;
             const botonTerminarEvaluacion = document.createElement('button');
             botonTerminarEvaluacion.id = 'btnTerminarEvaluacion';
             botonTerminarEvaluacion.className = 'btn btn-danger fw-bold';

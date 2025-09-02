@@ -1,3 +1,4 @@
+const btnCerrarCiclo = document.getElementById('btnCerrarCiclo'); // DIV QUE ALMACENARA LOS BOTONES
 const listaBotones = document.getElementById('listaBotones'); // DIV QUE ALMACENARA LOS BOTONES
 const cantidadEvaluaciones = document.getElementById('cantidadEvaluaciones');
 const nombrePersona = document.getElementById('nombrePersona');
@@ -5,48 +6,118 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // CARGAR LOS BOTONES QUE TENDRA DISPONIBLES PARA IR A EVALUACIONES
         await cargarBotones();
+        btnCerrarCiclo.addEventListener("click",(e)=>{
+            cerrarCiclo();
+        });
     } catch (error) {
         console.error('Error al iniciar la página:', error);
         // window.location.href = '/';
     }
 });
 
+async function cerrarCiclo() {
+    Swal.fire({
+        title: "¿Deseas confirmar el cierre del ciclo?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "SI",
+        cancelButtonText: "NO"
+        }).then(async (result) => {
+        if (result.isConfirmed) {
+            const resulado = await guardarDatosCiclo(obtenerCicloActual());
+            if (resulado.success) {
+                Swal.fire({
+                    title: resulado.message,
+                    icon: "success"
+                });
+            } else {
+                Swal.fire({
+                    title: resulado.message,
+                    icon: "error"
+                });
+            }
+        }
+    });
+}
+
+async function guardarDatosCiclo (ciclo){
+    try {
+        const csrfRes = await fetch('/csrf-token', {
+            credentials: 'include'
+            });
+        const { csrfToken } = await csrfRes.json();
+
+        const res = await fetch('/guardarDatosCiclo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'CSRF-Token': csrfToken
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                ciclo
+            })
+        });
+        const data = await res.json();
+        return data;
+    } catch (error) {
+        console.error('Error al llamar el webservice:', error);
+    }
+}
+
+function obtenerCicloActual() {
+    const fecha = new Date();
+    const mes = fecha.getMonth() + 1; // OBTENER EL MES, ES + 1 PORQUE DA DE 0-11
+    const año = fecha.getFullYear();
+    let ciclo = "";
+
+    if (mes === 1) {// SI SE CIERRA EN ENERO / QUIERE DECIR QUE EL CICLO FUE DE AGOSTO DEL AÑO ANTERIOR A EL ENERO ACTUAL
+        ciclo = `Agosto ${año - 1} - Enero ${año}`;
+    } else if (mes >= 2 && mes <= 7) { // SI EL CIERRE ES ENTRE FEBRERO - JULIO QUIERE DECIR QUE EL CIERRE ES FEBRERO - JULIO DEL AÑO ACTUAL
+        ciclo = `Febrero ${año} - Julio ${año}`;
+    } else {// SI EL CIERRE ES ENTRE AGOSTO - DICIEMBRE QUIERE DECIR QUE EL CICLO ES AGOSTO AÑO ACTUAL - ENERO DEL AÑO SIGUIENTE
+        ciclo = `Agosto ${año} - Enero ${año + 1}`;
+    }
+    return ciclo;
+}
 
 async function cargarBotones() {
     try {
-        const cordinadores = await getCoordinadores();
+        // const cordinadores = await getCoordinadores();
         const subordinados = await getSubordinados();
         const pares = await getPares();
         const jefes = await getJefes();
         const todos = await get360();
         const persona = await getInfoPersona();
-        let coordinadoresPendientesCantidad = 0;
+        // let coordinadoresPendientesCantidad = 0;
         let subordinadosPendienteCantidad = 0;
         let jefesPendienteCantidad = 0;
         let paresPendientesCantidad = 0;
         let todosPendientesCantidad = 0;
 
         //DEPENDIENDO DE SI LAS EVALUACIONES QUE DEBEN DE HACER SUPERAN A 0 APARECE EL BOTON
-        if(cordinadores.cantidadCoordinadores>0){
-            const btnCordinador = document.createElement('a');
-            btnCordinador.className = 'btn btn-success px-4 py-2 m-1 fw-bold position-relative'; // EL POSITION-RELATIVE ES PARA QUE LA INSIGNIA DETECTE EL BOTON COMO EL ELEMENTO 
-            btnCordinador.href = '/EvaluacionCoordinador';
-            btnCordinador.innerText = 'COORDINADOR';
+        // if(cordinadores.cantidadCoordinadores>0){
+        //     const btnCordinador = document.createElement('a');
+        //     btnCordinador.className = 'btn btn-success px-4 py-2 m-1 fw-bold position-relative'; // EL POSITION-RELATIVE ES PARA QUE LA INSIGNIA DETECTE EL BOTON COMO EL ELEMENTO 
+        //     btnCordinador.href = '/EvaluacionCoordinador';
+        //     btnCordinador.innerText = 'COORDINADOR';
 
-            cordinadores.coordinadores.forEach(cordinador => {
-                if (cordinador.estado_evaluacion_coordinador == 0) {
-                    coordinadoresPendientesCantidad ++;
-                }
-            });
+        //     cordinadores.coordinadores.forEach(cordinador => {
+        //         if (cordinador.estado_evaluacion_coordinador == 0) {
+        //             coordinadoresPendientesCantidad ++;
+        //         }
+        //     });
 
-            if (coordinadoresPendientesCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
-                const coordinadoresPendientes = document.createElement('span');
-                coordinadoresPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
-                coordinadoresPendientes.innerText = coordinadoresPendientesCantidad;
-                btnCordinador.appendChild(coordinadoresPendientes);
-            }
-            listaBotones.appendChild(btnCordinador);
-        }
+        //     if (coordinadoresPendientesCantidad > 0) {   // PARA PONER UNA INSIGNIAS DE PENDIENTES 
+        //         const coordinadoresPendientes = document.createElement('span');
+        //         coordinadoresPendientes.className = 'badge bg-danger position-absolute top-0 start-100 translate-middle ';
+        //         coordinadoresPendientes.innerText = coordinadoresPendientesCantidad;
+        //         btnCordinador.appendChild(coordinadoresPendientes);
+        //     }
+        //     listaBotones.appendChild(btnCordinador);
+        // }
 
         if(subordinados.cantidadSubordinados>0){
             const btnSubordinado = document.createElement('a');
@@ -135,23 +206,23 @@ async function cargarBotones() {
         nombrePersona.innerText = `¡Bienvenido(a),${persona.persona[0].nombre_personal}!`
 
         // PONER LA CANTIDAD DE EVAKUACIONES FALTANTES
-        cantidadEvaluaciones.innerText = coordinadoresPendientesCantidad + subordinadosPendienteCantidad + jefesPendienteCantidad + paresPendientesCantidad + todosPendientesCantidad;
+        cantidadEvaluaciones.innerText =  subordinadosPendienteCantidad + jefesPendienteCantidad + paresPendientesCantidad + todosPendientesCantidad;
     } catch (error) {
         console.error('Error al cargar botones:', error);
     }
 }
 
 //OBTENER LOS CORDINADORES DE LA API
-async function getCoordinadores (){
-    try {
-        const res = await fetch(`/getCoordinadores`, { credentials: 'include' });
-        const data = await res.json();
-        if (!data.success) throw new Error('No se pudieron obtener las coordinadores');
-        return data;
-    } catch (error) {
-        console.error('Error al llamar el webservice:', error);
-    }
-}
+// async function getCoordinadores (){
+//     try {
+//         const res = await fetch(`/getCoordinadores`, { credentials: 'include' });
+//         const data = await res.json();
+//         if (!data.success) throw new Error('No se pudieron obtener las coordinadores');
+//         return data;
+//     } catch (error) {
+//         console.error('Error al llamar el webservice:', error);
+//     }
+// }
 
  //OBTENER LOS SUBORDINADOS DE LA API
 async function getSubordinados (){

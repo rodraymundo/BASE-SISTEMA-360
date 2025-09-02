@@ -93,7 +93,7 @@ async function cargarPreguntasModal(id_personal) {
         // HEADER - MODAL
         const tituloModal = 'COORDINADOR';// AGREGAR TITULO 
         modalEvaluacionHeader.innerHTML =  `
-            <h5 class="modal-title fw-bold">${tituloModal}</h5>
+            <h5 class="modal-title fw-bold text-white">${tituloModal}</h5>
             </button>
         `;
 
@@ -115,7 +115,7 @@ async function cargarPreguntasModal(id_personal) {
                 cardPregunta.style.background = '#eF2d3b';
 
                 const tituloPregunta = document.createElement('p'); // CREAR ELEMENTO PARA EL TITULO DE AL PREGUNTA 
-                tituloPregunta.className = 'fw-bold text-center';
+                tituloPregunta.className = 'fw-bold text-center text-white';
                 tituloPregunta.innerText = data.preguntas[preguntaActual].nombre_pregunta;
                 
                 const respuestasPregunta = document.createElement('div'); // CREAR ELEMENTO DIV QUE ALMACENARA LOS DIV QUE ALMACENAN CADA INPUT
@@ -123,7 +123,7 @@ async function cargarPreguntasModal(id_personal) {
                 data.respuestas.forEach(respuesta =>{
                     if(respuesta.id_pregunta==data.preguntas[preguntaActual].id_pregunta){
                         const posibleRespuesta = document.createElement('div'); // CREAR DIV QUE ALACENARA EL INPUT
-                        posibleRespuesta.className = 'form-check form-check-inline';
+                        posibleRespuesta.className = 'form-check form-check-inline text-white';
                         posibleRespuesta.innerHTML = ` 
                             <input class="form-check-input" type="radio" name="p-${preguntaActual+1}" value="${respuesta.id_respuesta}" data-id_pregunta="${respuesta.id_pregunta}"> ${respuesta.nombre_respuesta}
                         `; // AGREGAR EL INPUT AL DIV / ES +1 PARA QUE EL NUMERO DE PREGUNTA VAYA INICIANDO EN 1 Y ASI SE SIGA EN LUAGAR DE 0 COMO EN EL ARREGLO / ES NAME PORQUE ESE NAME SE DEBE DE PODER REPETIR DEPENDIENDO DE LA CANTIDAD DE POSIBLES RESPUESTAS
@@ -149,29 +149,29 @@ async function cargarPreguntasModal(id_personal) {
             paginaModalBody.innerHTML = `
                 <h5 class="fw-bold">COMENTARIOS</h5>
                 <div class="mb-3 p-3 rounded-4" style="background-color: #eF2d3b">
-                    <p class="fw-bold">¿TIENES COMENTARIOS POSITIVOS?</p>
+                    <p class="fw-bold text-white">¿TIENES COMENTARIOS DE ADMIRACION?</p>
                     <div class="d-flex justify-content-center">
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="1"> SI
                         </div>
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="0"> NO
                         </div>
                     </div>
                 </div>
-                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a positivos en ${tituloModal.toLowerCase()}: ..." id="comentarioCoordinadorPositivo"></textarea>
+                <textarea class="form-control mb-3 d-none" placeholder="Aspectos admirables en ${tituloModal.toLowerCase()}: ..." id="comentarioCoordinadorPositivo"></textarea>
                 <div class="mb-3 p-3 rounded-4" style="background-color: #eF2d3b">
-                    <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                    <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                     <div class="d-flex justify-content-center">
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="1"> SI
                         </div>
-                        <div class="form-check form-check-inline">
+                        <div class="form-check form-check-inline text-white">
                             <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="0"> NO
                         </div>
                     </div>
                 </div>
-                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a negativos en ${tituloModal.toLowerCase()}: ..." id="comentarioCoordinadorNegativo"></textarea>
+                <textarea class="form-control mb-3 d-none" placeholder="Aspectos a mejorar en ${tituloModal.toLowerCase()}: ..." id="comentarioCoordinadorNegativo"></textarea>
                 <button id="btnTerminarEvaluacion" class="btn btn-danger fw-bold">Terminar Evaluación</button>
             `; // AGREGAR CARDS PARA PREGUNTAR SI DESEA DEJAR COMENTARIOS
             modalEvaluacionBody.appendChild(paginaModalBody);
@@ -187,12 +187,12 @@ async function cargarPreguntasModal(id_personal) {
             preguntaComentarioPositivo.className = 'mb-3 p-3 rounded-4';
             preguntaComentarioPositivo.style.background = '#eF2d3b';
             preguntaComentarioPositivo.innerHTML = `
-                <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                 <div class="d-flex justify-content-center">
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="1"> SI
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioPositivo" value="0"> NO
                     </div>
                 </div>
@@ -201,12 +201,12 @@ async function cargarPreguntasModal(id_personal) {
             preguntaComentarioNegativo.className = 'mb-3 p-3 rounded-4';
             preguntaComentarioNegativo.style.background = '#eF2d3b';
             preguntaComentarioNegativo.innerHTML = `
-                <p class="fw-bold">¿TIENES COMENTARIOS NEGATIVOS?</p>
+                <p class="fw-bold text-white">¿TIENES COMENTARIOS DE MEJORA?</p>
                 <div class="d-flex justify-content-center">
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="1"> SI
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline text-white">
                         <input class="form-check-input" type="radio" name="p-comentarioNegativo" value="0"> NO
                     </div>
                 </div>
@@ -214,11 +214,11 @@ async function cargarPreguntasModal(id_personal) {
             const contenidoComentarioPositivo = document.createElement('textarea'); // TEXT AREA PARA COMENTARIO POSITIVO
             contenidoComentarioPositivo.className = 'form-control mb-3 d-none';
             contenidoComentarioPositivo.id = 'comentarioCoordinadorPositivo';
-            contenidoComentarioPositivo.placeholder = `Aspectos a positivos en ${tituloModal.toLowerCase()}: ...`;
+            contenidoComentarioPositivo.placeholder = `Aspectos admirables en ${tituloModal.toLowerCase()}: ...`;
             const contenidoComentarioNegativo = document.createElement('textarea'); // TEXT AREA PARA COMENTARIO NEGATIVO
             contenidoComentarioNegativo.className = 'form-control mb-3 d-none';
             contenidoComentarioNegativo.id = 'comentarioCoordinadorNegativo';
-            contenidoComentarioNegativo.placeholder = `Aspectos a negativos en ${tituloModal.toLowerCase()}: ...`;
+            contenidoComentarioNegativo.placeholder = `Aspectos a mejorar en ${tituloModal.toLowerCase()}: ...`;
             const botonTerminarEvaluacion = document.createElement('button');
             botonTerminarEvaluacion.id = 'btnTerminarEvaluacion';
             botonTerminarEvaluacion.className = 'btn btn-danger fw-bold';

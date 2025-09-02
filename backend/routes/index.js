@@ -1746,18 +1746,44 @@
     const query = `SELECT pr.id_puesto FROM Puesto_rol pr WHERE pr.id_rol IN (SELECT r.id_rol FROM Rol r WHERE r.nombre_rol = "PEDAGÓGICO")`; // OBTENER PUESTOS QUE TIENE EL ROL DE PEDAGOGICO
     const query2 = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Personal p WHERE p.id_puesto IN (?)" // OBTENER PERSONAL CON LOS PUESTOS TRAIDOS
 
-    try {
-      const [puestos] = await db.query(query);
-      const idPuestos = puestos.map(puesto =>
-        puesto.id_puesto
-      );
-      const [psicologos] = await db.query(query2, [idPuestos]);
-      res.json({ success: true, psicologos});
-    } catch (error) {
-      console.error('Error al obtener servicios:', error);
-      res.status(500).json({ success: false, message: 'Error en el servidor.' });
-    }
-  });
+  try {
+    const [puestos] = await db.query(query);
+    const idPuestos = puestos.map(puesto =>
+      puesto.id_puesto
+    );
+    const [psicologos] = await db.query(query2, [idPuestos]);
+    res.json({ success: true, psicologos});
+  } catch (error) {
+    console.error('Error al obtener servicios:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER TODOS LAS DISCIPLINAS DEPORTIVAS PARA LA LOMA
+router.get('/getDisciplinasDeportivas', authMiddleware, async (req, res) => {
+  const query = 'SELECT dd.id_disciplina_deportiva, dd.nombre_disciplina_deportiva FROM Disciplina_Deportiva dd '; // OBTENER LAS DISCIPLINAS DEPORTIVAS
+
+  try {
+    const [disciplinasDeportivas] = await db.query(query);
+    res.json({ success: true, disciplinasDeportivas});
+  } catch (error) {
+    console.error('Error al obtener disciplinas deportivas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+// OBTENER TODOS LAS LIGAS DEPORTIVAS PARA LIGAS DEPORTIVAS
+router.get('/getLigasDeportivas', authMiddleware, async (req, res) => {
+  const query = 'SELECT ld.id_liga_deportiva, ld.nombre_liga_deportiva FROM Liga_Deportiva ld'; // OBTENER LAS DISCIPLINAS DEPORTIVAS
+
+  try {
+    const [ligasDeportivas] = await db.query(query);
+    res.json({ success: true, ligasDeportivas});
+  } catch (error) {
+    console.error('Error al obtener disciplinas deportivas:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
 
   // OBTENER PREGUNTAS DEL SERVICIO
   router.get('/getPreguntasServicio/:id_servicio', authMiddleware, async (req, res) => {
@@ -1821,43 +1847,125 @@
         query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
       }
 
+    try { 
+      await db.query(query,[valoresRespuestas]);
+      if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+        await db.query(query2,[valoresComentarios]);
+      }
+      await db.query(query3,[id_alumno,id_servicio]);
+      res.json({ success: true , message:'Servicio evaluado correctamente'});
+    } catch (error) {
+      console.error('Error al hacer la insercion:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+    }
+  }else{
+    const query = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=2 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
       try { 
-        await db.query(query,[valoresRespuestas]);
-        if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
-          await db.query(query2,[valoresComentarios]);
-        }
-        await db.query(query3,[id_alumno,id_servicio]);
-        res.json({ success: true , message:'Servicio evaluado correctamente'});
+        await db.query(query,[id_alumno,id_servicio]);
+        res.json({ success: true , message:'Servicio no utilizado'});
       } catch (error) {
         console.error('Error al hacer la insercion:', error);
         res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
       }
-    }else{
-      const query = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=2 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
-        try { 
-          await db.query(query,[id_alumno,id_servicio]);
-          res.json({ success: true , message:'Servicio no utilizado'});
-        } catch (error) {
-          console.error('Error al hacer la insercion:', error);
-          res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
-        }
-    }
-  });
+  }
+});
 
-  // OBTENER LOS TALLERES PARA EVALUARLOS
-  router.get('/getTalleres', authMiddleware, async (req, res) => {
-    const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION
-    console.log('iialum',id_alumno);
-    const query = "SELECT t.id_taller, t.nombre_taller, t.img_taller, ta.estado_evaluacion_taller, p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Taller t, Alumno_Taller ta, Personal p, Personal_taller pt WHERE p.id_personal=pt.id_personal AND pt.id_taller=ta.id_taller AND t.id_taller=ta.id_taller AND ta.id_alumno=?"; // OBTENER LOS TALLERES A LOS QUE ESTA INSCRITO
-    try {
-      const [talleres] = await db.query(query,id_alumno);
-      const cantidadTalleres = talleres.length;
-      res.json({ success: true, talleres, cantidadTalleres });
-    } catch (error) {
-      console.error('Error al obtener talleres:', error);
-      res.status(500).json({ success: false, message: 'Error en el servidor.' });
+// GUARDAR RESPUESTA A SERVICIO DE LA LOMA POR PARTE DE ALUMNOS 
+router.post('/postRespuestasServicioLoma', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_servicio,respuestas,comentarios} = req.body;
+  let valoresRespuestas = [];
+  let valoresComentarios = [];
+  let query = '';
+  let query2 = '';
+  let query3 = '';
+
+  //  NO SE OCUPA HACER EL RESPUESTAS!=NULL PARA HACER LO DE NO SE UTILIZO PUES ESO YA LO HACE LA RUTA postRespuestasServicioLoma QUE ES LA QUE SE OCUPA PARA ESE BOTON
+  valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_alumno,
+    respuesta.id_disciplina_deportiva,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_alumno,
+    comentario.id_disciplina_deportiva,
+    comentario.tipo_comentario,
+    comentario.comentario_servicio
+  ]);
+  query = "INSERT INTO Respuesta_Alumno_Disciplina_Deportiva (id_alumno, id_disciplina_deportiva, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+  query2 = "INSERT INTO Comentario_Disciplina_Deportiva (id_alumno, id_disciplina_deportiva, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+  query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+
+  try { 
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
     }
-  });
+    await db.query(query3,[id_alumno,id_servicio]);
+    res.json({ success: true , message:'Servicio evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+  
+});
+
+// GUARDAR RESPUESTA A SERVICIO DE LA LOMA POR PARTE DE ALUMNOS 
+router.post('/postRespuestasServicioLigasDeportivas', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
+  const {id_servicio,respuestas,comentarios} = req.body;
+  let valoresRespuestas = [];
+  let valoresComentarios = [];
+  let query = '';
+  let query2 = '';
+  let query3 = '';
+
+  //  NO SE OCUPA HACER EL RESPUESTAS!=NULL PARA HACER LO DE NO SE UTILIZO PUES ESO YA LO HACE LA RUTA postRespuestasServicioLoma QUE ES LA QUE SE OCUPA PARA ESE BOTON
+  valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
+    id_alumno,
+    respuesta.id_liga_deportiva,
+    respuesta.id_pregunta,
+    respuesta.id_respuesta
+  ]);
+  valoresComentarios = comentarios.map(comentario => [ // AGREGAR TODOS LOS VALORES DE LAS COMENTARIOS NECESARIOS EN EL INSERT
+    id_alumno,
+    comentario.id_liga_deportiva,
+    comentario.tipo_comentario,
+    comentario.comentario_servicio
+  ]);
+  query = "INSERT INTO Respuesta_Alumno_Liga_Deportiva (id_alumno, id_liga_deportiva, id_pregunta, id_respuesta) VALUES ?"; // AGREGAR LA RESPUESTA DE LA PREGUNTA
+  query2 = "INSERT INTO Comentario_Liga_Deportiva (id_alumno, id_liga_deportiva, tipo_comentario, comentario_servicio) VALUES ?";  // AGREGAR EL COMENTARIO
+  query3 = "UPDATE Alumno_Servicio set estado_evaluacion_servicio=1 WHERE id_alumno=? AND id_servicio=?" // ACTUALIZAR EL ESTADO DE EVALUACION
+  
+  try { 
+    await db.query(query,[valoresRespuestas]);
+    if (valoresComentarios.length > 0) { // EN CASO DE QUE NO HAYA COMENTARIOS NO SE HACE ESTA INSERCION
+      await db.query(query2,[valoresComentarios]);
+    }
+    await db.query(query3,[id_alumno,id_servicio]);
+    res.json({ success: true , message:'Servicio evaluado correctamente'});
+  } catch (error) {
+    console.error('Error al hacer la insercion:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
+  }
+  
+});
+
+// OBTENER LOS TALLERES PARA EVALUARLOS
+router.get('/getTalleres', authMiddleware, async (req, res) => {
+  const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION
+  console.log('iialum',id_alumno);
+  const query = "SELECT t.id_taller, t.nombre_taller, t.img_taller, ta.estado_evaluacion_taller, p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Taller t, Alumno_Taller ta, Personal p WHERE p.id_personal=ta.id_personal AND ta.id_taller=ta.id_taller AND t.id_taller=ta.id_taller AND ta.id_alumno=?"; // OBTENER LOS TALLERES A LOS QUE ESTA INSCRITO
+  try {
+    const [talleres] = await db.query(query,id_alumno);
+    const cantidadTalleres = talleres.length;
+    res.json({ success: true, talleres, cantidadTalleres });
+  } catch (error) {
+    console.error('Error al obtener talleres:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
 
   // OBTENER PREGUNTAS DEL TALLER
   router.get('/getPreguntasTaller/:id_taller', authMiddleware, async (req, res) => {
@@ -7516,19 +7624,19 @@ router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
 //FIN RUTAS HISTORICO
 
 
-  // HACER CIERRE DE CICLO
-  router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
-    const { ciclo } = req.body;
-
-    // Lista de tablas a respaldar
-    const tablas = [
-      'Resultado_Kpi',
-      'Personal_Nivel_Ingles',
-      'Alumno_Nivel_Ingles',
-      'Alumno_Materia',
-      'Grupo_Materia',
-      'Alumno_Taller',
-      'Alumno_Arte_Especialidad',
+// HACER CIERRE DE CICLO
+router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
+  const { ciclo } = req.body;
+  let query = '';
+  // Lista de tablas a respaldar
+  const tablasReinicio = [
+    'Resultado_Kpi',
+    'Personal_Nivel_Ingles',
+    'Alumno_Materia',
+    'Grupo_Materia',
+    'Alumno_Taller',
+    'Alumno_Arte_Especialidad',
+    'Alumno_Servicio',
       'Respuesta_Alumno_Docente',
       'Respuesta_Alumno_Docente_Ingles',
       'Respuesta_Alumno_Docente_Arte',
@@ -7537,6 +7645,8 @@ router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
       'Respuesta_Alumno_Counselor',
       'Respuesta_Personal',
       'Respuesta_Alumno_Psicopedagogico',
+      'Respuesta_Alumno_Disciplina_Deportiva',
+      'Respuesta_Alumno_Liga_Deportiva',
       'Comentario_Docente',
       'Comentario_Docente_Ingles',
       'Comentario_Docente_Arte',
@@ -7544,12 +7654,28 @@ router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
       'Comentario_Taller',
       'Comentario_Counselor',
       'Comentario_Personal',
-      'Comentario_Psicopedagogico'
-    ];
+      'Comentario_Psicopedagogico',
+      'Comentario_Disciplina_Deportiva',
+      'Comentario_Liga_Deportiva',
+    // 'Personal_Jefe',
+    // 'Personal_Subordinado',
+    'Personal_Par',
+    'Personal_Coordinador',
+    'Personal_360'
+  ];
 
-    try {
-      for (const tabla of tablas) {
-        const historico = `${tabla}_Historico`;
+  const tablasGuardado = [
+    'Personal_Taller',
+    'Alumno',
+    'Personal',
+    'Evaluador_Kpi',
+  ];
+
+  // 'Alumno_Nivel_Ingles', REINICIAR SOLO id_personal
+
+  try {
+    for (const tabla of tablasReinicio) {
+      const historico = `${tabla}_Historico`;
 
         // Respaldar datos
         const insertQuery = `
@@ -7563,7 +7689,52 @@ router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
         await db.query(`TRUNCATE TABLE ${tabla}`);
       }
 
-      const query = 'SELECT ';
+    for (const tabla of tablasGuardado) {
+      const historico = `${tabla}_Historico`;
+
+      // Respaldar datos
+      const insertQuery = `
+        INSERT INTO ${historico}
+        SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
+        FROM ${tabla};
+      `;
+      await db.query(insertQuery, [ciclo]);
+    }
+
+    // PASAR ALUMNOS DE GRADO
+    query = 'SELECT a.id_alumno, gg.grado, gg.grupo FROM Alumno a , Grado_Grupo gg WHERE a.id_grado_grupo = gg.id_grado_grupo';
+    const [gradoGrupoAlumnos] = await db.query(query); // TRAER CADA ID ALUMNO CON SU GRADO Y GRUPO 
+    gradoGrupoAlumnos.forEach(async gradoGrupoAlumno => {
+      console.log(gradoGrupoAlumno.grado);
+      console.log(gradoGrupoAlumno.grupo);
+      console.log(gradoGrupoAlumno.id_alumno);
+      if (gradoGrupoAlumno.grado < 6 ){ // EN CASO DE QUE NO SEA DE 6TO
+        query = 'SELECT gg.id_grado_grupo FROM Grado_Grupo gg WHERE gg.grado = ? AND gg.grupo = ?' // OBTENER EL ID_GRADO_GRUPO QUE SE LE PONDRA COMO NUEVO AL ALUMNO
+        const [idGradoGrupoNuevo] = await db.query(query,[Number(gradoGrupoAlumno.grado) + 1 ,gradoGrupoAlumno.grupo]);
+
+        query ='UPDATE Alumno set id_grado_grupo = ? WHERE id_alumno = ?' // AQTUALIZAR ID_GRADO_GRUPO
+        await db.query(query,[idGradoGrupoNuevo[0].id_grado_grupo,gradoGrupoAlumno.id_alumno]);
+
+        query  = 'SELECT m.modelo_materia FROM Materia m WHERE m.id_materia = (SELECT anl.id_materia FROM Alumno_Nivel_Ingles anl WHERE anl.id_alumno = ?)'; // SABER QUE MODELO EDUCATIVO ES EL INGLES ACTUAL QUE LLEVA
+        const [modeloUsado] = await db.query(query,gradoGrupoAlumno.id_alumno);
+
+        query = 'SELECT m.id_materia FROM Materia m WHERE m.modelo_materia = ? AND m.grado_materia = ? AND m.id_academia = 3' // SABER EL ID DE MATEIRA DE EL INGLES SIGUIENTE QUE DEBE DE TENER
+        const [idMateriaIngles] = await db.query(query,[modeloUsado[0].modelo_materia, Number(gradoGrupoAlumno.grado) + 1]);
+
+        query = 'UPDATE Alumno_Nivel_Ingles set id_materia = ? WHERE id_alumno = ?'; // ACTUALIZAR EL ID_MATERIA A LA NUEVA DE INGLES QUE LE CORRESPONDE
+        await db.query(query,[Number(idMateriaIngles[0].id_materia),gradoGrupoAlumno.id_alumno]);
+      }else{
+        query = 'UPDATE Alumno set estado_alumno=0 WHERE id_alumno = ?'; // ACTUALIZAR ESTADO A 0 EN ALUMNO
+        await db.query(query,[gradoGrupoAlumno.id_alumno]);
+
+        query = "SELECT a.id_usuario FROM Alumno a WHERE a.id_alumno = ?"; // OBTENER EL ID_USUARIO DEL ALUMNO
+        const [idUsuario] = await db.query(query,[gradoGrupoAlumno.id_alumno]);
+        console.log('ididididi',idUsuario[0].id_usuario);
+
+        query = 'UPDATE Usuario set estado_usuario = 0 WHERE id_usuario  = ?'; // ACTUALIZAR ESTADO A 0 EN USUARIO 
+        await db.query(query,[idUsuario]);
+      }
+    });
 
       res.json({ success: true, message: 'Ciclo cerrado correctamente!' });
 
