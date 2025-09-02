@@ -1,9 +1,5 @@
 import { renderHeader } from '../assets/js/header.js';
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 async function fetchWithRetry(url, options, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -100,7 +96,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let selectedCategorias = [];
 
   async function cargarPersonal() {
-<<<<<<< HEAD
     try {
       listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">Cargando personal...</div>';
       todosPersonal = await fetchWithRetry('/personal', { credentials: 'include' });
@@ -239,133 +234,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
-=======
-  try {
-    listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">Cargando personal...</div>';
-    todosPersonal = await fetchWithRetry('/personal', { credentials: 'include' });
-    mostrarPersonal(todosPersonal);
-  } catch (error) {
-    console.error('Error al cargar personal:', error);
-    listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar el personal. Verifique que el servidor esté corriendo.</div>';
-    Swal.fire({
-      title: 'Error',
-      text: error.message.includes('404') 
-        ? 'El servidor no tiene configurada la lista de personal (/personal). Contacte al administrador.'
-        : 'No se pudo conectar con el servidor. Asegúrese de que esté corriendo.',
-      icon: 'error',
-      showCancelButton: true,
-      confirmButtonText: 'Reintentar',
-      cancelButtonText: 'Ir al inicio'
-    }).then(result => {
-      if (result.isConfirmed) cargarPersonal();
-      else window.location.href = '/';
-    });
-  }
-}
-
-
-  function mostrarPersonal(personal) {
-  const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
-  const filtrados = personal.filter(p =>
-    `${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''} ${p.correo_usuario || ''}`
-      .toLowerCase()
-      .includes(textoBusqueda)
-  );
-
-  if (filtrados.length === 0) {
-    listaPersonalList.innerHTML = '<div class="text-muted text-center py-3">No se encontraron personas.</div>';
-    return;
-  }
-
-  listaPersonalList.innerHTML = filtrados.map(p => {
-    const nombre = escapeHtml(`${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}`).trim() || 'Sin nombre';
-    const puesto = escapeHtml(p.nombre_puesto || 'Sin puesto');
-    const correo = escapeHtml(p.correo_usuario || 'Sin correo');
-    const rawEstado = (p.estado_personal || '').toString().trim();
-    const estadoLower = rawEstado.toLowerCase();
-
-    let estadoClass = 'estado-unknown';
-    // comprobaciones con límites de palabra para evitar coincidencias parciales
-    if (/\binactivo\b/i.test(rawEstado) || estadoLower === '0' || estadoLower === 'false') {
-      estadoClass = 'estado-inactivo';
-    } else if (/\bactivo\b/i.test(rawEstado) || estadoLower === '1' || estadoLower === 'true') {
-      estadoClass = 'estado-activo';
-    }
-
-    const estadoHtml = `<span class="estado ${estadoClass}">${escapeHtml(rawEstado || 'Sin estado')}</span>`;
-
-    return `
-      <div class="list-group-item" data-id="${p.id_personal || ''}">
-        <div class="item-body">
-          <div class="item-header">
-            <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
-            <small class="text-muted ms-2">${puesto}</small>
-          </div>
-          <div class="small-muted mt-1">
-            <div class="mail"><strong>Correo:</strong> ${correo}</div>
-            <div class="mt-1"><strong>Estado:</strong> ${estadoHtml}</div>
-          </div>
-        </div>
-        <div class="item-actions">
-          <button class="btn btn-edit btn-sm editBtn" title="Editar" aria-label="Editar" data-id="${p.id_personal || ''}">
-            <i class="fas fa-pencil-alt"></i><span>Editar</span>
-          </button>
-          <button class="btn btn-kpi btn-sm adjustKpiBtn" title="Ajustar KPIs" aria-label="Ajustar KPIs" data-id="${p.id_personal || ''}">
-            <i class="fas fa-tachometer-alt"></i><span>Ajustar KPIs</span>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // ====== Después de inyectar el HTML: unir listeners a cada botón ======
-  // Editar
-  listaPersonalList.querySelectorAll('.editBtn').forEach(btn => {
-    // quitamos listeners previos por si acaso (evita duplicados si re-renderizas)
-    btn.replaceWith(btn.cloneNode(true));
-  });
-  // re-query porque clonamos
-  listaPersonalList.querySelectorAll('.editBtn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation(); // evita que el click burbujee al item
-      const id = btn.dataset.id;
-      if (!id) return;
-      try {
-        const personal = await fetchWithRetry(`/personal/${id}`, { credentials: 'include' });
-        abrirModalPersonal(personal);
-      } catch (err) {
-        console.error('Error al cargar datos de personal:', err);
-        Swal.fire({
-          title: 'Error',
-          text: 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
-          icon: 'error'
-        });
-      }
-    });
-  });
-
-  // Ajustar KPIs
-  listaPersonalList.querySelectorAll('.adjustKpiBtn').forEach(btn => {
-    btn.replaceWith(btn.cloneNode(true));
-  });
-  listaPersonalList.querySelectorAll('.adjustKpiBtn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      if (!id) return;
-      try {
-        const personal = await fetchWithRetry(`/personal/${id}`, { credentials: 'include' });
-        openKpiModalForPersonal(personal);
-      } catch (err) {
-        console.error('Error al cargar personal para KPIs:', err);
-        Swal.fire('Error', 'No se pudieron cargar los datos del personal para ajustar KPIs.', 'error');
-      }
-    });
-  });
-}
-
-
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 
   async function cargarPuestos() {
     try {
@@ -419,10 +287,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   }
-<<<<<<< HEAD
-=======
-  
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 
   async function cargarCategorias() {
     try {
@@ -527,7 +391,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     totalPorcentaje.classList.toggle('text-success', total === 100);
   }
 
-<<<<<<< HEAD
   /* ---------- START: KPI modal & helpers ---------- */
 
   function ensureKpiModalExists() {
@@ -1003,318 +866,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* ---------- END: KPI modal & helpers ---------- */
-=======
-
-  /* ---------- START: KPI modal & helpers ---------- */
-
-// crear el modal en DOM si no existe
-function ensureKpiModalExists() {
-  if (document.getElementById('kpiModal')) return;
-  const modalHtml = `
-  <div class="modal fade" id="kpiModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Ajustar KPIs - <span id="kpiModalPersonalName"></span></h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="kpiCategoriaSelect" class="form-label">Seleccionar categoría</label>
-            <select id="kpiCategoriaSelect" class="form-select">
-              <option value="">Seleccione una categoría</option>
-            </select>
-          </div>
-
-          <!-- Lista de KPIs (incluye automáticos pero como selects deshabilitados) -->
-          <div id="kpiListContainer">
-            <div class="text-muted text-center py-3">Seleccione una categoría para ver sus KPIs.</div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button id="kpiSaveAllBtn" type="button" class="btn btn-danger">Guardar cambios</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>`;
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-
-
-
-let puestosRolesMap = {}; // { id_puesto: [id_rol, ...] }
-let roleToPuestosMap = {}; // { id_rol: [id_puesto, ...] }
-let evaluadorKpiCache = {}; // cache de asignaciones actuales para el personal { id_kpi: { id_evaluador, id_personal_encargado } }
-
-async function cargarPuestosRolesMap() {
-  try {
-    const raw = await fetchWithRetry('/puestos/roles', { credentials: 'include' });
-    // soportar respuesta { success: true, data: [...] } o directamente [...]
-    const arr = (raw && raw.data) ? raw.data : raw;
-    puestosRolesMap = {};
-    roleToPuestosMap = {};
-    (arr || []).forEach(item => {
-      if (item.id_puesto != null && item.id_rol != null) {
-        puestosRolesMap[item.id_puesto] = puestosRolesMap[item.id_puesto] || [];
-        puestosRolesMap[item.id_puesto].push(item.id_rol);
-        roleToPuestosMap[item.id_rol] = roleToPuestosMap[item.id_rol] || [];
-        roleToPuestosMap[item.id_rol].push(item.id_puesto);
-      } else if (item.id_puesto != null && typeof item.role_ids === 'string') {
-        const a = item.role_ids.split(',').map(s => parseInt(s)).filter(Boolean);
-        puestosRolesMap[item.id_puesto] = a;
-        a.forEach(r => {
-          roleToPuestosMap[r] = roleToPuestosMap[r] || [];
-          roleToPuestosMap[r].push(item.id_puesto);
-        });
-      }
-    });
-  } catch (err) {
-    console.error('No se pudo cargar puestos-roles:', err);
-    puestosRolesMap = {};
-    roleToPuestosMap = {};
-  }
-}
-
-
-function getPersonalesByRole(idRol) {
-  // retorna array de personal (objetos) cuyo puesto contiene idRol
-  const puestosQueTienenRol = roleToPuestosMap[idRol] || [];
-  return todosPersonal.filter(p => puestosQueTienenRol.includes(p.id_puesto));
-}
-
-async function cargarKpisPorCategoria(id_categoria) {
-  if (!id_categoria) return [];
-  const resp = await fetchWithRetry(`/kpis?categoria=${id_categoria}`, { credentials: 'include' });
-  // backend responde { success: true, data: [...] }
-  return (resp && resp.data) ? resp.data : resp;
-}
-
-
-async function cargarAsignacionesEvaluador(personalId) {
-  try {
-    const resp = await fetchWithRetry(`/evaluador_kpi?personal=${personalId}`, { credentials: 'include' });
-    const arr = (resp && resp.data) ? resp.data : resp;
-    evaluadorKpiCache = {};
-    (arr || []).forEach(row => {
-      // guardamos los campos que esperamos: id_kpi, evaluador_personal_id, evaluador_nombre
-      evaluadorKpiCache[row.id_kpi] = row;
-    });
-    return arr || [];
-  } catch (err) {
-    console.error('Error cargando asignaciones evaluador:', err);
-    evaluadorKpiCache = {};
-    return [];
-  }
-}
-
-
-function renderKpiList(items, personalId) {
-  // items: array de objetos { k, posibles, assignedPersonal, isAutomatic }
-  const container = document.getElementById('kpiListContainer');
-  if (!items || items.length === 0) {
-    container.innerHTML = '<div class="text-muted text-center py-3">No hay KPIs en esta categoría.</div>';
-    return;
-  }
-
-  const html = items.map(item => {
-    const k = item.k;
-    const posibles = item.posibles || [];
-    const assignedPersonalId = item.assignedPersonal != null ? item.assignedPersonal : (evaluadorKpiCache[k.id_kpi] && evaluadorKpiCache[k.id_kpi].evaluador_personal_id ? parseInt(evaluadorKpiCache[k.id_kpi].evaluador_personal_id) : '');
-    const isAutomatic = !!item.isAutomatic;
-
-    const opciones = posibles.length
-      ? `<option value="">-- Seleccione encargado --</option>` + posibles.map(p =>
-          `<option value="${p.id_personal}" ${p.id_personal === assignedPersonalId ? 'selected' : ''}>${escapeHtml(p.nombre_personal)} ${escapeHtml(p.apaterno_personal||'')}</option>`
-        ).join('')
-      : `<option value="">No hay personal con el rol requerido</option>`;
-
-    // borde verde si ya hay asignado (ya sea automático o por la cache)
-    const cardClass = assignedPersonalId ? 'border border-2 border-success' : '';
-
-    // si es automático, deshabilitamos el select para que no se pueda cambiar
-    const disabledAttr = isAutomatic ? 'disabled' : '';
-
-    // Añadimos atributo data-automatic para referencia si se quiere
-    return `
-      <div class="card mb-2 ${cardClass}" data-kpi-id="${k.id_kpi}" data-automatic="${isAutomatic ? '1' : '0'}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h6 class="mb-1">${escapeHtml(k.nombre_kpi)}</h6>
-              <small class="text-muted">Meta: ${k.meta_kpi} · Tipo: ${k.tipo_kpi}</small>
-            </div>
-            <div style="min-width:220px;">
-              <label class="form-label small mb-1">Encargado de medición</label>
-              <select class="form-select encargados-select" data-kpi-id="${k.id_kpi}" ${disabledAttr} title="${isAutomatic ? 'Asignado automáticamente (no editable)' : ''}">
-                ${opciones}
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  container.innerHTML = html;
-
-  // listeners: sólo para selects editables
-  document.querySelectorAll('.encargados-select:not([disabled])').forEach(s => {
-    s.addEventListener('change', (ev) => {
-      const card = ev.target.closest('.card');
-      if (!card) return;
-      if (ev.target.value && ev.target.value !== '') {
-        card.classList.add('border', 'border-2', 'border-success');
-      } else {
-        card.classList.remove('border', 'border-2', 'border-success');
-      }
-    });
-  });
-}
-
-
-
-async function openKpiModalForPersonal(personal) {
-  ensureKpiModalExists();
-  await cargarPuestosRolesMap(); // carga/actualiza mapas
-  document.getElementById('kpiModalPersonalName').textContent = `${personal.nombre_personal || ''} ${personal.apaterno_personal || ''}`.trim();
-  const kpiCategoriaSelect = document.getElementById('kpiCategoriaSelect');
-  // rellenar categorías permitidas para el puesto del personal (Puesto_Categoria)
-  // endpoint esperado: GET /puesto-categorias?puesto=ID -> [{id_categoria_kpi, nombre_categoria_kpi, porcentaje_categoria}, ...]
-  try {
-    const resp = await fetchWithRetry(`/puesto-categorias?puesto=${personal.id_puesto}`, { credentials: 'include' });
-    const puestoCategorias = (resp && resp.data) ? resp.data : resp;
-    kpiCategoriaSelect.innerHTML = '<option value="">Seleccione una categoría</option>' +
-      (puestoCategorias.map(c => `<option value="${c.id_categoria_kpi}">${escapeHtml(c.nombre_categoria_kpi)} (${c.porcentaje_categoria}%)</option>`).join('') || '');
-  } catch (err) {
-    console.warn('Fallo al traer puesto-categorias, usando fallback global de categorias:', err);
-    kpiCategoriaSelect.innerHTML = '<option value="">Seleccione una categoría</option>' +
-      (categorias.map(c => `<option value="${c.id_categoria_kpi}">${escapeHtml(c.nombre_categoria_kpi)}</option>`).join(''));
-  }
-
-
-  // cargar asignaciones actuales para este personal
-  await cargarAsignacionesEvaluador(personal.id_personal);
-
-  // evento al cambiar categoría
-    // variables de cierre para esta instancia del modal
-  let implicitAssignments = []; // { id_kpi, selectedPersonal, kpiObj, posibles }
-  
-  // evento al cambiar categoría
-    // evento al cambiar categoría
-    // evento al cambiar categoría
-  kpiCategoriaSelect.onchange = async (ev) => {
-    const idCat = parseInt(ev.target.value);
-    // Si no hay categoría seleccionada
-    if (!idCat) {
-      document.getElementById('kpiListContainer').innerHTML = '<div class="text-muted text-center py-3">Seleccione una categoría para ver sus KPIs.</div>';
-      return;
-    }
-
-    // Si la categoría es 3 (Evaluación del desempeño 360) -> no mostrar KPIs para asignación
-    if (idCat === 3) {
-      document.getElementById('kpiListContainer').innerHTML =
-        `<div class="alert alert-secondary">
-           <strong>Evaluación 360</strong> — Esta categoría se evalúa de forma distinta y no requiere asignación manual del encargado de medición.
-         </div>`;
-      return;
-    }
-
-    // Cargar KPIs de la categoría (y filtrar por si acaso hay KPIs con id_categoria_kpi === 3)
-    const kpis = await cargarKpisPorCategoria(idCat);
-    if (!Array.isArray(kpis)) {
-      renderKpiList([], personal.id_personal);
-      return;
-    }
-
-    // construir items extendidos: incluir automáticos (<=1 posible) como elementos con isAutomatic=true
-    const items = kpis
-      .filter(k => k.id_categoria_kpi !== 3) // doble seguridad: excluir 360 aun cuando el backend devolviera alguno
-      .map(k => {
-        const posibles = getPersonalesByRole(k.id_rol || 0);
-        const cached = evaluadorKpiCache[k.id_kpi] && evaluadorKpiCache[k.id_kpi].evaluador_personal_id
-                       ? parseInt(evaluadorKpiCache[k.id_kpi].evaluador_personal_id)
-                       : null;
-        const assigned = cached != null ? cached : (posibles.length === 1 ? posibles[0].id_personal : null);
-        return { k, posibles, assignedPersonal: assigned, isAutomatic: (posibles.length <= 1) };
-      });
-
-    // render todos (los automáticos aparecerán pero con select disabled y borde verde si tienen assigned)
-    renderKpiList(items, personal.id_personal);
-  };
-
-
-  // habilitar botón Guardar: recolecta todos los selects (incluidos disabled) y guarda cambios
-  const saveBtn = document.getElementById('kpiSaveAllBtn');
-  saveBtn.onclick = async () => {
-    const selects = Array.from(document.querySelectorAll('.encargados-select'));
-    const changes = selects.map(s => {
-      const id_kpi = parseInt(s.dataset.kpiId);
-      // si select está deshabilitado también tiene un value (el asignado automáticamente)
-      const selectedPersonal = s.value ? parseInt(s.value) : null;
-      const current = evaluadorKpiCache[id_kpi] || {};
-      const currentPersonal = current.evaluador_personal_id ? parseInt(current.evaluador_personal_id) : null;
-      return { id_kpi, selectedPersonal, currentPersonal };
-    }).filter(ch => ch.selectedPersonal !== ch.currentPersonal);
-
-    if (changes.length === 0) {
-      Swal.fire('Sin cambios', 'No hay cambios que guardar.', 'info');
-      return;
-    }
-
-    const results = [];
-    for (const ch of changes) {
-      try {
-        const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
-        const { csrfToken } = await csrfRes.json();
-        const body = {
-          id_kpi: ch.id_kpi,
-          id_personal_target: personal.id_personal,
-          id_personal_evaluador: ch.selectedPersonal // puede ser null para eliminar
-        };
-        const resp = await fetch('/evaluador_kpi', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'CSRF-Token': csrfToken
-          },
-          credentials: 'include',
-          body: JSON.stringify(body)
-        });
-        const json = await resp.json();
-        if (!resp.ok || !json.success) throw new Error(json.message || `Error ${resp.status}`);
-        results.push({ ok: true, id_kpi: ch.id_kpi });
-      } catch (err) {
-        console.error('Error guardando evaluador_kpi', ch, err);
-        results.push({ ok: false, id_kpi: ch.id_kpi, error: err.message || err });
-      }
-    }
-
-    const failed = results.filter(r => !r.ok);
-    if (failed.length) {
-      Swal.fire('Parcial', `${results.length - failed.length} guardados. ${failed.length} fallaron. Revisa la consola.`, 'warning');
-    } else {
-      Swal.fire('Éxito', 'Encargados de medición actualizados.', 'success');
-      await cargarAsignacionesEvaluador(personal.id_personal);
-      // refrescar vista (re-trigger change)
-      const evt = new Event('change');
-      kpiCategoriaSelect.dispatchEvent(evt);
-    }
-  };
-
-  // finalmente mostrar modal
-  const modalEl = document.getElementById('kpiModal');
-  const bsModal = new bootstrap.Modal(modalEl);
-  bsModal.show();
-}
-
-/* ---------- END: KPI modal & helpers ---------- */
-
-
-// recuerda invocar cargarPuestosRolesMap() junto a tus cargas iniciales
-// por ejemplo: await Promise.all([cargarPersonal(), cargarPuestos(), cargarRoles(), cargarCategorias(), cargarPuestosRolesMap()]);
-
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 
   personalForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1470,7 +1021,6 @@ async function openKpiModalForPersonal(personal) {
     }
   });
 
-<<<<<<< HEAD
   listaPersonalList.addEventListener('click', async (e) => {
     const editBtn = e.target.closest('.editBtn');
     if (editBtn) {
@@ -1520,49 +1070,6 @@ async function openKpiModalForPersonal(personal) {
       return;
     }
   });
-=======
-  // Delegación para el list-group
- // Delegación para el list-group
-listaPersonalList.addEventListener('click', async (e) => {
-  const editBtn = e.target.closest('.editBtn');
-  if (editBtn) {
-    const id = editBtn.dataset.id;
-    try {
-      const personal = await fetchWithRetry(`/personal/${id}`, { credentials: 'include' });
-      abrirModalPersonal(personal);
-    } catch (error) {
-      console.error('Error al cargar datos de personal:', error);
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la funcionalidad de edición (/personal/:id). Contacte al administrador.'
-          : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonText: 'Reintentar',
-        cancelButtonText: 'Cancelar'
-      });
-    }
-    return; // importante: evitar que caiga en el siguiente handler
-  }
-
-  const adjustBtn = e.target.closest('.adjustKpiBtn');
-  if (adjustBtn) {
-    const id = adjustBtn.dataset.id;
-    try {
-      const personal = await fetchWithRetry(`/personal/${id}`, { credentials: 'include' });
-      // abre directamente el modal de KPIs (no el modal de edición)
-      openKpiModalForPersonal(personal);
-    } catch (error) {
-      console.error('Error al cargar personal para KPIs:', error);
-      Swal.fire('Error', 'No se pudieron cargar los datos del personal para ajustar KPIs.', 'error');
-    }
-    return;
-  }
-});
-
-
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 
   buscadorPersonal.addEventListener('input', () => {
     mostrarPersonal(todosPersonal);

@@ -117,10 +117,7 @@ body.gestion-personal-resultados {
 .btn-perfil {
   background-color: #dc3545;
   border-color: #dc3545;
-<<<<<<< HEAD
   color: white;
-=======
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 }
 
 .btn-perfil:hover {
@@ -129,7 +126,6 @@ body.gestion-personal-resultados {
 }
 
 .btn-resultados {
-<<<<<<< HEAD
   background-color: #606060;
   border-color: #606060;
   color: white;
@@ -160,35 +156,6 @@ body.gestion-personal-resultados {
 .btn-evaluaciones:hover {
   background-color: #960000;
   border-color: #960000;
-=======
-  background-color: #007bff;
-  border-color: #007bff;
-}
-
-.btn-resultados:hover {
-  background-color: #0056b3;
-  border-color: #004085;
-}
-
-.btn-kpis {
-  background-color: #ffc107;
-  border-color: #ffc107;
-}
-
-.btn-kpis:hover {
-  background-color: #e0a800;
-  border-color: #d39e00;
-}
-
-.btn-evaluaciones {
-  background-color: #28a745;
-  border-color: #28a745;
-}
-
-.btn-evaluaciones:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 }
 
 #perfilModal .perfil-img {
@@ -676,7 +643,6 @@ body.gestion-personal-resultados {
   #evaluacionResultsModal .results-table th, #evaluacionResultsModal .results-table td {
     padding: 0.6rem 0.85rem;
   }
-<<<<<<< HEAD
 }
 
 .service-card {
@@ -763,6 +729,4 @@ body.gestion-personal-resultados {
   #servicioModal .modal-body {
     padding: 1rem;
   }
-=======
->>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 }
