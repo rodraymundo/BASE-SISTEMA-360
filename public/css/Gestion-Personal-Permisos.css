@@ -1,4 +1,7 @@
+<<<<<<< HEAD
+=======
 
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 .gestion-personal .modal-header {
   background-color: #dc3545;
   color: white;
@@ -185,8 +188,11 @@
 /* Opcional: estado desconocido / neutro */
 .estado-unknown { color: var(--gris-oscuro); }
 
+<<<<<<< HEAD
+=======
 
 
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 /* Palette / variables (ajusta si quieres otros tonos) */
 :root{
   --rojo: #dc3545;
@@ -252,6 +258,21 @@
   color: var(--negro);
 }
 
+<<<<<<< HEAD
+/* Asignar KPIs (azul / distintivo) */
+.btn-assign-kpi {
+  background: var(--blanco);
+  border: 1px solid #0d6efd; /* bootstrap-primary blue */
+  color: #0d6efd;
+}
+.btn-assign-kpi:hover, .btn-assign-kpi:focus {
+  background: rgba(13,110,253,0.06);
+  border-color: #0a58ca;
+  color: #0a58ca;
+}
+
+=======
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 /* Si quieres que en pantallas grandes estén lado a lado */
 @media (min-width: 768px) {
   .item-actions {
@@ -272,6 +293,10 @@
     gap: 0.5rem;
   }
   .item-actions .btn { flex: 1 1 0; min-height: 40px; font-size: 0.9rem; }
+<<<<<<< HEAD
+}
+=======
 }
 
 
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469

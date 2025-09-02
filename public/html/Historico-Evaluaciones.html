@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Histórico de Evaluaciones - Prepa Balmoral Escocés</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/Historico-Evaluaciones.css">
+  <link rel="stylesheet" href="/assets/css/Dashboard.css">
+</head>
+<body>
+  <div id="header-container"></div>
+  <div class="container-fluid">
+    <div class="row">
+      <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+        <h5 class="sidebar-heading">Ciclos</h5>
+        <ul id="ciclosList" class="list-group"></ul>
+      </nav>
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">Evaluaciones Históricas</h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <input type="text" id="buscadorPersonal" class="form-control" placeholder="Buscar personal...">
+          </div>
+        </div>
+        <div id="personalContainer" class="row"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Perfil Modal -->
+  <div class="modal fade" id="perfilModal" tabindex="-1" aria-labelledby="perfilModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="perfilModalLabel">Ficha Completa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resultados Modal -->
+  <div class="modal fade" id="resultadosModal" tabindex="-1" aria-labelledby="resultadosModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="resultadosModalLabel">Seleccionar Tipo de Resultado</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <button class="btn btn-kpis btn-primary m-2">KPIs</button>
+          <button class="btn btn-evaluaciones btn-primary m-2">Evaluaciones</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs Modal -->
+  <div class="modal fade" id="kpisModal" tabindex="-1" aria-labelledby="kpisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="kpisModalLabel">Indicadores Clave de Rendimiento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evaluaciones Modal -->
+  <div class="modal fade" id="evaluacionesModal" tabindex="-1" aria-labelledby="evaluacionesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="evaluacionesModalLabel">Tipos de Evaluación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evaluacion Results Modal -->
+  <div class="modal fade" id="evaluacionResultsModal" tabindex="-1" aria-labelledby="evaluacionResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="evaluacionResultsModalLabel">Resultados de Evaluación</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module" src="/js/Historico-Evaluaciones.js"></script>
+</body>
+</html>

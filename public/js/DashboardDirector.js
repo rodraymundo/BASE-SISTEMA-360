@@ -4,20 +4,55 @@ const evaluationChart = document.getElementById('evaluationChart');
 const goalChart = document.getElementById('goalChart');
 const roleFilter = document.getElementById('roleFilter');
 const applyFilterBtn = document.getElementById('applyFilter');
+<<<<<<< HEAD
+=======
 const resultsBtn = document.getElementById('resultsBtn');
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 const positiveCommentsBtn = document.getElementById('positiveCommentsBtn');
 const improvementAreasBtn = document.getElementById('improvementAreasBtn');
 let commentsModalInstance = null;
 
+<<<<<<< HEAD
+const tipoToIdPregunta = {
+    'materias': 1, // DOCENTE
+    'ingles': 1, // DOCENTE
+    'artes': 1, // DOCENTE
+    'servicios': 8, // SERVICIO
+    'talleres': 9, // TALLERES EXTRA CLASE
+    'counselors': 2, // COUNSELOR
+    'psicopedagogico': 1, // DOCENTE
+    'coordinadores': 3, // COORDINADOR
+    '360': 5, // 360
+    'pares': 6, // PARES
+    'jefes': 7, // JEFE
+    'disciplina_deportiva': 1, // DOCENTE
+    'liga_deportiva': 1 // DOCENTE
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!personnelCards || !personalCount) {
+        console.error('DOM elements not found:', { personnelCards, personalCount });
+        Swal.fire('Error', 'No se encontraron los elementos del DOM necesarios', 'error');
+        return;
+    }
+
+=======
+document.addEventListener('DOMContentLoaded', async () => {
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
     try {
         await loadRoles();
         await loadTopPersonnel();
         applyFilterBtn.addEventListener('click', async () => {
             const role = roleFilter.value;
+<<<<<<< HEAD
+            const sortOrder = document.querySelector('input[name="sortOrder"]:checked')?.value || 'top';
+            await loadTopPersonnel(role, sortOrder);
+            bootstrap.Modal.getInstance(document.getElementById('filterModal'))?.hide();
+=======
             const sortOrder = document.querySelector('input[name="sortOrder"]:checked').value;
             await loadTopPersonnel(role, sortOrder);
             bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         });
     } catch (error) {
         console.error('Error al iniciar la página:', error);
@@ -28,7 +63,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadRoles() {
     try {
         const res = await fetch('/roles-director', { credentials: 'include' });
+<<<<<<< HEAD
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         const data = await res.json();
+        console.log('Roles data:', data);
+=======
+        const data = await res.json();
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         if (!data.success) throw new Error('No se pudieron obtener los roles');
         roleFilter.innerHTML = '<option value="">Todos los roles</option>';
         data.roles.forEach(rol => {
@@ -45,6 +86,32 @@ async function loadRoles() {
 async function loadTopPersonnel(role = '', sortOrder = 'top') {
     try {
         const url = `/personnel-director?role=${encodeURIComponent(role)}&sort=${sortOrder}`;
+<<<<<<< HEAD
+        console.log('Fetching personnel from:', url);
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        console.log('Personnel data:', data);
+        if (!data.success) throw new Error('No se pudieron obtener los datos del personal');
+
+        let personnel = Array.isArray(data.personnel) ? data.personnel : [];
+        personnelCards.innerHTML = '';
+        personalCount.textContent = personnel.length;
+
+        if (personnel.length === 0) {
+            personnelCards.innerHTML = '<div class="col-12 text-muted text-center">No se encontró personal.</div>';
+            return;
+        }
+
+        const personnelIds = personnel.map(p => p.id_personal).join(',');
+        let evalData = { evaluations: [] };
+        try {
+            console.log('Fetching evaluations for IDs:', personnelIds);
+            const evalRes = await fetch(`/evaluations-director-full?ids=${personnelIds}`, { credentials: 'include' });
+            if (!evalRes.ok) throw new Error(`HTTP error ${evalRes.status}`);
+            evalData = await evalRes.json();
+            console.log('Evaluations data:', evalData);
+=======
         const res = await fetch(url, { credentials: 'include' });
         const data = await res.json();
         if (!data.success) throw new Error('No se pudieron obtener los datos del personal');
@@ -58,6 +125,7 @@ async function loadTopPersonnel(role = '', sortOrder = 'top') {
         try {
             const evalRes = await fetch(`/evaluations-director-full?ids=${personnelIds}`, { credentials: 'include' });
             evalData = await evalRes.json();
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
             if (!evalData.success) {
                 console.warn('Evaluación no exitosa, usando datos por defecto:', evalData.message);
                 evalData = { evaluations: [] };
@@ -75,11 +143,19 @@ async function loadTopPersonnel(role = '', sortOrder = 'top') {
             const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
             const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
             card.innerHTML = `
+<<<<<<< HEAD
+                <img src="./assets/img/${person.img_personal || 'iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo" style="width: ${index === 1 ? '90px' : '70px'}; height: ${index === 1 ? '90px' : '70px'}; border-radius: 50%; margin: 10px auto;">
+                <div class="card-body text-center p-3">
+                    <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
+                    <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto}</p>
+                    ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
+=======
                 <img src="./assets/img/${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personal Photo" style="width: ${index === 1 ? '90px' : '70px'}; height: ${index === 1 ? '90px' : '70px'}; border-radius: 50%; margin: 10px auto;">
                 <div class="card-body text-center p-3">
                     <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
                     <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto}</p>
                     ${person.subjects.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
                     <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
                     <div class="rating-bar">
                         <div class="rating-fill" style="width: ${percentage}%;"></div>
@@ -93,11 +169,19 @@ async function loadTopPersonnel(role = '', sortOrder = 'top') {
         renderCharts(personnel, evalData.evaluations || []);
     } catch (error) {
         console.error('Error al cargar personal:', error);
+<<<<<<< HEAD
+        personnelCards.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar personal.</div>';
+=======
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         Swal.fire('Error', 'No se pudo cargar el personal', 'error');
     }
 }
 
+<<<<<<< HEAD
+async function showPersonnelModal(person) {
+=======
 function showPersonnelModal(person) {
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
     document.getElementById('modalPersonnelName').textContent = `${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}`;
     document.getElementById('modalPersonnelPuesto').textContent = person.nombre_puesto;
     document.getElementById('modalPersonnelSubjects').textContent = person.subjects?.join(', ') || 'No aplica';
@@ -107,6 +191,81 @@ function showPersonnelModal(person) {
 
     positiveCommentsBtn.removeEventListener('click', handlePositiveComments);
     improvementAreasBtn.removeEventListener('click', handleImprovementAreas);
+<<<<<<< HEAD
+
+    positiveCommentsBtn.addEventListener('click', () => handlePositiveComments(person.id_personal));
+    improvementAreasBtn.addEventListener('click', () => handleImprovementAreas(person.id_personal));
+
+    const modal = new bootstrap.Modal(document.getElementById('personnelModal'));
+    modal.show();
+
+    await renderRoleEvaluationChart(person.id_personal);
+}
+
+async function renderRoleEvaluationChart(idPersonal) {
+    const chartContainer = document.getElementById('roleEvaluationChart');
+    if (!chartContainer) {
+        console.error('Chart container not found');
+        return;
+    }
+    chartContainer.innerHTML = '<div class="custom-chart-container"></div>';
+    const container = chartContainer.querySelector('.custom-chart-container');
+
+    try {
+        console.log(`[idPersonal=${idPersonal}] Fetching evaluation types`);
+        const typesRes = await fetch(`/personal-evaluaciones-types/${idPersonal}`, { credentials: 'include' });
+        if (!typesRes.ok) throw new Error(`HTTP error ${typesRes.status}: ${typesRes.statusText}`);
+        const typesData = await typesRes.json();
+        console.log(`[idPersonal=${idPersonal}] Evaluation types response:`, JSON.stringify(typesData, null, 2));
+
+        if (!Array.isArray(typesData)) {
+            throw new Error('Evaluation types is not an array');
+        }
+
+        const evaluations = [];
+        for (const type of typesData) {
+            const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()];
+            if (idTipoPregunta) {
+                console.log(`[idPersonal=${idPersonal}] Fetching results for type=${type}, idTipoPregunta=${idTipoPregunta}`);
+                const resultsRes = await fetch(`/personal-evaluaciones-results/${idPersonal}/${type}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
+                if (!resultsRes.ok) {
+                    console.warn(`[idPersonal=${idPersonal}] Failed to fetch results for type ${type}: HTTP ${resultsRes.status}`);
+                    evaluations.push({
+                        label: type.charAt(0).toUpperCase() + type.slice(1),
+                        value: 0
+                    });
+                    continue;
+                }
+                const resultsData = await resultsRes.json();
+                console.log(`[idPersonal=${idPersonal}] Results for ${type}:`, JSON.stringify(resultsData, null, 2));
+                const value = parseFloat(resultsData.generalAverage) || 0;
+                evaluations.push({
+                    label: type.charAt(0).toUpperCase() + type.slice(1),
+                    value
+                });
+            } else {
+                console.warn(`[idPersonal=${idPersonal}] No idTipoPregunta found for type=${type}`);
+            }
+        }
+
+        if (evaluations.length === 0) {
+            console.log(`[idPersonal=${idPersonal}] No evaluations found for rendering`);
+            container.innerHTML = '<p class="text-center text-muted">No hay evaluaciones disponibles.</p>';
+            return;
+        }
+
+        console.log(`[idPersonal=${idPersonal}] Rendering evaluations:`, JSON.stringify(evaluations, null, 2));
+        container.innerHTML = evaluations.map(evaluation => `
+            <div class="chart-bar">
+                <div class="custom-bar" style="height: ${Math.min(evaluation.value, 100)}%; background-color: #36a2eb;"></div>
+                <span class="bar-label">${evaluation.label} (${evaluation.value > 0 ? evaluation.value + '%' : 'No evaluado'})</span>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error(`[idPersonal=${idPersonal}] Error fetching role evaluations:`, error);
+        container.innerHTML = '<p class="text-center text-muted">Error al cargar evaluaciones.</p>';
+    }
+=======
     positiveCommentsBtn.addEventListener('click', () => handlePositiveComments(person.id_personal));
     improvementAreasBtn.addEventListener('click', () => handleImprovementAreas(person.id_personal));
 
@@ -114,16 +273,25 @@ function showPersonnelModal(person) {
 
     const modal = new bootstrap.Modal(document.getElementById('personnelModal'));
     modal.show();
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
 }
 
 async function handlePositiveComments(idPersonal) {
     try {
         const res = await fetch(`/comments-director?id_personal=${idPersonal}&type=positive`, { credentials: 'include' });
+<<<<<<< HEAD
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+=======
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Error fetching positive comments');
         displayComments('Comentarios Positivos', data.comments);
     } catch (error) {
+<<<<<<< HEAD
+        console.error(`[idPersonal=${idPersonal}] Error fetching positive comments:`, error);
+=======
         console.error('Error fetching positive comments:', error);
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         Swal.fire('Error', 'No se pudieron cargar los comentarios positivos', 'error');
     }
 }
@@ -131,11 +299,19 @@ async function handlePositiveComments(idPersonal) {
 async function handleImprovementAreas(idPersonal) {
     try {
         const res = await fetch(`/comments-director?id_personal=${idPersonal}&type=negative`, { credentials: 'include' });
+<<<<<<< HEAD
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+=======
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Error fetching improvement areas');
         displayComments('Áreas de Mejora', data.comments);
     } catch (error) {
+<<<<<<< HEAD
+        console.error(`[idPersonal=${idPersonal}] Error fetching improvement areas:`, error);
+=======
         console.error('Error fetching improvement areas:', error);
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
         Swal.fire('Error', 'No se pudieron cargar las áreas de mejora', 'error');
     }
 }
@@ -157,7 +333,11 @@ function displayComments(title, comments) {
         : '<div class="list-group-item text-center">No hay comentarios.</div>';
 
     if (commentsModalInstance) {
+<<<<<<< HEAD
+        commentsModalInstance.dispose();
+=======
         commentsModalInstance.dispose(); // Clean up previous instance
+>>>>>>> 04dde7442ae70cd677357b588db7c17b34e1e469
     }
     commentsModalInstance = new bootstrap.Modal(modal);
     commentsModalInstance.show();
