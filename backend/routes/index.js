@@ -385,13 +385,8 @@ const upload = multer({ storage });
 
   //CERRAR SESIÓN
   router.post('/logout', (req, res) => {
-    req.session.destroy(err => {
-      if (err) {
-        return res.status(500).json({ success: false, message: 'Error al cerrar sesión.' });
-      }
-      res.clearCookie('connect.sid'); // << AÑADE ESTO para borrar cookie de sesión
-      res.json({ success: true, redirect: '/' });
-    });
+    req.session = null; // borra toda la sesión
+    res.json({ success: true, redirect: '/' });
   });
 
   //SELECCIONAR TALLER
