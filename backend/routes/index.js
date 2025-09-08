@@ -290,7 +290,15 @@ const upload = multer({ storage });
 
   //CSRF TOKEN 
   router.get('/csrf-token', (req, res) => {
-    res.json({ csrfToken: req.csrfToken() });
+    try {
+      if (!req.session.csrfToken) {
+        req.session.csrfToken = req.csrfToken();
+      }
+      res.json({ csrfToken: req.session.csrfToken });
+    } catch (err) {
+      console.error('Error generando CSRF token:', err);
+      res.status(500).json({ csrfToken: null });
+    }
   });
 
   //VERIFICAR SESIÓN DE USUARIO
