@@ -44,7 +44,7 @@ app.use('/js', express.static(path.join(__dirname, '../public/js')));
 app.set('trust proxy', 1); // importante en Railway para HTTPS
 
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || "mi_super_secreto_local",
   resave: false,
   saveUninitialized: false, // mejor seguridad
   store: sessionStore,
