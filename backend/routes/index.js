@@ -1991,7 +1991,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/getPreguntasTaller/:id_taller', authMiddleware, async (req, res) => {
     const id_taller = req.params.id_taller;
     const query = "SELECT t.nombre_taller, p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Taller t,Pregunta p WHERE p.id_tipo_pregunta=9 AND t.id_taller=?"; // 9 ES ('TALLERES EXTRA CLASE'),
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=9"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=9"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query,id_taller);
       const [respuestas] = await db.query(query2);
@@ -2054,7 +2054,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE COUNSELOR
   router.get('/getPreguntasCounselor', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=2"; // 2 ES COUNSELOR
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=2"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=2"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2119,7 +2119,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE DOCENTE
   router.get('/getPreguntasDocente', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=1"; // 1 ES DOCENTE
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=1"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=1"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2244,7 +2244,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE COORDINADOR
   router.get('/getPreguntasCoordinador', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=3"; // 3 ES COORDINADOR
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=3"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=3"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2309,7 +2309,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE PAR
   router.get('/getPreguntasPar', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=6"; // 6 ES PARES
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=6"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=6"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2374,7 +2374,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE 360
   router.get('/getPreguntas360', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=5"; // 5 ES 360
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=5"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=5"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2439,7 +2439,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE JEFE
   router.get('/getPreguntasJefe', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=7"; // 7 ES JEFE
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=7"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=7"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
@@ -2504,7 +2504,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER PREGUNTAS DE JEFE
   router.get('/getPreguntasSubordinado', authMiddleware, async (req, res) => {
     const query = "SELECT p.id_pregunta, p.nombre_pregunta, p.id_tipo_pregunta, p.id_grupo_respuesta FROM Pregunta p WHERE p.id_tipo_pregunta=4"; // 7 ES SUBORDINADO
-    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM pregunta p, respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=4"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
+    const query2 = "SELECT p.id_pregunta, r.id_respuesta, r.nombre_respuesta FROM Pregunta p, Respuesta r WHERE p.id_grupo_respuesta=r.id_grupo_respuesta AND id_tipo_pregunta=4"; // OBTENER LAS RESPUESTAS A LAS PREGUNTAS
     try {
       const [preguntas] = await db.query(query);
       const [respuestas] = await db.query(query2);
