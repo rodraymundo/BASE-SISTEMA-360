@@ -49,7 +49,7 @@ app.use(session({
   saveUninitialized: false, // mejor seguridad
   store: sessionStore,
   cookie: {
-    secure: false,          // ahora sí en producción
+    secure: true,          // ahora sí en producción
     httpOnly: true,
     sameSite: 'lax'        // o 'none' si hay subdominios
   }
