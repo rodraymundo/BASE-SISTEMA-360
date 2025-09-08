@@ -129,3 +129,10 @@
         padding: 6px 12px;
     }
 }
+/* Inserta en tu CSS global o <style> */
+#searchResults .list-group-item {
+  cursor: pointer;
+}
+#searchResults .active {
+  background-color: #f0f0f0;
+}

@@ -190,7 +190,15 @@ function mostrarKPIs(id_personal) {
             <div class="kpi-card">
             <strong></i> ${kpi.nombre_kpi}</strong> (Meta: ${kpi.meta_kpi}${kpi.tipo_kpi === 'Porcentaje' ? '%' : ''})<br>
             Resultado actual: ${kpi.resultado_kpi !== null ? kpi.resultado_kpi : 'No evaluado'}<br>
-            <input type="number" class="form-control mt-2" id="kpi_${kpi.id_kpi}" placeholder="Ingresa resultado" value="${kpi.resultado_kpi !== null ? kpi.resultado_kpi : ''}" onfocus="lastEditedKpiId = 'kpi_${kpi.id_kpi}'">
+            <input 
+            type="number" 
+            class="form-control mt-2" 
+            id="kpi_${kpi.id_kpi}" 
+            placeholder="Ingresa resultado" 
+            value="${kpi.resultado_kpi !== null ? kpi.resultado_kpi : ''}" 
+            ${kpi.resultado_kpi !== null ? 'disabled' : ''} 
+            onfocus="lastEditedKpiId = 'kpi_${kpi.id_kpi}'">
+
             </div>
         `;
         });

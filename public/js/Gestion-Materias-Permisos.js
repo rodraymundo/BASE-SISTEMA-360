@@ -15,8 +15,21 @@ async function fetchWithRetry(url, options, retries = 3) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   // nuevo selector para el list-group
-  const listaMateriasList = document.getElementById('listaMateriasList');
-  listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
+  // nuevo selector para el list-group o fallback al accordion si cambiaste el HTML
+  let listaMateriasList = document.getElementById('listaMateriasList');
+  const gruposAccordion = document.getElementById('gruposAccordion');
+
+  // si no existe listaMateriasList, usamos gruposAccordion como fallback
+  if (!listaMateriasList && gruposAccordion) {
+    listaMateriasList = gruposAccordion;
+  }
+
+  if (listaMateriasList) {
+    listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
+  } else {
+    console.warn('No se encontró ni #listaMateriasList ni #gruposAccordion en el DOM. Revisa tu HTML.');
+  }
+
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -75,6 +88,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const idRolArteSelect = document.getElementById('id_rol_arte');
   const idPersonalArteSelect = document.getElementById('id_personal_arte');
 
+  // Inicializa el nuevo modal 
+  const grupoModalEl = document.getElementById('grupoModal');
+  const grupoModal = grupoModalEl ? new bootstrap.Modal(grupoModalEl) : null;
+  const grupoModalTitle = document.getElementById('grupoModalTitle');
+  const grupoModalBody = document.getElementById('grupoModalBody');
+  const grupoModalSearch = document.getElementById('grupoModalSearch');
+  const grupoModalRefresh = document.getElementById('grupoModalRefresh');
+
+
   let todasMaterias = [];
   let academias = [];
   let roles = [];
@@ -88,7 +110,6 @@ async function cargarMaterias() {
     listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
     const data = await fetchWithRetry('/materias', { credentials: 'include' });
     todasMaterias = data.materias;
-    mostrarMaterias(todasMaterias);
   } catch (error) {
     console.error('Error al cargar materias:', error);
     listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar las materias. Verifique que el servidor esté corriendo.</div>';
@@ -106,49 +127,6 @@ async function cargarMaterias() {
       else window.location.href = '/';
     });
   }
-}
-
-
-function mostrarMaterias(materias) {
-  const textoBusqueda = buscadorMaterias.value.trim().toLowerCase();
-  const filtrados = materias.filter(m =>
-    `${m.nombre_materia || ''} ${m.modelo_materia || ''} ${m.grado_materia || ''} ${m.nombre_academia || ''} ${m.profesores_grupos || ''}`
-      .toLowerCase()
-      .includes(textoBusqueda)
-  );
-
-  if (filtrados.length === 0) {
-    listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">No se encontraron materias.</div>';
-    return;
-  }
-
-  listaMateriasList.innerHTML = filtrados.map(m => {
-    const nombre = escapeHtml(m.nombre_materia || 'Sin nombre');
-    const modelo = escapeHtml(m.modelo_materia || '');
-    const grado = escapeHtml(String(m.grado_materia ?? ''));
-    const academia = escapeHtml(m.nombre_academia || 'Sin academia');
-    const asignaciones = m.profesores_grupos ? escapeHtml(m.profesores_grupos).split('; ').join('<br>') : 'Sin asignaciones';
-
-    return `
-      <div class="list-group-item list-group-item-action shadow-sm mb-2 p-3 d-flex justify-content-between align-items-start">
-        <div class="flex-grow-1 me-3" style="min-width:0;">
-          <div class="d-flex justify-content-between align-items-start">
-            <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
-            <small class="text-muted ms-2">${modelo} ${grado ? '· Grado ' + grado : ''}</small>
-          </div>
-          <div class="text-muted small mt-1">
-            <div><strong>Academia:</strong> ${academia}</div>
-            <div class="mt-1"><strong>Profesores y Grupos:</strong><br>${asignaciones}</div>
-          </div>
-        </div>
-        <div class="ms-3 d-flex align-items-center" style="flex: 0 0 auto;">
-          <button class="btn btn-outline-danger btn-sm editBtn" data-id="${m.id_materia}" title="Asignar/Editar">
-            <i class="fas fa-pencil-alt"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
 }
 
 
@@ -190,17 +168,11 @@ function mostrarMaterias(materias) {
   async function cargarRoles() {
     try {
       roles = await fetchWithRetry('/roles', { credentials: 'include' });
-      idRolSelect.innerHTML = '<option value="">Seleccione un rol</option>' +
-        roles.map(r => `<option value="${r.id_rol}">${r.nombre_rol}</option>`).join('');
-      idRolArteSelect.innerHTML = '<option value="">Seleccione un rol</option>' +
-        roles.map(r => `<option value="${r.id_rol}">${r.nombre_rol}</option>`).join('');
     } catch (error) {
       console.error('Error al cargar roles:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404') 
-          ? 'El servidor no tiene configurada la lista de roles (/roles). Contacte al administrador.'
-          : 'No se pudieron cargar los roles. Asegúrese de que el servidor esté corriendo.',
+        text: 'No se pudieron cargar los roles. Asegúrese de que el servidor esté corriendo.',
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -212,59 +184,42 @@ function mostrarMaterias(materias) {
     }
   }
 
-  async function cargarPersonalPorRol(id_rol, targetSelect = idPersonalSelect) {
+  let todosLosGradosGrupos = []; // Nueva variable para guardar la lista maestra
+
+  // 1) Cargar solo los grupos en curso desde el servidor (/grupos)
+  async function cargarTODOSGradosGrupos() {
     try {
-      personal = await fetchWithRetry(`/personal-por-rol/${id_rol}`, { credentials: 'include' });
-      targetSelect.innerHTML = '<option value="">Seleccione un profesor</option>' +
-        personal.map(p => `<option value="${p.id_personal}">${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</option>`).join('');
-      targetSelect.disabled = personal.length === 0;
+      const response = await fetchWithRetry('/grupos-materias', { credentials: 'include' });
+      // tu endpoint responde { success: true, grupos: [...] } según lo que pusiste en el router
+      const grupos = Array.isArray(response) ? response : (response.grupos || []);
+      todosLosGradosGrupos = grupos;
+      gradosGrupos = [...todosLosGradosGrupos]; // la lista que usa mostrarGrupos
     } catch (error) {
-      console.error('Error al cargar personal:', error);
-      targetSelect.innerHTML = '<option value="">No hay profesores disponibles</option>';
-      targetSelect.disabled = true;
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404') 
-          ? 'El servidor no tiene configurada la lista de personal por rol (/personal-por-rol/:id_rol). Contacte al administrador.'
-          : 'No se pudieron cargar los profesores. Asegúrese de que el servidor esté corriendo.',
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonText: 'Reintentar',
-        cancelButtonText: 'Cancelar'
-      }).then(result => {
-        if (result.isConfirmed) cargarPersonalPorRol(id_rol, targetSelect);
-      });
+      console.error('Error al cargar grupos en curso:', error);
+      gradosGrupos = [];
+      todosLosGradosGrupos = [];
     }
   }
 
-  async function cargarGradosGrupos(grado_materia = null) {
-  try {
-    const response = await fetchWithRetry('/grados-grupos', { credentials: 'include' });
-    console.log('Grados y grupos recibidos:', response); // Debug
-    gradosGrupos = Array.isArray(response) ? response : [];
+
+  function poblarSelectDeGrupos(grado_materia = null) {
+    let gruposParaSelect = [...todosLosGradosGrupos]; // Usamos la lista maestra
+
     if (grado_materia) {
       const grado = Number(grado_materia);
-      console.log(`Filtrando grupos para grado_materia: ${grado} (${typeof grado})`); // Debug
-      gradosGrupos = gradosGrupos.filter(g => {
-        const grupoGrado = Number(g.grado);
-        console.log(`Grupo: ${g.grupo}, Grado: ${grupoGrado} (${typeof grupoGrado})`);
-        return grupoGrado === grado;
-      });
-      console.log('Grupos filtrados:', gradosGrupos); // Debug
+      // Filtramos la copia local, no la global
+      gruposParaSelect = gruposParaSelect.filter(g => Number(g.grado) === grado);
     }
-    idGradoGrupoSelect.innerHTML = '<option value="">Seleccione un grupo</option>' +
-      gradosGrupos.map(g => `<option value="${g.id_grado_grupo}">${g.grupo}</option>`).join('');
-    if (gradosGrupos.length === 0) {
-      idGradoGrupoSelect.innerHTML = '<option value="">No hay grupos disponibles para este grado</option>';
+
+    if (gruposParaSelect.length === 0) {
+      idGradoGrupoSelect.innerHTML = '<option value="">No hay grupos para este grado</option>';
       idGradoGrupoSelect.disabled = true;
     } else {
+      idGradoGrupoSelect.innerHTML = '<option value="">Seleccione un grupo</option>' +
+        gruposParaSelect.map(g => `<option value="${g.id_grado_grupo}">${g.grupo}</option>`).join('');
       idGradoGrupoSelect.disabled = false;
     }
-  } catch (error) {
-    console.error('Error al cargar grados y grupos:', error);
-    idGradoGrupoSelect.innerHTML = '<option value="">Error al cargar grupos</option>';
   }
-}
 
   async function cargarNivelesIngles() {
     try {
@@ -289,37 +244,6 @@ function mostrarMaterias(materias) {
     }
   }
 
-  async function cargarAsignaciones(id_materia, isArte) {
-    try {
-      const response = await fetchWithRetry(`/materias/${id_materia}/asignaciones`, { credentials: 'include' });
-      console.log(`Response from /materias/${id_materia}/asignaciones:`, response); // Debug
-      asignaciones = Array.isArray(response) ? response : [];
-      asignacionesContainer.innerHTML = asignaciones.length === 0
-        ? '<p class="text-muted">No hay asignaciones para esta materia.</p>'
-        : asignaciones.map(a => `
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span>${a.nombre_personal} ${a.apaterno_personal} ${a.amaterno_personal} - ${a.grupo}${isArte ? '' : ` (${a.horas_materia || ''} horas)`}${a.nombre_nivel_ingles ? ` - ${a.nombre_nivel_ingles}` : ''}${a.nombre_arte_especialidad ? ` - ${a.nombre_arte_especialidad}` : ''}</span>
-              <button class="btn btn-danger btn-sm deleteAsignacionBtn" data-id_personal="${a.id_personal}" data-id_grado_grupo="${a.id_grado_grupo}" data-id_nivel_ingles="${a.id_nivel_ingles || ''}" data-id_arte_especialidad="${a.id_arte_especialidad || ''}">Eliminar</button>
-            </div>
-          `).join('');
-    } catch (error) {
-      console.error('Error al cargar asignaciones:', error);
-      asignacionesContainer.innerHTML = '<p class="text-muted">Error al cargar asignaciones.</p>';
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404') 
-          ? 'El servidor no tiene configurada la lista de asignaciones (/materias/:id/asignaciones). Contacte al administrador.'
-          : 'No se pudieron cargar las asignaciones. Asegúrese de que el servidor esté corriendo.',
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonText: 'Reintentar',
-        cancelButtonText: 'Cancelar'
-      }).then(result => {
-        if (result.isConfirmed) cargarAsignaciones(id_materia, isArte);
-      });
-    }
-  }
-
   async function abrirModalMateria(materia = null) {
     if (materia) {
       modalTitle.textContent = 'Editar Materia';
@@ -338,20 +262,289 @@ function mostrarMaterias(materias) {
     materiaModal.show();
   }
 
-  async function abrirModalAsignar(materia) {
-    asignarModalTitle.textContent = `Asignar Profesores y Grupos - ${materia.nombre_materia}`;
-    document.getElementById('id_materia_asignar').value = materia.id_materia;
-    asignarForm.reset();
-    idPersonalSelect.innerHTML = '<option value="">Seleccione un rol primero</option>';
-    idPersonalSelect.disabled = true;
-    idRolSelect.value = '';
-    const isArte = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-    nivelInglesContainer.style.display = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('ingles') ? 'block' : 'none';
-    idNivelInglesSelect.required = nivelInglesContainer.style.display === 'block';
-    await cargarGradosGrupos(materia.grado_materia);
-    await cargarAsignaciones(materia.id_materia, isArte);
-    asignarModal.show();
+// --- variables de estado para modal asignar ---
+let currentAssignment = null; // la asignación actual (para este grupo+materia), si existe
+let allowedProfesores = [];   // profesores tiempo completo / asimilados (objetos personales)
+let selectedPersonalId = null; // id_personal seleccionado desde la lista
+
+// nueva función: obtiene profesores permitidos (tiempo completo o asimilados)
+async function cargarProfesoresPermitidos() {
+  // detectar ids de roles que coincidan con "tiempo completo" o "asimil"
+  const allowedRoleNames = ['tiempo completo', 'tiempo_completo', 'profesor tiempo completo', 'asimil', 'asimilado', 'profesor asimilado', 'profesor de asimilados'];
+
+  // buscar ids de roles por coincidencia (case-insensitive)
+  const allowedRoleIds = (roles || []).filter(r => {
+    const name = (r.nombre_rol || '').toLowerCase();
+    return allowedRoleNames.some(needle => name.includes(needle));
+  }).map(r => r.id_rol);
+
+  // si no encontró roles por nombre, intentar detectar por exacto 'Profesor' (fallback)
+  if (allowedRoleIds.length === 0) {
+    // por si acaso, toma roles que contengan 'profesor'
+    const fallback = (roles || []).filter(r => (r.nombre_rol || '').toLowerCase().includes('profesor')).map(r=>r.id_rol);
+    allowedRoleIds.push(...fallback);
   }
+
+  // traer personal por rol (paralelo), combinar y deduplicar
+  const arr = await Promise.all(
+    allowedRoleIds.map(id => fetchWithRetry(`/personal-por-rol/${id}`, { credentials: 'include' }).catch(() => []))
+  );
+
+  const combined = [];
+  const seen = new Set();
+  arr.forEach(list => {
+    if (!Array.isArray(list)) return;
+    list.forEach(p => {
+      if (!seen.has(String(p.id_personal))) {
+        seen.add(String(p.id_personal));
+        combined.push(p);
+      }
+    });
+  });
+
+  allowedProfesores = combined.sort((a,b) => {
+    const A = `${a.apaterno_personal||''} ${a.nombre_personal||''}`.toLowerCase();
+    const B = `${b.apaterno_personal||''} ${b.nombre_personal||''}`.toLowerCase();
+    return A < B ? -1 : (A > B ? 1 : 0);
+  });
+
+  renderProfesoresList(''); // mostrar lista inicial
+}
+
+// render de la lista y buscador
+function renderProfesoresList(filter) {
+  const container = document.getElementById('personalListContainer');
+  const search = (filter || '').trim().toLowerCase();
+  if (!container) return;
+
+  const list = allowedProfesores.filter(p => {
+    const text = `${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}`.toLowerCase();
+    return search ? text.includes(search) : true;
+  });
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="text-muted small p-2">No se encontraron profesores.</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(p => {
+    const full = [p.nombre_personal, p.apaterno_personal, p.amaterno_personal].filter(Boolean).join(' ');
+    return `<button type="button" class="list-group-item list-group-item-action py-2 selectProfesorBtn" data-id="${p.id_personal}">${escapeHtml(full)}</button>`;
+  }).join('');
+}
+
+// Listener para seleccionar profesor desde la lista (delegación)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.selectProfesorBtn');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  selectedPersonalId = id;
+  // marcar visualmente
+  const cont = document.getElementById('personalListContainer');
+  if (cont) {
+    cont.querySelectorAll('.list-group-item').forEach(it => it.classList.remove('active'));
+  }
+  btn.classList.add('active');
+
+  // setear el campo oculto (id_personal) para submit
+  const idPersonalField = document.getElementById('id_personal');
+  if (idPersonalField) idPersonalField.value = id;
+});
+
+// busqueda en el listado de profesores
+const personalSearchInput = document.getElementById('personalSearch');
+if (personalSearchInput) {
+  personalSearchInput.addEventListener('input', (ev) => {
+    renderProfesoresList(ev.target.value || '');
+  });
+}
+
+// cargarAsignaciones: ahora muestra UNA asignación actual (para el grupo que pases)
+async function cargarAsignaciones(id_materia, isArte, filtroGrupoId = null) {
+  try {
+    const response = await fetchWithRetry(`/materias/${id_materia}/asignaciones`, { credentials: 'include' });
+    const allAssign = Array.isArray(response) ? response : [];
+    asignaciones = allAssign;
+
+    // filtrar por grupo si se pasó
+    const toRender = filtroGrupoId ? asignaciones.filter(a => String(a.id_grado_grupo) === String(filtroGrupoId)) : asignaciones;
+
+    // tomamos la asignación actual (primera) si existe
+    currentAssignment = toRender.length > 0 ? toRender[0] : null;
+
+    const cont = document.getElementById('asignacionesContainer');
+    if (!cont) return;
+
+    if (!currentAssignment) {
+      cont.innerHTML = '<div class="text-muted small">Sin asignación actual para este grupo.</div>';
+      return;
+    }
+
+    // mostrar asignación actual con botón para "Reemplazar / Editar"
+    const nombre = [currentAssignment.nombre_personal, currentAssignment.apaterno_personal, currentAssignment.amaterno_personal].filter(Boolean).join(' ');
+    const nivel = currentAssignment.nombre_nivel_ingles ? ` · ${escapeHtml(currentAssignment.nombre_nivel_ingles)}` : '';
+    const arte = currentAssignment.nombre_arte_especialidad ? ` · ${escapeHtml(currentAssignment.nombre_arte_especialidad)}` : '';
+    const hrs = currentAssignment.horas_materia ? ` · ${escapeHtml(String(currentAssignment.horas_materia))} hrs` : '';
+
+    // Rellenar input de horas si existe asignación actual
+    const horasInput = document.getElementById('horas_materia');
+    if (horasInput && currentAssignment && currentAssignment.horas_materia) {
+      horasInput.value = currentAssignment.horas_materia;
+    } else if (horasInput) {
+      horasInput.value = '';
+    }
+
+
+    cont.innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="small">
+          <strong>${escapeHtml(nombre)}</strong>${hrs}${nivel}${arte}
+
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Error al cargar asignaciones:', error);
+    const cont = document.getElementById('asignacionesContainer');
+    if (cont) cont.innerHTML = '<div class="text-muted small">Error al cargar asignación actual.</div>';
+  }
+}
+
+// evento para "Reemplazar" (prefill seleccionar al profesor actual)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn-edit-asign');
+  if (!btn) return;
+  const idp = btn.dataset.id_personal;
+  // precargar la lista y seleccionar al profesor actual
+  if (allowedProfesores.length) {
+    // si la lista ya existe, marcarlo
+    const node = document.querySelector(`#personalListContainer .list-group-item[data-id="${idp}"]`);
+    if (node) node.click();
+  } else {
+    // si no hay lista cargada aún, cargarla y luego seleccionar
+    cargarProfesoresPermitidos().then(() => {
+      const node = document.querySelector(`#personalListContainer .list-group-item[data-id="${idp}"]`);
+      if (node) node.click();
+    });
+  }
+});
+
+// abrirModalAsignar: ahora bloquea el grupo, prepara lista de profesores permitidos y carga asignación actual
+async function abrirModalAsignar(materia, selectedGroupId = null) {
+  asignarModalTitle.textContent = `Asignar Profesores y Grupos - ${materia.nombre_materia}`;
+  document.getElementById('id_materia_asignar').value = materia.id_materia;
+
+  // reset de estado
+  asignarForm.reset();
+  currentAssignment = null;
+  selectedPersonalId = null;
+  const idPersonalField = document.getElementById('id_personal');
+  if (idPersonalField) idPersonalField.value = '';
+
+  // ocultar/disable controles antiguos
+  // idRolSelect.style.display = 'none'; // si quieres ocultar select de rol
+  idPersonalSelect.innerHTML = '<option value="">Seleccione un profesor</option>';
+  idPersonalSelect.disabled = true;
+
+  // Grupo: poblar select con los grupos permitidos y forzar al grupo seleccionado (bloqueado)
+  // poblarSelectDeGrupos usa todosLosGradosGrupos; la llamamos para cargar las opciones
+  poblarSelectDeGrupos(materia.grado_materia);
+  if (selectedGroupId) {
+    document.getElementById('id_grado_grupo').value = selectedGroupId;
+  }
+  // dejar deshabilitado para que no se pueda cambiar
+  document.getElementById('id_grado_grupo').disabled = true;
+
+  const isArte = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
+  //nivelInglesContainer.style.display = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('ingles') ? 'block' : 'none';
+  // Ya no es requerido porque el contenedor está oculto
+  idNivelInglesSelect.required = false;
+
+  // cargar lista de profesores permitidos y renderizar buscador
+  await cargarProfesoresPermitidos();
+
+  // rellenar asignación actual (para este grupo)
+  await cargarAsignaciones(materia.id_materia, isArte, selectedGroupId);
+
+  asignarModal.show();
+}
+
+// ajustamos submit: si ya hay currentAssignment y se escoge otro profesor, primero eliminamos la asignación actual y luego creamos la nueva
+asignarForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id_materia = document.getElementById('id_materia_asignar').value;
+  const id_personal = document.getElementById('id_personal').value || selectedPersonalId;
+  const id_grado_grupo = document.getElementById('id_grado_grupo').value;
+  const horas_materia = document.getElementById('horas_materia').value;
+  const id_nivel_ingles = idNivelInglesSelect.required ? document.getElementById('id_nivel_ingles').value : null;
+
+  if (!id_personal) {
+    Swal.fire('Error', 'Selecciona primero un profesor de la lista.', 'error');
+    return;
+  }
+
+  const data = { id_personal, id_grado_grupo, horas_materia };
+  if (id_nivel_ingles) data.id_nivel_ingles = id_nivel_ingles;
+
+  try {
+    const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
+    const { csrfToken } = await csrfRes.json();
+
+    // si existe asignación actual y es distinta, eliminarla primero
+    if (currentAssignment && String(currentAssignment.id_personal) !== String(id_personal)) {
+      const deleteBody = {
+        id_personal: currentAssignment.id_personal,
+        id_grado_grupo: currentAssignment.id_grado_grupo,
+        id_nivel_ingles: currentAssignment.id_nivel_ingles || null,
+        id_arte_especialidad: currentAssignment.id_arte_especialidad || null
+      };
+      // intentar eliminar la asignación actual
+      const delRes = await fetch(`/materias/${id_materia}/asignaciones`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken
+        },
+        credentials: 'include',
+        body: JSON.stringify(deleteBody)
+      });
+      const delResult = await delRes.json();
+      if (!delRes.ok || !delResult.success) {
+        throw new Error(delResult.message || 'No se pudo eliminar la asignación previa.');
+      }
+    }
+
+    // crear la nueva asignación (POST)
+    const postRes = await fetch(`/materias/${id_materia}/asignaciones`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'CSRF-Token': csrfToken
+      },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+    const postResult = await postRes.json();
+    if (!postRes.ok || !postResult.success) {
+      throw new Error(postResult.message || 'No se pudo crear la asignación.');
+    }
+
+    // recargar datos del modal y cierre opcional
+    const isArte = todasMaterias.find(m => m.id_materia == id_materia).nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
+    const grupoSeleccionadoId = id_grado_grupo;
+    await cargarAsignaciones(id_materia, isArte, grupoSeleccionadoId);
+    asignarForm.reset();
+    selectedPersonalId = null;
+    if (document.getElementById('id_personal')) document.getElementById('id_personal').value = '';
+    await cargarMaterias(); // recarga global
+    mostrarGrupos();
+    Swal.fire('Éxito', postResult.message, 'success');
+  } catch (error) {
+    console.error('Error al asignar profesor:', error);
+    Swal.fire('Error', error.message || 'Error al asignar profesor.', 'error');
+  }
+});
+
 
   async function abrirModalArteEspecialidad() {
     arteEspecialidadForm.reset();
@@ -361,15 +554,6 @@ function mostrarMaterias(materias) {
     arteEspecialidadModal.show();
   }
 
-  idRolSelect.addEventListener('change', async () => {
-    const id_rol = idRolSelect.value;
-    if (id_rol) {
-      await cargarPersonalPorRol(id_rol, idPersonalSelect);
-    } else {
-      idPersonalSelect.innerHTML = '<option value="">Seleccione un rol primero</option>';
-      idPersonalSelect.disabled = true;
-    }
-  });
 
   idRolArteSelect.addEventListener('change', async () => {
     const id_rol = idRolArteSelect.value;
@@ -423,7 +607,8 @@ function mostrarMaterias(materias) {
 
       if (result.success) {
         materiaModal.hide();
-        await cargarMaterias();
+        await cargarMaterias(); // 1. Recarga los datos en segundo plano
+        mostrarGrupos();      // 2. Dibuja la vista de GRUPOS con los datos actualizados
         Swal.fire('Éxito', result.message, 'success');
       } else {
         Swal.fire('Error', result.message || 'Error al guardar materia.', 'error');
@@ -441,64 +626,6 @@ function mostrarMaterias(materias) {
         cancelButtonText: 'Cancelar'
       }).then(result => {
         if (result.isConfirmed) materiaForm.dispatchEvent(new Event('submit'));
-      });
-    }
-  });
-
-  asignarForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id_materia = document.getElementById('id_materia_asignar').value;
-    const id_personal = document.getElementById('id_personal').value;
-    const id_grado_grupo = document.getElementById('id_grado_grupo').value;
-    const horas_materia = document.getElementById('horas_materia').value;
-    const id_nivel_ingles = idNivelInglesSelect.required ? document.getElementById('id_nivel_ingles').value : null;
-
-    const data = { id_personal, id_grado_grupo, horas_materia };
-    if (id_nivel_ingles) data.id_nivel_ingles = id_nivel_ingles;
-
-    try {
-      const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
-      const { csrfToken } = await csrfRes.json();
-      const response = await fetch(`/materias/${id_materia}/asignaciones`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
-        },
-        credentials: 'include',
-        body: JSON.stringify(data)
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || `Error en la solicitud: ${response.status}`);
-      }
-
-      if (result.success) {
-        const isArte = todasMaterias.find(m => m.id_materia == id_materia).nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-        await cargarAsignaciones(id_materia, isArte);
-        asignarForm.reset();
-        idPersonalSelect.innerHTML = '<option value="">Seleccione un rol primero</option>';
-        idPersonalSelect.disabled = true;
-        idRolSelect.value = '';
-        await cargarMaterias();
-        Swal.fire('Éxito', result.message, 'success');
-      } else {
-        Swal.fire('Error', result.message || 'Error al asignar profesor.', 'error');
-      }
-    } catch (error) {
-      console.error('Error al asignar profesor:', error);
-      Swal.fire({
-        title: 'Error',
-        text: error.message.includes('404') 
-          ? 'El servidor no tiene configurada la funcionalidad de asignación (/materias/:id/asignaciones). Contacte al administrador.'
-          : 'Error al asignar profesor. Asegúrese de que el servidor esté corriendo.',
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonText: 'Reintentar',
-        cancelButtonText: 'Cancelar'
-      }).then(result => {
-        if (result.isConfirmed) asignarForm.dispatchEvent(new Event('submit'));
       });
     }
   });
@@ -541,8 +668,10 @@ function mostrarMaterias(materias) {
 
             if (result.success) {
               const isArte = todasMaterias.find(m => m.id_materia == id_materia).nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-              await cargarAsignaciones(id_materia, isArte);
+              const grupoSeleccionadoId = document.getElementById('id_grado_grupo').value;
+              await cargarAsignaciones(id_materia, isArte, grupoSeleccionadoId);
               await cargarMaterias();
+              mostrarGrupos();
               Swal.fire('Éxito', result.message, 'success');
             } else {
               Swal.fire('Error', result.message || 'Error al eliminar asignación.', 'error');
@@ -594,7 +723,8 @@ function mostrarMaterias(materias) {
 
           if (result.success) {
             materiaModal.hide();
-            await cargarMaterias();
+            await cargarMaterias(); // 1. Recarga datos
+            mostrarGrupos();      // 2. Dibuja la vista de GRUPOS
             Swal.fire('Éxito', result.message, 'success');
           } else {
             Swal.fire('Error', result.message || 'Error al eliminar materia.', 'error');
@@ -698,11 +828,291 @@ function mostrarMaterias(materias) {
   addMateriaBtn.addEventListener('click', () => abrirModalMateria());
   addArteEspecialidadBtn.addEventListener('click', () => abrirModalArteEspecialidad());
 
+// --- Helper: construye un key legible del grupo ---
+function grupoLabel(g) {
+  return `Grado ${g.grado} · Grupo ${g.grupo}`;
+}
+
+// --- Muestra los grupos en formato accordion y sus materias dentro ---
+// llamadas: llamar después de cargar 'gradosGrupos' y 'todasMaterias'
+// 2) Mostrar grupos — ahora SOLO muestra grupos que tengan materias y NO muestra "Sin Grupo"
+async function mostrarGrupos() {
+  const q = (buscadorMaterias?.value || '').trim().toLowerCase();
+
+  // Agrupar gradosGrupos por grado (ej. 1 => [ {id_grado_grupo:.., grupo: 'A', grado:1}, ... ])
+  const gradoMap = {};
+  (gradosGrupos || []).forEach(g => {
+    const gradoNum = Number(g.grado) || 0;
+    if (!gradoMap[gradoNum]) gradoMap[gradoNum] = [];
+    gradoMap[gradoNum].push(g);
+  });
+
+  const gradosOrdenados = Object.keys(gradoMap).map(Number).sort((a,b) => a - b);
+
+  let html = '';
+
+  // Iteramos por grado
+  for (const gradoNum of gradosOrdenados) {
+    const grupos = gradoMap[gradoNum] || [];
+
+    // Para todos los grupos de este grado, pedimos (concurrente) las materias por grupo usando cargarMateriasPorGrupo
+    // cargarMateriasPorGrupo usa grupoCache, así que si ya se consultó no hace fetch otra vez
+    const materiasPorCadaGrupo = await Promise.all(
+      grupos.map(g => cargarMateriasPorGrupo(g.id_grado_grupo).catch(err => {
+        console.error('Error cargando materias del grupo', g.id_grado_grupo, err);
+        return []; // en error devolvemos vacío para no romper la UI
+      }))
+    );
+
+    // Construimos el HTML de los grupos de este grado
+    const gruposHtml = grupos.map((g, idx) => {
+      const key = g.id_grado_grupo;
+      const materias = Array.isArray(materiasPorCadaGrupo[idx]) ? materiasPorCadaGrupo[idx] : [];
+
+      // Aplicar el filtro de búsqueda a las materias de este grupo
+      const materiasFiltradas = materias.filter(m => {
+        const text = `${m.nombre_materia} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase();
+        return q ? text.includes(q) : true;
+      });
+
+      if (!materiasFiltradas.length) return '';
+
+      return `
+        <div class="list-group-item p-2 d-flex justify-content-between align-items-center">
+          <button class="btn btn-transparent text-start w-100 group-modal-trigger"
+                  type="button"
+                  data-bs-toggle="modal"
+                  data-bs-target="#grupoModal"
+                  data-id-grupo="${key}">
+            <span class="fw-semibold">${escapeHtml(String(g.grupo || ''))}</span>
+            <small class="text-muted ms-3">· ${materiasFiltradas.length} ${materiasFiltradas.length === 1 ? 'materia' : 'materias'}</small>
+          </button>
+        </div>
+      `;
+    }).filter(Boolean).join('');
+
+    if (!gruposHtml) continue;
+
+    html += `
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-bold">Grado ${escapeHtml(String(gradoNum))}</div>
+          <div class="text-muted small">${gradoMap[gradoNum].length} grupos</div>
+        </div>
+        <div class="list-group list-group-flush">
+          ${gruposHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  gruposAccordion.innerHTML = html || '<div class="text-muted text-center py-3">No se encontraron grupos con materias en curso.</div>';
+}
+
+
+
+// cache para no recargar varias veces
+const grupoCache = {};
+
+// Fetch y render de materias de un grupo
+async function cargarMateriasPorGrupo(id_grado_grupo) {
+  if (!id_grado_grupo) return [];
+  // ya en cache?
+  if (grupoCache[id_grado_grupo]) return grupoCache[id_grado_grupo];
+
+  try {
+    const res = await fetchWithRetry(`/grupos/${id_grado_grupo}/materias`, { credentials: 'include' });
+    if (!res.success) throw new Error('Error en respuesta del servidor');
+    grupoCache[id_grado_grupo] = res.materias || [];
+    return grupoCache[id_grado_grupo];
+  } catch (err) {
+    console.error('Error cargando materias por grupo:', err);
+    throw err;
+  }
+}
+
+function renderMateriasDelGrupo(gradoGrupoId, materias) {
+  const body = document.querySelector(`.grupo-body[data-id="${gradoGrupoId}"]`);
+  if (!body) return;
+  if (!Array.isArray(materias) || materias.length === 0) {
+    body.innerHTML = '<div class="p-3 text-muted small">No hay materias asignadas a este grupo.</div>';
+    return;
+  }
+
+  const materiasHtml = materias.map(m => {
+    // m.asignaciones es un array de asignaciones sólo para este grupo (viene del endpoint)
+    const asignHtml = (m.asignaciones && m.asignaciones.length > 0)
+      ? m.asignaciones.map(a => `<div>${escapeHtml(a.nombre_personal)} ${a.horas_materia ? `· ${escapeHtml(String(a.horas_materia))} hrs` : ''}${a.nombre_nivel_ingles ? ` · ${escapeHtml(a.nombre_nivel_ingles)}` : ''}${a.nombre_arte_especialidad ? ` · ${escapeHtml(a.nombre_arte_especialidad)}` : ''}</div>`).join('')
+      : `<div class="text-muted small">Sin profesor asignado</div>`;
+
+    return `
+      <div class="list-group-item d-flex justify-content-between align-items-center materia-item" data-id="${m.id_materia}" data-grupo-id="${gradoGrupoId}">
+        <div style="min-width:0;">
+          <div class="fw-bold text-danger" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.nombre_materia)}</div>
+          <div class="small text-muted">${escapeHtml(m.modelo_materia || '')} ${m.nombre_academia ? `· ${escapeHtml(m.nombre_academia)}` : ''}</div>
+          <div class="mt-2">${asignHtml}</div>
+        </div>
+        <div class="ms-3 text-end" style="flex:0 0 auto;">
+          <button class="btn btn-outline-danger btn-sm mt-1 openAsignBtn" data-id="${m.id_materia}" data-grupo-id="${gradoGrupoId}" title="Editar asignaciones">
+            <i class="fas fa-user-edit"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  body.innerHTML = `<div class="list-group list-group-flush">${materiasHtml}</div>`;
+}
+
+// Render dentro del modal (filtrado por búsqueda interna)
+function renderMateriasDelGrupoEnModal(gradoGrupoId, materias, q = '') {
+  if (!grupoModalBody) return;
+  if (!Array.isArray(materias) || materias.length === 0) {
+    grupoModalBody.innerHTML = '<div class="p-3 text-muted small">No hay materias asignadas a este grupo.</div>';
+    return;
+  }
+
+  const filtradas = q ? materias.filter(m => `${m.nombre_materia} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase().includes(q.toLowerCase())) : materias;
+
+  const materiasHtml = filtradas.map(m => {
+    const asignHtml = (m.asignaciones && m.asignaciones.length > 0)
+      ? m.asignaciones.map(a => `<div class="small">${escapeHtml(a.nombre_personal)}${a.horas_materia ? ` · ${escapeHtml(String(a.horas_materia))} hrs` : ''}${a.nombre_nivel_ingles ? ` · ${escapeHtml(a.nombre_nivel_ingles)}` : ''}${a.nombre_arte_especialidad ? ` · ${escapeHtml(a.nombre_arte_especialidad)}` : ''}</div>`).join('')
+      : `<div class="text-muted small">Sin profesor asignado</div>`;
+
+    return `
+      <div class="list-group-item d-flex justify-content-between align-items-start">
+        <div style="min-width:0;">
+          <div class="fw-bold text-danger" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.nombre_materia)}</div>
+          <div class="small text-muted">${escapeHtml(m.modelo_materia || '')} ${m.nombre_academia ? `· ${escapeHtml(m.nombre_academia)}` : ''}</div>
+          <div class="mt-2">${asignHtml}</div>
+        </div>
+        <div class="ms-3 d-flex flex-column align-items-end" style="flex:0 0 auto;">
+          <button class="btn btn-outline-danger btn-sm mb-1 openAsignFromGrupoBtn" data-id="${m.id_materia}" data-grupo-id="${gradoGrupoId}" title="Editar asignaciones de esta materia">
+            <i class="fas fa-user-edit me-1"></i>Editar asignación
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grupoModalBody.innerHTML = `<div class="list-group list-group-flush">${materiasHtml}</div>`;
+}
+
+// abrir modal del grupo y cargar datos (lazy)
+async function abrirModalGrupo(id_grado_grupo) {
+  const grupo = gradosGrupos.find(g => String(g.id_grado_grupo) === String(id_grado_grupo));
+  const label = grupo ? grupoLabel(grupo) : `Grupo ${id_grado_grupo}`;
+  if (grupoModalTitle) grupoModalTitle.textContent = `Materias — ${label}`;
+  if (!grupoModalBody) return;
+
+  grupoModalBody.innerHTML = '<div class="text-center py-3 text-muted">Cargando materias del grupo...</div>';
+  try {
+    const materias = await cargarMateriasPorGrupo(id_grado_grupo);
+    renderMateriasDelGrupoEnModal(id_grado_grupo, materias, grupoModalSearch.value || '');
+    if (grupoModal) grupoModal.show();
+    // guardar en cache si deseas (ya lo hace cargarMateriasPorGrupo)
+  } catch (err) {
+    grupoModalBody.innerHTML = '<div class="text-center py-3 text-danger">Error al cargar materias del grupo.</div>';
+    if (grupoModal) grupoModal.show();
+  }
+}
+
+// búsqueda interna en el modal
+if (grupoModalSearch) {
+  grupoModalSearch.addEventListener('input', () => {
+    // si el modal está abierto, re-render con filtro
+    const bodyFirst = grupoModalBody.querySelector('.list-group') ? true : false;
+    // intenta sacar el grupoId del título (o del primer boton de la lista)
+    const firstBtn = grupoModalBody.querySelector('.openAsignFromGrupoBtn') || grupoModalBody.querySelector('[data-grupo-id]');
+    const gid = firstBtn?.dataset?.grupoId;
+    if (gid) {
+      const materias = grupoCache[gid] || [];
+      renderMateriasDelGrupoEnModal(gid, materias, grupoModalSearch.value || '');
+    }
+  });
+}
+
+if (grupoModalRefresh) {
+  grupoModalRefresh.addEventListener('click', async () => {
+    // refrescar la lista (si hay grupo visible)
+    const firstBtn = grupoModalBody.querySelector('.openAsignFromGrupoBtn') || grupoModalBody.querySelector('[data-grupo-id]');
+    const gid = firstBtn?.dataset?.grupoId;
+    if (gid) {
+      // invalidar cache y recargar
+      delete grupoCache[gid];
+      grupoModalBody.innerHTML = '<div class="text-center py-3 text-muted">Recargando...</div>';
+      try {
+        const materias = await cargarMateriasPorGrupo(gid);
+        renderMateriasDelGrupoEnModal(gid, materias, grupoModalSearch.value || '');
+      } catch (err) {
+        grupoModalBody.innerHTML = '<div class="text-center py-3 text-danger">Error al recargar.</div>';
+      }
+    }
+  });
+}
+
+
+// --- Delegación de eventos: abrir modal de asignación desde el accordion ---
+// --- Delegación de eventos ---
+if (gruposAccordion) {
+  gruposAccordion.addEventListener('click', async (e) => {
+    
+    // 1) Si se hace clic en un grupo, abrir el MODAL de materias.
+    const grupoBtn = e.target.closest('.group-modal-trigger');
+    if (grupoBtn) {
+      const id_grado_grupo = grupoBtn.dataset.idGrupo;
+      if (id_grado_grupo) {
+        await abrirModalGrupo(id_grado_grupo);
+      }
+      return; // Se manejó el clic, no hacer nada más.
+    }
+
+    // El resto de los manejadores de clics (como el de 'openAsignBtn') se mantienen igual
+    // si esos botones siguen existiendo dentro de otras partes de tu UI.
+    // Por ahora, como los botones de editar materia están DENTRO del modal,
+    // este listener principal solo necesita preocuparse de abrir ese modal.
+  });
+}
+
+// También necesitas un listener para los botones DENTRO del modal de grupo
+if (grupoModalBody) {
+    grupoModalBody.addEventListener('click', async (e) => {
+        const editBtn = e.target.closest('.openAsignFromGrupoBtn');
+        if (editBtn) {
+            const materiaId = editBtn.dataset.id;
+            const grupoId = editBtn.dataset.grupoId;
+            try {
+                const data = await fetchWithRetry(`/materias/${materiaId}`, { credentials: 'include' });
+                const materia = data.materia ?? data;
+                
+                // Cerramos el modal de grupo antes de abrir el de asignar
+                if(grupoModal) grupoModal.hide();
+
+                await abrirModalAsignar(materia, grupoId);
+            } catch (err) {
+                console.error('Error cargando materia para asignar:', err);
+                Swal.fire('Error', 'No se pudo cargar la materia. Verifica el servidor.', 'error');
+            }
+        }
+    });
+}
+
+
+// --- Conectar búsquedas para que filtren por grupos/materias ---
+buscadorMaterias.addEventListener('input', async () => {
+  await mostrarGrupos();
+});
+
+
   await Promise.all([
     cargarMaterias(),
     cargarAcademias(),
     cargarRoles(),
-    cargarGradosGrupos(),
+    cargarTODOSGradosGrupos(),
     cargarNivelesIngles()
   ]);
+
+  // ya con datos cargados, renderizamos la vista por grupos
+  await mostrarGrupos();
+
 });

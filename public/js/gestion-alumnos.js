@@ -280,7 +280,7 @@ document.getElementById('btn-imprimir').addEventListener('click', () => {
             PREPARATORIA BALMORAL ESCOCÉS
           </div>
           <div style="font-size: 12px; font-family: Georgia, serif; font-style: italic;">
-            "Inspiro a creer que es posible lo que pareciera imposible"
+            "Construir consciencias y potenciar talentos"
           </div>
         </div>
 

@@ -5,7 +5,23 @@
   const authMiddleware = require('../middleware/auth');
   const bcrypt = require('bcrypt');
   const { permisoMiddleware } = require('../middleware/permisosMiddleware'); 
-  const { bloquearAlumnos } = require('../middleware/bloquearAlumnosMiddleware'); // Middleware para bloquear alumnos
+  const { bloquearAlumnos } = require('../middleware/bloquearAlumnosMiddleware'); // Middleware para bloquear 
+  const permitirRoles = require('../middleware/roles');
+  const multer = require('multer');
+  const streamifier = require('streamifier');
+  const cloudinary = require('cloudinary').v2;
+
+  
+// Configura Cloudinary con variables de entorno
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Guardar en memoria
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
   //PRUEBA RECUPERACIÓN CONTRASEÑA
   const nodemailer = require('nodemailer');
@@ -242,20 +258,19 @@
     res.sendFile(path.join(__dirname, '../../public/html/Gestion-Materias-Permisos.html'));
   });
 
-  router.get('/Historico-Evaluaciones', authMiddleware, bloquearAlumnos, (req, res) => {
-    res.sendFile(path.join(__dirname, '../../public/html/Historico-Evaluaciones.html'));
-  });
-
-
-  router.get('/Mis-Evaluaciones-Dir-General', bloquearAlumnos, authMiddleware, (req, res) => {
+  router.get('/Mis-Evaluaciones-Dir-General', bloquearAlumnos, authMiddleware, (req, res)  => {
     res.sendFile(path.join(__dirname, '../../public/html/Evaluaciones360.html'));
   });
 
-  router.get('/Gestion-Personal-Resultados', authMiddleware, bloquearAlumnos, (req, res) => {
+  router.get('/Historico-Evaluaciones', authMiddleware, bloquearAlumnos, permitirRoles('Director General', 'Fundador'), (req, res) => {
+    res.sendFile(path.join(__dirname, '../../public/html/Historico-Evaluaciones.html'));
+  });
+
+  router.get('/Gestion-Personal-Resultados', authMiddleware, bloquearAlumnos, permitirRoles('Director General', 'Fundador'), (req, res) => {
     res.sendFile(path.join(__dirname, '../../public/html/Gestion-Personal-Resultados.html'));
   });
 
-  router.get('/Gestion-Permisos', authMiddleware, bloquearAlumnos, (req, res) => {
+  router.get('/Gestion-Permisos', authMiddleware, bloquearAlumnos, permitirRoles('Director General', 'Fundador'), (req, res) => {
     res.sendFile(path.join(__dirname, '../../public/html/Gestion-Permisos.html'));
   });
 
@@ -381,7 +396,7 @@
       const [rows] = await db.query(`
         SELECT a.id_alumno, a.id_grado_grupo, gg.grado, gg.grupo
         FROM Alumno a
-        LEFT JOIN Grado_grupo gg ON gg.id_grado_grupo = a.id_grado_grupo
+        LEFT JOIN Grado_Grupo gg ON gg.id_grado_grupo = a.id_grado_grupo
         WHERE a.id_alumno = ?
       `, [id_alumno]);
 
@@ -421,15 +436,16 @@
           a.id_arte_especialidad,
           a.nombre_arte_especialidad,
           CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS nombre_personal,
-          -- intentar obtener materia asociada al personal en ese grado (si existe)
-          gm.id_materia
+          MAX(gm.id_materia) AS id_materia
         FROM Personal_Arte_Especialidad pa
         JOIN Arte_Especialidad a ON a.id_arte_especialidad = pa.id_arte_especialidad
         LEFT JOIN Personal p ON p.id_personal = pa.id_personal
-        LEFT JOIN Grupo_Materia gm ON gm.id_personal = pa.id_personal AND gm.id_grado_grupo = pa.id_grado_grupo
-        WHERE pa.id_grado_grupo = ?
-        GROUP BY a.id_arte_especialidad, pa.id_personal
-        ORDER BY a.nombre_arte_especialidad
+        LEFT JOIN Grupo_Materia gm 
+          ON gm.id_personal = pa.id_personal 
+          AND gm.id_grado_grupo = pa.id_grado_grupo
+        WHERE pa.id_grado_grupo = '15'
+        GROUP BY a.id_arte_especialidad, pa.id_personal, a.nombre_arte_especialidad, p.nombre_personal, p.apaterno_personal
+        ORDER BY a.nombre_arte_especialidad;
       `, [id_grado_grupo]);
 
       res.json({ success: true, artes });
@@ -495,7 +511,7 @@
 
       // Insertar nuevos talleres con asignación rotativa de profesores
       for (const id_taller of insertarIds) {
-        const [profesores] = await connection.query(`SELECT id_personal FROM Personal_taller WHERE id_taller = ?`, [id_taller]);
+        const [profesores] = await connection.query(`SELECT id_personal FROM Personal_Taller WHERE id_taller = ?`, [id_taller]);
 
         let id_personal = null;
         if (profesores.length > 0) {
@@ -503,7 +519,7 @@
           // Aquí simplemente asignamos el profesor con menos alumnos
           const [conteos] = await connection.query(`
             SELECT p.id_personal, COUNT(at.id_alumno) AS total
-            FROM Personal_taller p
+            FROM Personal_Taller p
             LEFT JOIN Alumno_Taller at 
               ON p.id_personal = at.id_personal AND at.id_taller = ?
             WHERE p.id_taller = ?
@@ -567,7 +583,7 @@
 
       // También puedes opcionalmente desasignar a los alumnos y profesores
       await db.query('DELETE FROM Alumno_Taller WHERE id_taller = ?', [id_taller]);
-      await db.query('DELETE FROM Personal_taller WHERE id_taller = ?', [id_taller]);
+      await db.query('DELETE FROM Personal_Taller WHERE id_taller = ?', [id_taller]);
 
       res.json({
         success: true,
@@ -826,7 +842,7 @@
 
       const [grupos] = await db.query(`
         SELECT DISTINCT gg.id_grado_grupo, gg.grado, gg.grupo 
-        FROM Grado_grupo gg 
+        FROM Grado_Grupo gg 
         JOIN Grupo_Materia gm ON gg.id_grado_grupo = gm.id_grado_grupo 
         WHERE gm.id_personal IS NOT NULL 
         AND gg.grado IN (?)
@@ -861,7 +877,7 @@
           MAX(ni.nombre_nivel_ingles) AS nombre_nivel_ingles,
           MAX(ae.nombre_arte_especialidad) AS nombre_arte_especialidad
         FROM Alumno a
-        JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
         LEFT JOIN Usuario u ON a.id_usuario = u.id_usuario
         LEFT JOIN Personal p ON a.id_personal = p.id_personal
         LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
@@ -924,7 +940,7 @@
     const { id_alumno, id_taller } = req.body;
     try {
       await db.query(`
-        INSERT INTO Personal_taller (id_personal, id_taller)
+        INSERT INTO Personal_Taller (id_personal, id_taller)
         SELECT a.id_personal, ? FROM Alumno a WHERE a.id_alumno = ?
         ON DUPLICATE KEY UPDATE id_taller = VALUES(id_taller)
       `, [id_taller, id_alumno]);
@@ -955,7 +971,7 @@
           MAX(p.apaterno_personal) AS apaterno_counselor,
           GROUP_CONCAT(t.nombre_taller SEPARATOR ', ') AS talleres
         FROM Alumno a
-        JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
         LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
         LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
         LEFT JOIN Personal p ON a.id_personal = p.id_personal
@@ -1034,7 +1050,7 @@
 
           // Obtener profesores del taller
           const [profesores] = await connection.query(`
-            SELECT id_personal FROM Personal_taller
+            SELECT id_personal FROM Personal_Taller
             WHERE id_taller = ?
           `, [taller.id_taller]);
 
@@ -1125,7 +1141,7 @@
     const grado = req.params.grado;
     try {
       const [grupos] = await db.query(
-        'SELECT id_grado_grupo, grado, grupo FROM Grado_grupo WHERE grado = ? ORDER BY grupo',
+        'SELECT id_grado_grupo, grado, grupo FROM Grado_Grupo WHERE grado = ? ORDER BY grupo',
         [grado]
       );
       res.json({ success: true, grupos });
@@ -1235,7 +1251,7 @@
           GROUP_CONCAT(DISTINCT ae.nombre_arte_especialidad SEPARATOR ', ') AS nombre_arte_especialidad
         FROM Alumno a
         LEFT JOIN Personal p ON a.id_personal = p.id_personal
-        LEFT JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        LEFT JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
         LEFT JOIN Usuario u ON a.id_usuario = u.id_usuario
         LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
         LEFT JOIN Taller t ON at.id_taller = t.id_taller
@@ -1297,7 +1313,7 @@
       for (const id_taller of talleres) {
         // Obtener profesores del taller
         const [profesores] = await connection.query(`
-          SELECT id_personal FROM Personal_taller WHERE id_taller = ?
+          SELECT id_personal FROM Personal_Taller WHERE id_taller = ?
         `, [id_taller]);
 
         let id_personal_asignado = null;
@@ -1370,7 +1386,7 @@
     try {
       // 1) obtener el campo 'grado' del grupo
       const [ggRows] = await db.query(
-        `SELECT grado FROM Grado_grupo WHERE id_grado_grupo = ? LIMIT 1`, 
+        `SELECT grado FROM Grado_Grupo WHERE id_grado_grupo = ? LIMIT 1`, 
         [id_grado_grupo]
       );
       if (!ggRows.length) {
@@ -1550,7 +1566,7 @@
       const sql = `
         SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, a.id_grado_grupo
         FROM Alumno a
-        JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
         WHERE a.estado_alumno = 1
         ORDER BY a.apaterno_alumno, a.nombre_alumno
       `;
@@ -1566,7 +1582,7 @@
   // Obtener todos los grados disponibles
   router.get('/grados', async (req, res) => {
     try {
-      const [rows] = await db.query('SELECT DISTINCT grado FROM Grado_grupo ORDER BY grado');
+      const [rows] = await db.query('SELECT DISTINCT grado FROM Grado_Grupo ORDER BY grado');
       const grados = rows.map(r => r.grado);
       res.json(grados);
     } catch (error) {
@@ -1579,7 +1595,7 @@
   router.get('/grupos-por-grado/:grado', async (req, res) => {
     try {
       const { grado } = req.params;
-      const [rows] = await db.query('SELECT id_grado_grupo, grupo FROM Grado_grupo WHERE grado = ?', [grado]);
+      const [rows] = await db.query('SELECT id_grado_grupo, grupo FROM Grado_Grupo WHERE grado = ?', [grado]);
       res.json(rows);
     } catch (error) {
       console.error(error);
@@ -1594,7 +1610,7 @@
       const sql = `
       SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, a.id_grado_grupo
       FROM Alumno a
-      JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+      JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
       WHERE g.grado = ? AND a.estado_alumno = 1
     `;
       const [rows] = await db.query(sql, [grado]);
@@ -1653,13 +1669,13 @@
       const [alumnos] = await db.query(`
         SELECT a.id_alumno, g.id_grado_grupo, CAST(g.grado AS UNSIGNED) AS grado, UPPER(g.grupo) AS grupo
         FROM Alumno a
-        JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
       `);
 
       // Obtener todos los grupos posibles
       const [todosGrupos] = await db.query(`
         SELECT id_grado_grupo, CAST(grado AS UNSIGNED) AS grado, UPPER(grupo) AS grupo
-        FROM Grado_grupo
+        FROM Grado_Grupo
       `);
 
       // Crear mapa de grupo destino por clave "grado_grupo"
@@ -2275,7 +2291,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/getPares', authMiddleware, async (req, res) => { 
     const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
 
-    const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pp.estado_evaluacion_par, pp.id_evaluador, pu.nombre_puesto FROM Personal p, Personal_par pp, Puesto pu WHERE p.id_personal=pp.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>pp.id_evaluador AND pp.id_evaluador=?"; // OBTENER PARES A EVALUAR
+    const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pp.estado_evaluacion_par, pp.id_evaluador, pu.nombre_puesto FROM Personal p, Personal_Par pp, Puesto pu WHERE p.id_personal=pp.id_personal AND p.id_puesto=pu.id_puesto AND p.id_personal<>pp.id_evaluador AND pp.id_evaluador=?"; // OBTENER PARES A EVALUAR
     try {
       const [pares] = await db.query(query,id_personal);
       const cantidadPares = pares.length;
@@ -2558,6 +2574,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               p.fecha_nacimiento_personal, 
               p.telefono_personal, 
               p.estado_personal,
+              p.img_personal AS foto_url, 
               pu.id_puesto, 
               pu.nombre_puesto, 
               GROUP_CONCAT(r.nombre_rol) AS roles,
@@ -2591,6 +2608,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               p.fecha_nacimiento_personal, 
               p.telefono_personal, 
               p.estado_personal,
+              p.img_personal AS foto_url, 
               pu.id_puesto, 
               pu.nombre_puesto, 
               GROUP_CONCAT(r.nombre_rol) AS roles,
@@ -3137,7 +3155,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       // 2) Obtener todos los instructores para esos talleres activos
       const [instrRows] = await db.query(`
         SELECT pt.id_taller, p.id_personal, CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS nombre_personal
-        FROM Personal_taller pt
+        FROM Personal_Taller pt
         JOIN Personal p ON p.id_personal = pt.id_personal
         WHERE pt.id_taller IN (?)
       `, [tallerIds]);
@@ -3178,7 +3196,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
           CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, 
           COUNT(at.id_alumno) AS num_alumnos
         FROM Taller t
-        LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+        LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller
         LEFT JOIN Personal p ON pt.id_personal = p.id_personal
         LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
         WHERE t.id_taller = ?
@@ -3225,7 +3243,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               g.grado, g.grupo
         FROM Alumno_Taller at
         JOIN Alumno a ON at.id_alumno = a.id_alumno
-        JOIN Grado_grupo g ON a.id_grado_grupo = g.id_grado_grupo
+        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
         WHERE at.id_taller = ? AND a.estado_alumno = 1
       `;
       const params = [id_taller];
@@ -3298,7 +3316,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               }
 
               await db.query(
-                  'INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)',
+                  'INSERT INTO Personal_Taller (id_personal, id_taller) VALUES (?, ?)',
                   [id_personal, id_taller]
               );
           }
@@ -3310,7 +3328,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               `SELECT t.id_taller, t.nombre_taller, p.id_personal, 
                       CONCAT(p.nombre_personal, " ", COALESCE(p.apaterno_personal, "")) AS profesor
               FROM Taller t
-              LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+              LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller
               LEFT JOIN Personal p ON pt.id_personal = p.id_personal
               WHERE t.id_taller = ?`,
               [id_taller]
@@ -3343,7 +3361,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
 
       // Verificar que ya no esté asignado
       const [exists] = await db.query(
-        'SELECT * FROM Personal_taller WHERE id_personal = ? AND id_taller = ?',
+        'SELECT * FROM Personal_Taller WHERE id_personal = ? AND id_taller = ?',
         [id_personal, id_taller]
       );
       if (exists.length > 0) {
@@ -3352,7 +3370,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
 
       // Insertar en la tabla intermedia
       await db.query(
-        'INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)',
+        'INSERT INTO Personal_Taller (id_personal, id_taller) VALUES (?, ?)',
         [id_personal, id_taller]
       );
 
@@ -3379,18 +3397,18 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       await db.query('UPDATE Taller SET nombre_taller = ? WHERE id_taller = ?', [nombre_taller, id_taller]);
       
       // Actualizar o insertar la relación con el personal
-      const [existingPersonal] = await db.query('SELECT id_personal FROM Personal_taller WHERE id_taller = ?', [id_taller]);
+      const [existingPersonal] = await db.query('SELECT id_personal FROM Personal_Taller WHERE id_taller = ?', [id_taller]);
       if (existingPersonal.length > 0) {
-        await db.query('UPDATE Personal_taller SET id_personal = ? WHERE id_taller = ?', [id_personal, id_taller]);
+        await db.query('UPDATE Personal_Taller SET id_personal = ? WHERE id_taller = ?', [id_personal, id_taller]);
       } else {
-        await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [id_personal, id_taller]);
+        await db.query('INSERT INTO Personal_Taller (id_personal, id_taller) VALUES (?, ?)', [id_personal, id_taller]);
       }
 
       // Devolver el taller actualizado
       const [updatedTaller] = await db.query(
         'SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, COUNT(at.id_alumno) AS num_alumnos ' +
         'FROM Taller t ' +
-        'LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller ' +
+        'LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller ' +
         'LEFT JOIN Personal p ON pt.id_personal = p.id_personal ' +
         'LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller ' +
         'WHERE t.id_taller = ? ' +
@@ -3416,17 +3434,17 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       const [tallerRows] = await db.query('SELECT id_taller FROM Taller WHERE id_taller = ?', [id_taller]);
       if (tallerRows.length === 0) return res.status(404).json({ success: false, message: 'Taller no encontrado' });
 
-      // 2) actualizar o insertar en Personal_taller
-      const [exists] = await db.query('SELECT id_personal FROM Personal_taller WHERE id_taller = ? AND id_personal = ?', [id_taller, new_id_personal]);
+      // 2) actualizar o insertar en Personal_Taller
+      const [exists] = await db.query('SELECT id_personal FROM Personal_Taller WHERE id_taller = ? AND id_personal = ?', [id_taller, new_id_personal]);
       if (exists.length === 0) {
         // si old_id_personal existe, podemos actualizar ese registro; sino insertamos nuevo
         if (old_id_personal) {
-          const [updated] = await db.query('UPDATE Personal_taller SET id_personal = ? WHERE id_taller = ? AND id_personal = ?', [new_id_personal, id_taller, old_id_personal]);
+          const [updated] = await db.query('UPDATE Personal_Taller SET id_personal = ? WHERE id_taller = ? AND id_personal = ?', [new_id_personal, id_taller, old_id_personal]);
           if (updated.affectedRows === 0) {
-            await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
+            await db.query('INSERT INTO Personal_Taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
           }
         } else {
-          await db.query('INSERT INTO Personal_taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
+          await db.query('INSERT INTO Personal_Taller (id_personal, id_taller) VALUES (?, ?)', [new_id_personal, id_taller]);
         }
       }
 
@@ -3440,7 +3458,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
         `SELECT t.id_taller, t.nombre_taller, p.id_personal, CONCAT(p.nombre_personal, ' ', p.apaterno_personal) AS profesor,
                 COUNT(at.id_alumno) AS num_alumnos
         FROM Taller t
-        LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+        LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller
         LEFT JOIN Personal p ON pt.id_personal = p.id_personal
         LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
         WHERE t.id_taller = ?
@@ -3459,7 +3477,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.delete('/talleres-personal-alumnos/:id_taller', authMiddleware, async (req, res) => {
     const { id_taller } = req.params;
     try {
-      await db.query('DELETE FROM Personal_taller WHERE id_taller = ?', [id_taller]);
+      await db.query('DELETE FROM Personal_Taller WHERE id_taller = ?', [id_taller]);
       await db.query('DELETE FROM Taller WHERE id_taller = ?', [id_taller]);
       res.json({ success: true });
     } catch (error) {
@@ -3480,7 +3498,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
             CONCAT(p.nombre_personal, " ", p.apaterno_personal) AS profesor, 
             COUNT(at.id_alumno) AS num_alumnos
         FROM Taller t
-        LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+        LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller
         LEFT JOIN Personal p ON pt.id_personal = p.id_personal
         LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
         WHERE t.estado_taller = 1
@@ -3513,7 +3531,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
                 p.apaterno_personal,
                 COUNT(DISTINCT at.id_alumno) AS num_alumnos
             FROM Taller t
-            LEFT JOIN Personal_taller pt ON t.id_taller = pt.id_taller
+            LEFT JOIN Personal_Taller pt ON t.id_taller = pt.id_taller
             LEFT JOIN Personal p ON pt.id_personal = p.id_personal
             LEFT JOIN Alumno_Taller at ON t.id_taller = at.id_taller
             WHERE t.nombre_taller LIKE ? 
@@ -3579,7 +3597,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               FROM Materia m
               LEFT JOIN Academia a ON m.id_academia = a.id_academia
               LEFT JOIN Grupo_Materia gm ON m.id_materia = gm.id_materia
-              LEFT JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+              LEFT JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
               LEFT JOIN Personal p ON gm.id_personal = p.id_personal
           `);
           const grouped = {};
@@ -3610,7 +3628,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
               FROM Materia m
               LEFT JOIN Academia a ON m.id_academia = a.id_academia
               LEFT JOIN Grupo_Materia gm ON m.id_materia = gm.id_materia
-              LEFT JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+              LEFT JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
               LEFT JOIN Personal p ON gm.id_personal = p.id_personal
               WHERE m.id_materia = ?
           `, [req.params.id_materia]);
@@ -3719,7 +3737,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTENER TODOS LOS GRADOS Y GRUPOS
   router.get('/grado-grupo', authMiddleware, async (req, res) => {
       try {
-          const [grado_grupos] = await db.query('SELECT * FROM Grado_grupo');
+          const [grado_grupos] = await db.query('SELECT * FROM Grado_Grupo');
           res.json({ success: true, grado_grupos });
       } catch (error) {
           res.status(500).json({ success: false, message: error.message });
@@ -3873,7 +3891,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
           const [asignaciones] = await db.query(`
               SELECT gm.id_grado_grupo, gg.grado, gg.grupo, p.nombre_personal AS profesor, p.apaterno_personal, gm.horas_materia, gm.id_personal
               FROM Grupo_Materia gm
-              LEFT JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+              LEFT JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
               LEFT JOIN Personal p ON gm.id_personal = p.id_personal
               WHERE gm.id_materia = ?
           `, [req.params.id_materia]);
@@ -4104,31 +4122,31 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
           FROM Comentario_Docente cd 
           JOIN Alumno a ON cd.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
           // Comentario_Docente_Ingles
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
           FROM Comentario_Docente_Ingles cdi 
           JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
           // Comentario_Docente_Arte
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
           FROM Comentario_Docente_Arte cda 
           JOIN Alumno a ON cda.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
           // Comentario_Taller
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
           FROM Comentario_Taller ct 
           JOIN Alumno a ON ct.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
           // Comentario_Counselor
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
           FROM Comentario_Counselor cc 
           JOIN Alumno a ON cc.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
           // Comentario_Personal (staff comments)
           `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
@@ -4160,24 +4178,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       }
   });
 
-  // Obtener todos los roles disponibles
-  router.get('/roles-permisos', authMiddleware, async (req, res) => {
-      try {
-          const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
-          if (!roles || roles.length === 0) {
-              return res.json({ success: true, roles: [] });
-          }
-          res.json({ success: true, roles });
-      } catch (error) {
-          console.error('Error al obtener roles:', {
-              message: error.message,
-              stack: error.stack,
-              code: error.code,
-              sqlMessage: error.sqlMessage || 'N/A'
-          });
-          res.status(500).json({ success: false, message: 'Error en la consulta de roles.' });
-      }
-  });
+  //GESTION DE PERMISOS
 
   // Obtener permisos de un usuario específico
   router.get('/permissions-permisos/:id_usuario', authMiddleware, async (req, res) => {
@@ -4220,23 +4221,76 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       }
   });
 
-  // Obtener personal asociado a un rol específico
-  router.get('/personal-by-role-permisos/:roleId', async (req, res) => {
-      const { roleId } = req.params;
-      try {
-          const [personal] = await db.query(
-              `SELECT DISTINCT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.id_usuario
-              FROM Personal p
-              JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-              WHERE pr.id_rol = ?`,
-              [roleId]
-          );
-          res.json({ success: true, personal });
-      } catch (error) {
-          console.error('Error fetching personal by role:', error);
-          res.status(500).json({ success: false, message: 'Error en la consulta.' });
-      }
-  });
+// GET /personal-search?q=texto
+router.get('/personal-search', authMiddleware, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ personal: [] });
+
+  try {
+    const like = `%${q}%`;
+    const [rows] = await db.query(
+      `SELECT 
+         p.id_personal,
+         p.id_usuario,
+         p.nombre_personal,
+         p.apaterno_personal,
+         p.amaterno_personal,
+         u.correo_usuario AS mail,
+         NULL AS matricula
+       FROM Personal p
+       LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+       WHERE (CONCAT(p.nombre_personal, ' ', p.apaterno_personal, ' ', IFNULL(p.amaterno_personal,'')) LIKE ?)
+         OR (u.correo_usuario LIKE ?)
+       AND p.estado_personal = 1
+       LIMIT 12`,
+      [like, like]
+    );
+
+    // Normalizar: si prefieres devolver id_usuario como 'id_usuario' (ya lo hay)
+    res.json({ personal: rows });
+  } catch (error) {
+    console.error('Error in personal-search:', error);
+    res.status(500).json({ personal: [] });
+  }
+});
+
+// GET /personal-by-id/:id  (id can be id_usuario or id_personal — we assume id_usuario here)
+router.get('/personal-by-id/:id', authMiddleware, async (req, res) => {
+  const id = req.params.id;
+  try {
+    // Intentamos buscar por id_usuario primero; si no, por id_personal.
+    const [rowsByUsuario] = await db.query(
+      `SELECT p.id_personal, p.id_usuario, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, u.correo_usuario AS mail
+       FROM Personal p
+       LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+       WHERE p.id_usuario = ? LIMIT 1`, [id]
+    );
+
+    if (rowsByUsuario.length > 0) {
+      return res.json({ personal: rowsByUsuario[0] });
+    }
+
+    // Si no encontramos por id_usuario, intentamos por id_personal
+    const [rowsByPersonal] = await db.query(
+      `SELECT p.id_personal, p.id_usuario, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, u.correo_usuario AS mail
+       FROM Personal p
+       LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario
+       WHERE p.id_personal = ? LIMIT 1`, [id]
+    );
+
+    if (rowsByPersonal.length > 0) {
+      return res.json({ personal: rowsByPersonal[0] });
+    }
+
+    return res.status(404).json({ error: 'No encontrado' });
+  } catch (error) {
+    console.error('Error in personal-by-id:', error);
+    res.status(500).json({ error: 'Error servidor' });
+  }
+});
+
+
+//FIN GESTION DE PERMISOS
 
   // Fetch all roles
   router.get('/personal-roles', authMiddleware, async (req, res) => {
@@ -4825,49 +4879,59 @@ router.delete('/puesto-kpi', async (req, res) => {
   router.get('/materias', authMiddleware, async (req, res) => {
     try {
       const [materias] = await db.query(`
-        SELECT m.id_materia, m.nombre_materia, m.modelo_materia, m.grado_materia, a.nombre_academia,
-          CASE 
-            WHEN LOWER(m.nombre_materia) LIKE '%arte%' THEN
-              (SELECT GROUP_CONCAT(
-                DISTINCT CONCAT(
-                  p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' (', ae.nombre_arte_especialidad, ') - ',
-                  (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
-                  FROM Personal_Arte_Especialidad pae2
-                  JOIN Grado_grupo gg2 ON pae2.id_grado_grupo = gg2.id_grado_grupo
-                  WHERE pae2.id_personal = pae.id_personal 
+      SELECT m.id_materia, m.nombre_materia, m.modelo_materia, m.grado_materia, a.nombre_academia,
+        CASE 
+          WHEN LOWER(m.nombre_materia) LIKE '%arte%' THEN
+            (SELECT GROUP_CONCAT(
+              DISTINCT CONCAT(
+                p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' (', ae.nombre_arte_especialidad, ') - ',
+                (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
+                FROM Personal_Arte_Especialidad pae2
+                JOIN Grado_Grupo gg2 ON pae2.id_grado_grupo = gg2.id_grado_grupo
+                WHERE pae2.id_personal = pae.id_personal 
                   AND pae2.id_arte_especialidad = pae.id_arte_especialidad
                   AND gg2.grado = m.grado_materia)
-                ) SEPARATOR '; '
-              )
-              FROM Personal_Arte_Especialidad pae
-              JOIN Personal p ON pae.id_personal = p.id_personal
-              JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
-              JOIN Grado_grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
-              WHERE gg.grado = m.grado_materia)
-            ELSE
-              (SELECT GROUP_CONCAT(
-                DISTINCT CONCAT(
-                  p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' - ',
-                  (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
-                  FROM Grupo_Materia gm2
-                  JOIN Grado_grupo gg2 ON gm2.id_grado_grupo = gg2.id_grado_grupo
-                  WHERE gm2.id_personal = gm.id_personal 
+              ) SEPARATOR '; '
+            )
+            FROM Personal_Arte_Especialidad pae
+            JOIN Personal p ON pae.id_personal = p.id_personal
+            JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
+            JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
+            WHERE gg.grado = m.grado_materia)
+          ELSE
+            (SELECT GROUP_CONCAT(
+              DISTINCT CONCAT(
+                p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' - ',
+                (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
+                FROM Grupo_Materia gm2
+                JOIN Grado_Grupo gg2 ON gm2.id_grado_grupo = gg2.id_grado_grupo
+                WHERE gm2.id_personal = gm.id_personal 
                   AND gm2.id_materia = m.id_materia),
-                  ' (', gm.horas_materia, ' horas)',
-                  IFNULL(CONCAT(' - ', ni.nombre_nivel_ingles), '')
-                ) SEPARATOR '; '
-              )
-              FROM Grupo_Materia gm
-              JOIN Personal p ON gm.id_personal = p.id_personal
-              JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
-              LEFT JOIN Personal_Nivel_Ingles pni ON gm.id_personal = pni.id_personal AND gm.id_grado_grupo = pni.id_grado_grupo
-              LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
-              WHERE gm.id_materia = m.id_materia)
-          END AS profesores_grupos
-        FROM Materia m
-        LEFT JOIN Academia a ON m.id_academia = a.id_academia
-        GROUP BY m.id_materia
-      `);
+                ' (', gm.horas_materia, ' horas)',
+                IFNULL(CONCAT(' - ', ni.nombre_nivel_ingles), '')
+              ) SEPARATOR '; '
+            )
+            FROM Grupo_Materia gm
+            JOIN Personal p ON gm.id_personal = p.id_personal
+            JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+            LEFT JOIN Personal_Nivel_Ingles pni ON gm.id_personal = pni.id_personal AND gm.id_grado_grupo = pni.id_grado_grupo
+            LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
+            WHERE gm.id_materia = m.id_materia)
+        END AS profesores_grupos,
+        -- Nuevo: lista de ids de grupos donde está la materia (vacío si no hay)
+        CASE
+          WHEN LOWER(m.nombre_materia) LIKE '%arte%' THEN
+            (SELECT GROUP_CONCAT(DISTINCT pae.id_grado_grupo SEPARATOR ',') 
+            FROM Personal_Arte_Especialidad pae
+            JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
+            WHERE gg.grado = m.grado_materia)
+          ELSE
+            (SELECT GROUP_CONCAT(DISTINCT gm.id_grado_grupo SEPARATOR ',') FROM Grupo_Materia gm WHERE gm.id_materia = m.id_materia)
+        END AS grupos_ids
+      FROM Materia m
+      LEFT JOIN Academia a ON m.id_academia = a.id_academia
+      GROUP BY m.id_materia
+    `);
       res.json({ success: true, materias });
     } catch (error) {
       console.error('Error al obtener materias:', error);
@@ -4911,7 +4975,7 @@ router.delete('/puesto-kpi', async (req, res) => {
             gg.grado, gg.grupo, ae.id_arte_especialidad, ae.nombre_arte_especialidad
           FROM Personal_Arte_Especialidad pae
           JOIN Personal p ON pae.id_personal = p.id_personal
-          JOIN Grado_grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
+          JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
           JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
           WHERE gg.grado = ?
         `, [materia[0].grado_materia]);
@@ -4923,7 +4987,7 @@ router.delete('/puesto-kpi', async (req, res) => {
             pni.id_nivel_ingles, ni.nombre_nivel_ingles
           FROM Grupo_Materia gm
           JOIN Personal p ON gm.id_personal = p.id_personal
-          JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+          JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
           LEFT JOIN Personal_Nivel_Ingles pni ON gm.id_personal = pni.id_personal AND gm.id_grado_grupo = pni.id_grado_grupo
           LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
           WHERE gm.id_materia = ?
@@ -4978,7 +5042,7 @@ router.delete('/puesto-kpi', async (req, res) => {
   // Obtener todos los grados y grupos
   router.get('/grados-grupos', authMiddleware, async (req, res) => {
     try {
-      const [gradosGrupos] = await db.query('SELECT id_grado_grupo, grado, grupo FROM Grado_grupo');
+      const [gradosGrupos] = await db.query('SELECT id_grado_grupo, grado, grupo FROM Grado_Grupo');
       res.json(gradosGrupos);
     } catch (error) {
       console.error('Error al obtener grados y grupos:', error);
@@ -5151,7 +5215,7 @@ router.delete('/puesto-kpi', async (req, res) => {
       }
 
       // Validar grado_grupo
-      const [gradoGrupo] = await db.query('SELECT id_grado_grupo, grado FROM Grado_grupo WHERE id_grado_grupo = ?', [id_grado_grupo]);
+      const [gradoGrupo] = await db.query('SELECT id_grado_grupo, grado FROM Grado_Grupo WHERE id_grado_grupo = ?', [id_grado_grupo]);
       if (!gradoGrupo.length) {
         await connection.rollback();
         return res.status(400).json({ success: false, message: 'El grupo seleccionado no existe' });
@@ -5341,7 +5405,7 @@ router.delete('/puesto-kpi', async (req, res) => {
       // Obtener todos los grupos para los grados de las materias de arte
       const [gradosGrupos] = await connection.query(`
         SELECT id_grado_grupo, grado, grupo
-        FROM Grado_grupo
+        FROM Grado_Grupo
         WHERE grado IN (SELECT DISTINCT grado_materia FROM Materia WHERE LOWER(nombre_materia) LIKE '%arte%')
       `);
       console.log('Grados y grupos disponibles:', gradosGrupos);
@@ -5499,14 +5563,14 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
       WHERE gm.id_personal = ?
       ORDER BY m.grado_materia, m.nombre_materia
     `, [id_personal]);
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
-      FROM Personal_taller pt
+      FROM Personal_Taller pt
       JOIN Taller t ON pt.id_taller = t.id_taller
       WHERE pt.id_personal = ?
       ORDER BY t.nombre_taller
@@ -5618,7 +5682,7 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
 
     // Check for talleres
     const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
+      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
     `, [id_personal]);
     if (talleresCount[0].count > 0) {
       console.log(`Talleres encontrados para id_personal: ${id_personal}`);
@@ -5703,35 +5767,6 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
     console.error('Error al obtener tipos de evaluaciones:', error);
     res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
   }
-});
-
-// Obtener personal asociado a un rol específico
-router.get('/personal-by-role-permisos/:roleId', async (req, res) => {
-    const { roleId } = req.params;
-    try {
-        const [personal] = await db.query(
-            `SELECT DISTINCT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.id_usuario
-             FROM Personal p
-             JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-             WHERE pr.id_rol = ?`,
-            [roleId]
-        );
-        res.json({ success: true, personal });
-    } catch (error) {
-        console.error('Error fetching personal by role:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta.' });
-    }
-});
-
-// Fetch all roles
-router.get('/personal-roles', authMiddleware, async (req, res) => {
-    try {
-        const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
-        res.json({ success: true, roles });
-    } catch (error) {
-        console.error('Error fetching roles:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta de roles.' });
-    }
 });
 
 // Fetch all categories with their roles
@@ -5837,7 +5872,7 @@ const responseTables = {
   'ingles': { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
   'artes': { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
   'servicios': { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
+  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
   'counselors': { table: 'Respuesta_Alumno_Counselor', single: true },
   'psicopedagogico': { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
   'coordinadores': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
@@ -6865,14 +6900,14 @@ router.get('/personal-resultados/:id_personal', async (req, res) => {
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
       WHERE gm.id_personal = ?
       ORDER BY m.grado_materia, m.nombre_materia
     `, [id_personal]);
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
-      FROM Personal_taller pt
+      FROM Personal_Taller pt
       JOIN Taller t ON pt.id_taller = t.id_taller
       WHERE pt.id_personal = ?
       ORDER BY t.nombre_taller
@@ -6984,7 +7019,7 @@ router.get('/personal-evaluaciones-types/:id_personal', async (req, res) => {
 
     // Check for talleres
     const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
+      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
     `, [id_personal]);
     if (talleresCount[0].count > 0) {
       console.log(`Talleres encontrados para id_personal: ${id_personal}`);
@@ -7069,35 +7104,6 @@ router.get('/personal-evaluaciones-types/:id_personal', async (req, res) => {
     console.error('Error al obtener tipos de evaluaciones:', error);
     res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
   }
-});
-
-// Obtener personal asociado a un rol específico
-router.get('/personal-by-role-permisos/:roleId', async (req, res) => {
-    const { roleId } = req.params;
-    try {
-        const [personal] = await db.query(
-            `SELECT DISTINCT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.id_usuario
-             FROM Personal p
-             JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-             WHERE pr.id_rol = ?`,
-            [roleId]
-        );
-        res.json({ success: true, personal });
-    } catch (error) {
-        console.error('Error fetching personal by role:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta.' });
-    }
-});
-
-// Fetch all roles
-router.get('/personal-roles', async (req, res) => {
-    try {
-        const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
-        res.json({ success: true, roles });
-    } catch (error) {
-        console.error('Error fetching roles:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta de roles.' });
-    }
 });
 
 // Fetch all categories with their roles
@@ -7202,7 +7208,7 @@ router.get('/personal-kpi-results/:id_personal', async (req, res) => {
       ingles: { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
       artes: { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
       servicios: { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-      talleres: { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
+      talleres: { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
       counselors: { table: 'Respuesta_Alumno_Counselor', single: true },
       psicopedagogico: { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
       coordinadores: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
@@ -7744,7 +7750,183 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
     }
   });
 
-  
+
+  //NUEVAS RUTAS 
+  // GET /grupos/:id/materias => materias asignadas al grupo con detalle (incluye arte/ingles aunque no estén en Grupo_Materia)
+router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
+  const { id } = req.params; // id_grado_grupo
+  let connection;
+  try {
+    // 1) Filas base desde Grupo_Materia
+    const [gmRows] = await db.query(`
+      SELECT 
+        gm.id_grado_grupo,
+        gm.id_materia,
+        m.nombre_materia,
+        m.modelo_materia,
+        m.grado_materia,
+        a.nombre_academia,
+        gm.id_personal,
+        gm.horas_materia,
+        p.nombre_personal,
+        p.apaterno_personal,
+        p.amaterno_personal,
+        pni.id_nivel_ingles,
+        ni.nombre_nivel_ingles
+      FROM Grupo_Materia gm
+      JOIN Materia m ON gm.id_materia = m.id_materia
+      LEFT JOIN Academia a ON m.id_academia = a.id_academia
+      LEFT JOIN Personal p ON gm.id_personal = p.id_personal
+      -- nivel de inglés vinculado al mismo (personal, grupo, materia)
+      LEFT JOIN Personal_Nivel_Ingles pni 
+        ON pni.id_personal = gm.id_personal 
+        AND pni.id_grado_grupo = gm.id_grado_grupo 
+        AND pni.id_materia = gm.id_materia
+      LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
+      WHERE gm.id_grado_grupo = ?
+      ORDER BY m.nombre_materia, p.apaterno_personal, p.nombre_personal
+    `, [id]);
+
+    // 2) Agrupar por materia
+    const grouped = {};
+    for (const r of gmRows) {
+      const idMateria = r.id_materia;
+      if (!grouped[idMateria]) {
+        grouped[idMateria] = {
+          id_materia: idMateria,
+          nombre_materia: r.nombre_materia,
+          modelo_materia: r.modelo_materia,
+          grado_materia: r.grado_materia,
+          nombre_academia: r.nombre_academia,
+          asignaciones: []
+        };
+      }
+
+      // Si existe id_personal, añadimos la asignación
+      if (r.id_personal) {
+        // Evitar duplicados exactos (mismo personal + misma horas + mismo nivel de inglés)
+        const personaKey = `${r.id_personal}::${r.horas_materia || 'null'}::${r.id_nivel_ingles || 'null'}`;
+        const asignaciones = grouped[idMateria].asignaciones;
+        if (!asignaciones.find(a => a.__key === personaKey)) {
+          asignaciones.push({
+            __key: personaKey, // sólo para deduplicar en el server; se quitará antes de enviar
+            id_personal: r.id_personal,
+            nombre_personal: [r.nombre_personal, r.apaterno_personal, r.amaterno_personal].filter(Boolean).join(' '),
+            horas_materia: r.horas_materia,
+            id_nivel_ingles: r.id_nivel_ingles || null,
+            nombre_nivel_ingles: r.nombre_nivel_ingles || null
+          });
+        }
+      } else {
+        // Si no hay personal (materias sin asignación), añadir un placeholder
+        if (grouped[idMateria].asignaciones.length === 0) {
+          grouped[idMateria].asignaciones.push({
+            __key: `no_personal_${idMateria}`,
+            id_personal: null,
+            nombre_personal: null,
+            horas_materia: r.horas_materia || null,
+            id_nivel_ingles: null,
+            nombre_nivel_ingles: null
+          });
+        }
+      }
+    }
+
+    // Limpiar claves internas __key antes de enviar
+    const materias = Object.values(grouped).map(m => {
+      m.asignaciones = m.asignaciones.map(a => {
+        const copy = { ...a };
+        delete copy.__key;
+        return copy;
+      });
+      return m;
+    });
+
+    res.json({ success: true, materias });
+  } catch (error) {
+    console.error('Error al obtener materias por grupo:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener materias por grupo' });
+  } finally {
+    if (connection && connection.release) connection.release();
+  }
+});
+
+// router.get('/grupos', ...)
+router.get('/grupos-materias', authMiddleware, async (req, res) => {
+  try {
+    const currentMonth = new Date().getMonth() + 1; // Mes actual (1-12)
+    let GradosActivos;
+    if (currentMonth >= 8 || currentMonth <= 1) {
+      GradosActivos = [1, 3, 5]; // Agosto a enero
+    } else {
+      GradosActivos = [2, 4, 6]; // Febrero a julio
+    }
+
+    const [grupos] = await db.query(`
+      SELECT DISTINCT gg.id_grado_grupo, gg.grado, gg.grupo
+      FROM Grado_Grupo gg
+      WHERE gg.grado IN (?)
+      AND (
+        EXISTS (SELECT 1 FROM Grupo_Materia gm WHERE gm.id_grado_grupo = gg.id_grado_grupo)
+        OR EXISTS (SELECT 1 FROM Personal_Arte_Especialidad pa WHERE pa.id_grado_grupo = gg.id_grado_grupo)
+        OR EXISTS (SELECT 1 FROM Personal_Nivel_Ingles pn WHERE pn.id_grado_grupo = gg.id_grado_grupo)
+      )
+      ORDER BY gg.grado, gg.grupo
+    `, [GradosActivos]);
+
+    res.json({ success: true, grupos });
+  } catch (error) {
+    console.error('Error al obtener grupos en curso:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.' });
+  }
+});
+
+  // POST /personal/:id/photo
+router.post('/personal/:id/photo', upload.single('foto'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!req.file) return res.status(400).json({ success: false, message: 'Archivo no recibido' });
+
+    if (!['image/jpeg', 'image/png'].includes(req.file.mimetype)) {
+      return res.status(400).json({ success: false, message: 'Tipo de archivo no permitido' });
+    }
+
+    const folder = 'prepa_personal';
+    const publicId = `person_${id}`;
+
+    const uploadStream = cloudinary.uploader.upload_stream({
+      folder,
+      public_id: publicId,
+      overwrite: true,
+      resource_type: 'image',
+      transformation: [{ width: 800, height: 800, crop: 'limit' }]
+    }, async (error, result) => {
+      if (error) {
+        console.error('Cloudinary error:', error);
+        return res.status(500).json({ success: false, message: 'Error subiendo imagen' });
+      }
+
+      // Guardar URL en la BD
+      const fotoUrl = result.secure_url;
+      try {
+        const sql = 'UPDATE Personal SET img_personal = ? WHERE id_personal = ?';
+        await db.execute(sql, [fotoUrl, id]);
+      } catch (dbErr) {
+        console.error('Error guardando en BD:', dbErr);
+        return res.status(500).json({ success: false, message: 'Error guardando la URL en la BD' });
+      }
+
+      return res.json({ success: true, url: fotoUrl, public_id: result.public_id });
+    });
+
+    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+
+  } catch (err) {
+    console.error('Error en /personal/:id/photo', err);
+    res.status(500).json({ success: false, message: 'Error interno' });
+  }
+});
+
 
   // Alumno: Se pasa de grupo
   // Alumno_Taller: Cuando el alumno sale de 6to se elimina

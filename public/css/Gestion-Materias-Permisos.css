@@ -170,3 +170,10 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
+/* Sobrescribir el azul por rojo */
+#personalListContainer .list-group-item.active {
+  background-color: #dc3545 !important; /* rojo Bootstrap */
+  border-color: #dc3545 !important;
+  color: #fff;
+}
+

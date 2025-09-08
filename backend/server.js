@@ -1,70 +1,82 @@
 const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
+const mysql = require('mysql2');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const csrf = require('csurf');
 const cookieParser = require('cookie-parser');
-const routes = require('./routes'); // Importa las rutas
-const db = require('./config/db'); // Ajustado para config/db.js
+const routes = require('./routes');
+const db = require('./config/db');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Session store configuration for MySQL
-const sessionStore = new MySQLStore({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'Balmoral',
-  clearExpired: true,
-  checkExpirationInterval: 15 * 60 * 1000, // 15 minutes
-  expiration: 24 * 60 * 60 * 1000 // 24 hours
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 3306, // Default MySQL port if not set
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
+const sessionStore = new MySQLStore({}, pool.promise());
+
 // Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://preparatoria-evaluaciones.com' : 'http://localhost:3000',
-  credentials: true
-}));
+const corsOptions = {
+  origin: process.env.ORIGIN || 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+};
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use('/assets', express.static(path.join(__dirname, '../public'))); // Sirve todos los archivos de public bajo /assets
+app.use('/assets', express.static(path.join(__dirname, '../public')));
 app.use('/js', express.static(path.join(__dirname, '../public/js')));
+app.set('trust proxy', 1); // importante en Railway para HTTPS
+
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'tu_secreto_aqui',
-  store: sessionStore,
+  secret: process.env.SESSION_SECRET,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: false, // mejor seguridad
+  store: sessionStore,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,          // ahora sí en producción
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000
+    sameSite: 'lax'        // o 'none' si hay subdominios
   }
 }));
 
-const csrfProtection = csrf();
+const csrfProtection = csrf({
+  cookie: false,
+  value: (req) => req.body._csrf || req.session.csrfToken
+});
 
-const csrfExcluded = [
-  { method: 'POST', path: '/solicitar-recuperacion' },
-  { method: 'POST', path: '/cambiar-contraseña' },
-];
+app.use(csrfProtection);
 
 app.use((req, res, next) => {
-  const isExcluded = csrfExcluded.some(
-    route => route.method === req.method && route.path === req.path
-  );
-
-  if (isExcluded) {
-    return next(); // no aplicar CSRF aquí
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = req.csrfToken();
+    console.log('Generated CSRF Token for new session:', req.session.csrfToken);
   }
+  next();
+});
 
-  return csrfProtection(req, res, next);
+app.use((req, res, next) => {
+  console.log('Request Path:', req.path, 'Method:', req.method, 'Session ID:', req.session?.id);
+  if (req.path === '/login' && req.method === 'POST') {
+    console.log('Incoming CSRF Token:', req.body._csrf);
+    console.log('Session CSRF Token:', req.session.csrfToken);
+  }
+  next();
 });
 
 app.use((req, res, next) => {
@@ -74,11 +86,10 @@ app.use((req, res, next) => {
   next();
 });
 
-
-// Use routes
 app.use('/', routes);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT} a las ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' })}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en http://0.0.0.0:${PORT} a las ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City' })}`);
+}).on('error', (err) => {
+  console.error('Server Error:', err);
 });

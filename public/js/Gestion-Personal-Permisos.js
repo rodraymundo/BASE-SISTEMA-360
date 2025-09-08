@@ -13,6 +13,34 @@ async function fetchWithRetry(url, options, retries = 3) {
   }
 }
 
+
+async function uploadPhoto(personalId, file, csrfToken) {
+  const fd = new FormData();
+  fd.append('foto', file);
+  const resp = await fetch(`/personal/${personalId}/photo`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      //'CSRF-Token': csrfToken  // opcional si tu servidor lo necesita
+    },
+    body: fd
+  });
+
+  const contentType = resp.headers.get('content-type') || '';
+  const text = await resp.text(); // siempre lee como texto primero
+  // intenta parsear JSON si viene JSON
+  if (contentType.includes('application/json')) {
+    const json = JSON.parse(text);
+    if (!resp.ok || !json.success) throw new Error(json.message || `Error ${resp.status}`);
+    return json;
+  } else {
+    // muestra el contenido HTML o texto para debugging
+    console.error('Respuesta no JSON de la subida:', resp.status, text);
+    throw new Error(`Respuesta inesperada del servidor: status ${resp.status}`);
+  }
+}
+
+
 async function checkDuplicatePuesto(roles) {
   try {
     const puestos = await fetchWithRetry('/puestos/roles', { credentials: 'include' });
@@ -89,6 +117,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const porcentajesContainer = document.getElementById('porcentajesContainer');
   const totalPorcentaje = document.getElementById('totalPorcentaje');
 
+  const fotoInput = document.getElementById('foto_personal');
+  const fotoPreview = document.getElementById('fotoPreview');
+
+  // preview local cuando el usuario selecciona archivo
+  if (fotoInput && fotoPreview) {
+    fotoInput.addEventListener('change', (ev) => {
+      const file = ev.target.files[0];
+      if (!file) {
+        fotoPreview.src = '/assets/img/iconousuario.png';
+        return;
+      }
+      const allowed = ['image/jpeg','image/png'];
+      if (!allowed.includes(file.type)) {
+        Swal.fire('Formato inválido', 'Solo se permiten JPG o PNG.', 'error');
+        fotoInput.value = '';
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5 MB
+        Swal.fire('Archivo grande', 'El archivo supera 5 MB. Considera reducirlo.', 'warning');
+      }
+      const reader = new FileReader();
+      reader.onload = () => fotoPreview.src = reader.result;
+      reader.readAsDataURL(file);
+    });
+  }
+
+
   let todosPersonal = [];
   let todosPersonalAll = []; // Guarda todo lo recibido del servidor
   let showInactive = false;   // Por defecto: NO mostramos inactivos
@@ -143,6 +198,7 @@ function mostrarPersonal() {
     listaPersonalList.innerHTML = `<div class="text-muted text-center py-3">No se encontró personal ${showInactive ? 'inactivo' : 'activo'}.</div>`;
     return;
   }
+  
 
   listaPersonalList.innerHTML = filtrados.map(p => {
     const nombre = escapeHtml(`${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}`).trim() || 'Sin nombre';
@@ -161,30 +217,36 @@ function mostrarPersonal() {
     const estadoHtml = `<span class="estado ${estadoClass}">${escapeHtml(rawEstado || 'Sin estado')}</span>`;
     const inactiveRowStyle = (estadoClass === 'estado-inactivo') ? 'opacity:0.85;' : '';
 
+    const fotoUrl = escapeHtml(p.foto_url || p.foto || '/assets/img/iconousuario.png');
+console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
     return `
       <div class="list-group-item" data-id="${p.id_personal || ''}" style="${inactiveRowStyle}">
-        <div class="item-body">
-          <div class="item-header">
-            <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
+        <div class="item-body d-flex">
+          <img src="${fotoUrl}" alt="Foto" class="avatar me-3" style="width:48px; height:48px; object-fit:cover; border-radius:50%; border:1px solid #e4e4e4;">
+          <div style="flex:1 1 auto;">
+            <div class="item-header">
+              <h6 class="mb-1 text-danger fw-bold" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${nombre}</h6>
+            </div>
+            <div class="small-muted mt-1">
+              <div class=""><strong>${puesto}</strong></div>
+              <div class="mail"><strong>Correo:</strong> ${correo}</div>
+            </div>
           </div>
-          <div class="small-muted mt-1">
-            <div class=""><strong>${puesto}</strong></div>
-            <div class="mail"><strong>Correo:</strong> ${correo}</div>
+          <div class="item-actions d-flex flex-column gap-1">
+            <button class="btn btn-edit btn-sm editBtn" title="Editar" aria-label="Editar" data-id="${p.id_personal || ''}">
+              <i class="fas fa-pencil-alt"></i><span>Editar</span>
+            </button>
+            <button class="btn btn-kpi btn-sm adjustKpiBtn" title="Ajustar KPIs" aria-label="Ajustar KPIs" data-id="${p.id_personal || ''}">
+              <i class="fas fa-tachometer-alt"></i><span>Ajustar KPIs</span>
+            </button>
+            <button class="btn btn-assign-kpi btn-sm assignKpiBtn" title="Asignar KPIs" aria-label="Asignar KPIs" data-id="${p.id_personal || ''}">
+              <i class="fas fa-tasks"></i><span>Asignar KPIs</span>
+            </button>
           </div>
-        </div>
-        <div class="item-actions">
-          <button class="btn btn-edit btn-sm editBtn" title="Editar" aria-label="Editar" data-id="${p.id_personal || ''}">
-            <i class="fas fa-pencil-alt"></i><span>Editar</span>
-          </button>
-          <button class="btn btn-kpi btn-sm adjustKpiBtn" title="Ajustar KPIs" aria-label="Ajustar KPIs" data-id="${p.id_personal || ''}">
-            <i class="fas fa-tachometer-alt"></i><span>Ajustar KPIs</span>
-          </button>
-          <button class="btn btn-assign-kpi btn-sm assignKpiBtn" title="Asignar KPIs" aria-label="Asignar KPIs" data-id="${p.id_personal || ''}">
-            <i class="fas fa-tasks"></i><span>Asignar KPIs</span>
-          </button>
         </div>
       </div>
     `;
+
   }).join('');
 
   // Attach event listeners for buttons
@@ -374,6 +436,16 @@ function mostrarPersonal() {
     if (estadoFormGroup) estadoFormGroup.style.display = 'none';
     if (estadoField) estadoField.setAttribute('disabled', 'true');
   }
+
+  if (personal && fotoPreview) {
+  fotoPreview.src = personal.foto_url || personal.foto || '/assets/img/iconousuario.png';
+  }
+  if (!personal && fotoPreview) {
+    fotoPreview.src = '/assets/img/iconousuario.png';
+    if (fotoInput) fotoInput.value = ''; // limpiar en modo crear
+  }
+
+
   personalModal.show();
 }
 
@@ -944,12 +1016,29 @@ function mostrarPersonal() {
     }
 
     if (result.success) {
+      // obtenemos id del registro creado/actualizado
+      const createdId = (result.data && result.data.id_personal) ? result.data.id_personal : (id_personal || result.id_personal || result.id);
+
+      // si el usuario escogió archivo, subirlo
+      const file = fotoInput && fotoInput.files && fotoInput.files[0];
+      if (file && createdId) {
+        try {
+          const csrfRes2 = await fetch('/csrf-token', { credentials: 'include' });
+          const { csrfToken: csrfToken2 } = await csrfRes2.json();
+          await uploadPhoto(createdId, file, csrfToken2);
+        } catch (err) {
+          console.error('Error subiendo foto:', err);
+          Swal.fire('Advertencia', 'Datos guardados, pero falló la subida de la foto. Revisa la consola.', 'warning');
+        }
+      }
+
       personalModal.hide();
       await cargarPersonal();
-      Swal.fire('Éxito', result.message, 'success');
+      Swal.fire('Éxito', result.message || 'Personal guardado.', 'success');
     } else {
       Swal.fire('Error', result.message || 'Error al guardar personal.', 'error');
     }
+
   } catch (error) {
     console.error('Error al guardar personal:', error);
     Swal.fire({

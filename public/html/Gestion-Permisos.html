@@ -16,17 +16,13 @@
         <div class="selection-panel">
             <h2>Gestión de Permisos</h2>
             <div class="mb-3">
-                <label for="roleSelect" class="form-label">Selecciona Rol</label>
-                <select id="roleSelect" class="form-select">
-                    <option value="">-- Selecciona un rol --</option>
-                </select>
+                <label for="personSearch" class="form-label">Buscar personal</label>
+                <div class="position-relative">
+                    <input id="personSearch" type="text" class="form-control" placeholder="Escribe nombre o matrícula" autocomplete="off" />
+                    <ul id="searchResults" class="list-group position-absolute w-100 d-none" style="z-index: 2000; max-height: 220px; overflow:auto;"></ul>
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="personSelect" class="form-label">Selecciona Personal</label>
-                <select id="personSelect" class="form-select" disabled>
-                    <option value="">-- Selecciona un personal --</option>
-                </select>
-            </div>
+
             <div id="permissionsSection" class="permissions-container d-none">
                 <h3>Permisos para <span id="selectedPersonName"></span></h3>
                 <div class="form-check">

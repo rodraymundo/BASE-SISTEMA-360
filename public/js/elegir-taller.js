@@ -109,15 +109,23 @@ async function cargarTalleresExtra() {
       `;
 
       card.addEventListener('click', () => {
-        const id = parseInt(card.dataset.id, 10);
-        if (seleccionExtras.has(id)) {
-          seleccionExtras.delete(id);
-          card.classList.remove('border-danger', 'shadow');
-        } else {
-          seleccionExtras.add(id);
-          card.classList.add('border-danger', 'shadow');
+      const id = parseInt(card.dataset.id, 10);
+
+      if (seleccionExtras.has(id)) {
+        // Quitar si ya estaba seleccionado
+        seleccionExtras.delete(id);
+        card.classList.remove('border-danger', 'shadow');
+      } else {
+        if (seleccionExtras.size >= 4) {
+          Swal.fire('Atención', 'Solo puedes seleccionar hasta 4 talleres extraescolares.', 'warning');
+          return; // Bloquea más de 4
         }
-      });
+        // Agregar si todavía no ha llegado al límite
+        seleccionExtras.add(id);
+        card.classList.add('border-danger', 'shadow');
+      }
+    });
+
 
       col.appendChild(card);
       container.appendChild(col);
