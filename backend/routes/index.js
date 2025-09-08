@@ -3,7 +3,7 @@
   const path = require('path');
   const db = require('../config/db'); // Asegúrate de que esta importación sea correcta
   const authMiddleware = require('../middleware/auth');
-  const bcrypt = require('bcrypt');
+  const bcrypt = require('bcryptjs');
   const { permisoMiddleware } = require('../middleware/permisosMiddleware'); 
   const { bloquearAlumnos } = require('../middleware/bloquearAlumnosMiddleware'); // Middleware para bloquear 
   const permitirRoles = require('../middleware/roles');

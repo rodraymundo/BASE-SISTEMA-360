@@ -1,7 +1,6 @@
 // backend/crear_usuarios_batch_hash_after.js
 const pool = require('./config/db'); // ajusta la ruta si tu config está en otra carpeta
-const bcrypt = require('bcrypt');
-
+const bcrypt = require('bcryptjs');
 function normalizeString(s = '') {
   return s
     .normalize('NFD')
