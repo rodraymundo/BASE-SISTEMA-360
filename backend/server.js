@@ -23,7 +23,10 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306, // Default MySQL port if not set
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: true
+  }
 });
 
 const sessionStore = new MySQLStore({}, pool.promise());
