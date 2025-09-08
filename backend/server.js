@@ -25,7 +25,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // ssl: { rejectUnauthorized: true } // activa si tu BD lo requiere
+  ssl: { rejectUnauthorized: true } // activa si tu BD lo requiere
 });
 
 // trust proxy necesario en Render/Heroku para cookies 'secure'
