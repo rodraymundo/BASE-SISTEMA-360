@@ -11,6 +11,14 @@ const routes = require('./routes');
 const db = require('./config/db');
 require('dotenv').config();
 
+const session = require('cookie-session');
+
+app.use(session({
+  name: 'session',
+  keys: [process.env.SESSION_SECRET],
+  maxAge: 24 * 60 * 60 * 1000 // 1 día
+}));
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
