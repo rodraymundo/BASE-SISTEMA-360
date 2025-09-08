@@ -291,6 +291,7 @@ const upload = multer({ storage });
   //CSRF TOKEN 
   router.get('/csrf-token', (req, res) => {
     try {
+      // Si la sesión ya tiene token, usa ese
       if (!req.session.csrfToken) {
         req.session.csrfToken = req.csrfToken();
       }
