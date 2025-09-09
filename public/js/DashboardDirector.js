@@ -3,10 +3,12 @@ const personalCount = document.getElementById('personalCount');
 const evaluationChart = document.getElementById('evaluationChart');
 const goalChart = document.getElementById('goalChart');
 const roleFilter = document.getElementById('roleFilter');
+const groupFilter = document.getElementById('groupFilter');
 const applyFilterBtn = document.getElementById('applyFilter');
 const positiveCommentsBtn = document.getElementById('positiveCommentsBtn');
 const improvementAreasBtn = document.getElementById('improvementAreasBtn');
 let commentsModalInstance = null;
+
 
 const tipoToIdPregunta = {
     'materias': 1,
@@ -20,8 +22,58 @@ const tipoToIdPregunta = {
     '360': 5,
     'pares': 6,
     'jefes': 7,
-    'disciplina_deportiva': 1,
-    'liga_deportiva': 1
+    'subordinado': 4 
+};
+
+// Definir grupos de roles para comparación
+const groups = {
+    'Profesores': ['PROFESOR DE TIEMPO COMPLETO', 'PROFESOR DE ASIMILADOS', 'PROFESOR DE TIEMPO COMPLETO PEDAGOGICO'],
+    'Subdirectores': [
+        'SUBDIRECTOR DE GESTIÓN ACADÉMICA',
+        'SUBDIRECTOR DE EVENTOS ACADÉMICOS',
+        'SUBDIRECTOR DE PROYECTOS ACADÉMICOS',
+        'SUBDIRECTOR DE PEDAGOGÍA',
+        'SUBDIRECTOR DE PLANEACIÓN ACADÉMICA',
+        'SUBDIRECTOR DE EVALUACIÓN ACADÉMICA',
+        'SUBDIRECTOR DE CONTROL ESCOLAR',
+        'SUBDIRECTOR ADMINISTRATIVO',
+        'SUBDIRECTOR DE GESTIÓN ESCOLAR'
+    ],
+    'Coordinadores': [
+        'COORDINADOR DE CAPTACIÓN',
+        'CORDINADOR DE ACADEMIA',
+        'COORDINADOR DE ACADEMIA DE IDIOMAS',
+        'COORDINADOR DE ACADEMIA',
+        'COORDINADOR DE INGRESOS',
+        'COORDINADOR DE EGRESOS'
+    ],
+    'Counselors': ['COUNSELOR'],
+    'Encargados': [
+        'ENCARGADO DE DISCIPLINA Y DEPORTES',
+        'ENCARGADO DE MANTENIMIENTO',
+        'ENCARGADO DE LIMPIEZA',
+        'ENCARGADO AMBIENTE ESTUDIANTIL'
+    ],
+    'Otros': [
+        'DIRECTOR GENERAL',
+        'PEDAGÓGICO',
+        'AYUDANTE DE LIMPIEZA',
+        'GUARDIA DE SEGURIDAD',
+        'FUNDADOR',
+        'AUXILIAR ADMINISTRATIVO',
+        'ENLACE ADMINISTRATIVO DE CAPTACIÓN',
+        'TALLER EXTRAESCOLAR',
+        'MARKETING',
+        'PARAMÉDICO',
+        'NEGOCIOS',
+        'DISCIPLINA DE TALLERES',
+        'ADMINISTRADOR',
+        'NECESIDADES TECNOLÓGICAS',
+        'COMITE TECNICO',
+        'DISCIPLINA',
+        'EQUIPO EDUCADOR',
+        'TODOS'
+    ]
 };
 
 // Store Chart.js instances to destroy them before re-rendering
@@ -40,10 +92,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadRoles();
         await loadTopPersonnel();
         applyFilterBtn.addEventListener('click', async () => {
-            const role = roleFilter.value;
+            let role = roleFilter.value;
+            const group = groupFilter.value;
+            if (group && groups[group]) {
+                role = groups[group].join(',');
+            }
             const sortOrder = document.querySelector('input[name="sortOrder"]:checked')?.value || 'top';
             await loadTopPersonnel(role, sortOrder);
             bootstrap.Modal.getInstance(document.getElementById('filterModal'))?.hide();
+        });
+
+        // Reset groupFilter when roleFilter is changed
+        roleFilter.addEventListener('change', () => {
+            if (roleFilter.value !== '') {
+                groupFilter.value = '';
+            }
+        });
+
+        // Reset roleFilter when groupFilter is changed
+        groupFilter.addEventListener('change', () => {
+            if (groupFilter.value !== '') {
+                roleFilter.value = '';
+            }
         });
     } catch (error) {
         console.error('Error al iniciar la página:', error);
@@ -186,68 +256,97 @@ async function showPersonnelModal(person) {
     positiveCommentsBtn.addEventListener('click', () => handlePositiveComments(person.id_personal));
     improvementAreasBtn.addEventListener('click', () => handleImprovementAreas(person.id_personal));
 
-    const modal = new bootstrap.Modal(document.getElementById('personnelModal'));
-    modal.show();
+    const modalElement = document.getElementById('personnelModal');
+    const modal = new bootstrap.Modal(modalElement);
 
-    await renderRoleEvaluationChart(person.id_personal);
+    // Render chart after modal is fully shown
+    const renderChart = async () => {
+        await renderRoleEvaluationChart(person.id_personal);
+    };
+    modalElement.addEventListener('shown.bs.modal', renderChart, { once: true });
+
+    modal.show();
 }
 
 async function renderRoleEvaluationChart(idPersonal) {
     const chartContainer = document.getElementById('roleEvaluationChart');
     if (!chartContainer) {
-        console.error('Chart container not found');
+        console.error(`[idPersonal=${idPersonal}] Chart container 'roleEvaluationChart' not found in DOM`);
+        Swal.fire('Error', 'No se encontró el contenedor del gráfico', 'error');
         return;
+    }
+
+    chartContainer.style.display = 'block';
+    chartContainer.width = 400;
+    chartContainer.height = 300;
+
+    const existingError = chartContainer.nextElementSibling;
+    if (existingError && existingError.tagName === 'P') {
+        existingError.remove();
     }
 
     if (roleEvaluationChartInstance) {
         roleEvaluationChartInstance.destroy();
+        console.log(`[idPersonal=${idPersonal}] Previous chart instance destroyed`);
     }
 
     try {
-        console.log(`[idPersonal=${idPersonal}] Fetching evaluation types`);
-        const typesRes = await fetch(`/personal-evaluaciones-types/${idPersonal}`, { credentials: 'include' });
-        if (!typesRes.ok) throw new Error(`HTTP error ${typesRes.status}: ${typesRes.statusText}`);
+        console.log(`[idPersonal=${idPersonal}] Fetching evaluation types from /personal-evaluaciones-types/${idPersonal}`);
+        const typesRes = await fetch(`/personal-evaluaciones-types/${idPersonal}`, { 
+            credentials: 'include',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!typesRes.ok) {
+            throw new Error(`HTTP error ${typesRes.status}: ${typesRes.statusText}`);
+        }
         const typesData = await typesRes.json();
         console.log(`[idPersonal=${idPersonal}] Evaluation types response:`, JSON.stringify(typesData, null, 2));
 
-        if (!Array.isArray(typesData)) {
-            throw new Error('Evaluation types is not an array');
+        if (!Array.isArray(typesData) || typesData.length === 0) {
+            console.warn(`[idPersonal=${idPersonal}] No evaluation types returned`);
+            chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay tipos de evaluaciones disponibles.</p>');
+            return;
         }
 
         const evaluations = [];
         for (const type of typesData) {
-            const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()];
-            if (idTipoPregunta) {
-                console.log(`[idPersonal=${idPersonal}] Fetching results for type=${type}, idTipoPregunta=${idTipoPregunta}`);
-                const resultsRes = await fetch(`/personal-evaluaciones-results/${idPersonal}/${type}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
-                if (!resultsRes.ok) {
-                    console.warn(`[idPersonal=${idPersonal}] Failed to fetch results for type ${type}: HTTP ${resultsRes.status}`);
-                    evaluations.push({
-                        label: type.charAt(0).toUpperCase() + type.slice(1),
-                        value: 0
-                    });
-                    continue;
-                }
-                const resultsData = await resultsRes.json();
-                console.log(`[idPersonal=${idPersonal}] Results for ${type}:`, JSON.stringify(resultsData, null, 2));
-                const value = parseFloat(resultsData.generalAverage) || 0;
-                evaluations.push({
-                    label: type.charAt(0).toUpperCase() + type.slice(1),
-                    value
-                });
-            } else {
-                console.warn(`[idPersonal=${idPersonal}] No idTipoPregunta found for type=${type}`);
+            const normalizedType = type.toLowerCase();
+            const idPregunta = tipoToIdPregunta[normalizedType] || 1; // Fallback to 1
+            console.log(`[idPersonal=${idPersonal}] Fetching results for type=${type}, id_pregunta=${idPregunta}`);
+            const resultsRes = await fetch(`/personal-dashboard/${idPersonal}/${type}?id_tipo_pregunta=${idPregunta}`, { 
+                credentials: 'include',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            let resultsData;
+            if (!resultsRes.ok) {
+                console.warn(`[idPersonal=${idPersonal}] Failed to fetch results for type ${type}: HTTP ${resultsRes.status} ${resultsRes.statusText}`);
+                evaluations.push({ label: type.charAt(0).toUpperCase() + type.slice(1), value: 0 });
+                continue;
             }
+
+            try {
+                resultsData = await resultsRes.json();
+                console.log(`[idPersonal=${idPersonal}] Results for ${type}:`, JSON.stringify(resultsData, null, 2));
+            } catch (jsonError) {
+                console.error(`[idPersonal=${idPersonal}] JSON parse error for type ${type}:`, jsonError);
+                evaluations.push({ label: type.charAt(0).toUpperCase() + type.slice(1), value: 0 });
+                continue;
+            }
+
+            const value = parseFloat(resultsData.generalAverage);
+            evaluations.push({
+                label: type.charAt(0).toUpperCase() + type.slice(1),
+                value: isNaN(value) || resultsData.generalAverage == null ? 0 : Math.min(Math.max(value, 0), 100)
+            });
         }
 
-        if (evaluations.length === 0) {
-            console.log(`[idPersonal=${idPersonal}] No evaluations found for rendering`);
-            chartContainer.getContext('2d').clearRect(0, 0, chartContainer.width, chartContainer.height);
-            chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay evaluaciones disponibles.</p>');
+        if (evaluations.length === 0 || evaluations.every(e => e.value === 0)) {
+            console.log(`[idPersonal=${idPersonal}] No valid evaluations:`, JSON.stringify(evaluations, null, 2));
+            chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay datos de evaluaciones disponibles para este personal.</p>');
             return;
         }
 
-        console.log(`[idPersonal=${idPersonal}] Rendering evaluations:`, JSON.stringify(evaluations, null, 2));
+        console.log(`[idPersonal=${idPersonal}] Rendering chart with evaluations:`, JSON.stringify(evaluations, null, 2));
 
         roleEvaluationChartInstance = new Chart(chartContainer, {
             type: 'bar',
@@ -268,22 +367,14 @@ async function renderRoleEvaluationChart(idPersonal) {
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        title: {
-                            display: true,
-                            text: 'Porcentaje (%)'
-                        }
+                        title: { display: true, text: 'Porcentaje (%)' }
                     },
                     x: {
-                        title: {
-                            display: true,
-                            text: 'Tipo de Evaluación'
-                        }
+                        title: { display: true, text: 'Tipo de Evaluación' }
                     }
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
@@ -294,10 +385,11 @@ async function renderRoleEvaluationChart(idPersonal) {
                 }
             }
         });
+        console.log(`[idPersonal=${idPersonal}] Chart rendered with ${evaluations.length} evaluation types`);
     } catch (error) {
-        console.error(`[idPersonal=${idPersonal}] Error fetching role evaluations:`, error);
-        chartContainer.getContext('2d').clearRect(0, 0, chartContainer.width, chartContainer.height);
-        chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">Error al cargar evaluaciones.</p>');
+        console.error(`[idPersonal=${idPersonal}] Error rendering chart:`, error);
+        chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">Error al cargar el gráfico de evaluaciones.</p>');
+        Swal.fire('Error', 'No se pudo cargar el gráfico de evaluaciones', 'error');
     }
 }
 

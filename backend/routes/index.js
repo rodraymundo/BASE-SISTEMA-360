@@ -3915,6 +3915,8 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       }
   });
 
+//INICIO RUTAS DASHBOARD DIRECTOR
+
   // OBTIENE TODOS LOS ROLES DISPONIBLES
   router.get('/roles-director', authMiddleware, async (req, res) => {
       const query = 'SELECT * FROM Rol';
@@ -3933,124 +3935,128 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   });
 
   // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
-  router.get('/personnel-director', authMiddleware, async (req, res) => {
-      const { role, sort } = req.query;
-      let query = `
-          SELECT 
-              p.id_personal,
-              p.nombre_personal,
-              p.apaterno_personal,
-              p.amaterno_personal,
-              p.telefono_personal,
-              p.fecha_nacimiento_personal,
-              p.img_personal,
-              pu.nombre_puesto
-          FROM Personal p
-          JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      `;
-      const queryParams = [];
-      
-      if (role) {
-          query += `
-              JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-              JOIN Rol r ON pr.id_rol = r.id_rol
-              WHERE p.estado_personal = 1 AND r.nombre_rol = ?
-          `;
-          queryParams.push(role);
-      } else {
-          query += ' WHERE p.estado_personal = 1';
-      }
+// OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
+router.get('/personnel-director', authMiddleware, async (req, res) => {
+    const { role, sort } = req.query;
+    let query = `
+        SELECT 
+            p.id_personal,
+            p.nombre_personal,
+            p.apaterno_personal,
+            p.amaterno_personal,
+            p.telefono_personal,
+            p.fecha_nacimiento_personal,
+            p.img_personal,
+            pu.nombre_puesto
+        FROM Personal p
+        JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+    `;
+    const queryParams = [];
+    
+    const roles = role ? role.split(',') : null;
+    if (roles && roles.length > 0) {
+        query += `
+            JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+            JOIN Rol r ON pr.id_rol = r.id_rol
+            WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
+        `;
+        queryParams.push(roles);
+    } else {
+        query += ' WHERE p.estado_personal = 1';
+    }
 
-      const query2 = `
-          SELECT r.nombre_rol
-          FROM Puesto_Rol pr
-          JOIN Rol r ON pr.id_rol = r.id_rol
-          WHERE pr.id_puesto = ?
-      `;
-      const query3 = `
-          SELECT DISTINCT m.nombre_materia
-          FROM Grupo_Materia gm
-          JOIN Materia m ON gm.id_materia = m.id_materia
-          WHERE gm.id_personal = ?
-      `;
-      const evalQueries = [
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-      ];
-      const positiveResponses = [1, 5, 6, 9, 10];
+    const query2 = `
+        SELECT r.nombre_rol
+        FROM Puesto_Rol pr
+        JOIN Rol r ON pr.id_rol = r.id_rol
+        WHERE pr.id_puesto = ?
+    `;
+    const query3 = `
+        SELECT DISTINCT m.nombre_materia
+        FROM Grupo_Materia gm
+        JOIN Materia m ON gm.id_materia = m.id_materia
+        WHERE gm.id_personal = ?
+    `;
+    const evalQueries = [
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+    ];
+    const positiveResponses = [1, 5, 6, 9, 10];
 
-      try {
-          const [personnel] = await db.query(query, queryParams);
-          const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
-              const [roles] = await db.query(query2, [p.id_puesto]);
-              const [subjects] = await db.query(query3, [p.id_personal]);
-              return {
-                  ...p,
-                  roles: roles.map(r => r.nombre_rol),
-                  subjects: subjects.map(s => s.nombre_materia),
-                  goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
-              };
-          }));
+    try {
+        const [personnel] = await db.query(query, queryParams);
+        const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
+            const [roles] = await db.query(query2, [p.id_puesto]);
+            const [subjects] = await db.query(query3, [p.id_personal]);
+            return {
+                ...p,
+                roles: roles.map(r => r.nombre_rol),
+                subjects: subjects.map(s => s.nombre_materia),
+                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
+            };
+        }));
 
-          // Fetch and aggregate evaluation data
-          const personnelIds = personnelWithDetails.map(p => p.id_personal);
-          let allEvaluations = [];
-          for (let i = 0; i < evalQueries.length; i += 2) {
-              const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
-              const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
-              allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-          }
+        // Fetch and aggregate evaluation data
+        const personnelIds = personnelWithDetails.map(p => p.id_personal);
+        let allEvaluations = [];
+        for (let i = 0; i < evalQueries.length; i += 2) {
+            const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
+            const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
+        }
 
-          const aggregatedEvaluations = {};
-          allEvaluations.forEach(eval => {
-              if (!aggregatedEvaluations[eval.id_personal]) {
-                  aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
-              }
-              if (eval.positive_count !== undefined) {
-                  aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
-              }
-              if (eval.total_count !== undefined) {
-                  aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
-              }
-          });
+        const aggregatedEvaluations = {};
+        allEvaluations.forEach(eval => {
+            if (!aggregatedEvaluations[eval.id_personal]) {
+                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+            }
+            if (eval.positive_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
+            }
+            if (eval.total_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
+            }
+        });
 
-          const personnelWithEval = personnelWithDetails.map(p => {
-              const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
-              const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
-              return { ...p, evaluationPercentage: percentage };
-          });
+        const personnelWithEval = personnelWithDetails.map(p => {
+            const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
+            const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
+            return { ...p, evaluationPercentage: percentage };
+        });
 
-          // Sort and limit to 3
-          let sortedPersonnel = [];
-          if (sort === 'top') {
-              sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage).slice(0, 3);
-          } else if (sort === 'bottom') {
-              sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
-          } else {
-              sortedPersonnel = personnelWithEval.slice(0, 3); // Default to top 3 if sort is invalid
-          }
+        // Sort and limit based on sortOrder
+        let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
+        if (sort === 'top') {
+            sortedPersonnel = sortedPersonnel.slice(0, 3);
+        } else if (sort === 'bottom') {
+            sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
+        } else if (sort === 'all') {
+            // Already sorted descending, return all
+        } else {
+            sortedPersonnel = sortedPersonnel.slice(0, 3); // Default to top 3
+        }
 
-          res.json({ success: true, personnel: sortedPersonnel });
-      } catch (error) {
-          console.error('Error al obtener personal:', {
-              message: error.message,
-              stack: error.stack,
-              code: error.code,
-              sqlMessage: error.sqlMessage || 'N/A'
-          });
-          res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-      }
-  });
+        res.json({ success: true, personnel: sortedPersonnel });
+    } catch (error) {
+        console.error('Error al obtener personal:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
+});
 
   // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
   router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
@@ -4126,31 +4132,31 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
           FROM Comentario_Docente cd 
           JOIN Alumno a ON cd.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
           // Comentario_Docente_Ingles
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
           FROM Comentario_Docente_Ingles cdi 
           JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
           // Comentario_Docente_Arte
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
           FROM Comentario_Docente_Arte cda 
           JOIN Alumno a ON cda.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
           // Comentario_Taller
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
           FROM Comentario_Taller ct 
           JOIN Alumno a ON ct.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
           // Comentario_Counselor
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
           FROM Comentario_Counselor cc 
           JOIN Alumno a ON cc.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
           // Comentario_Personal (staff comments)
           `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
@@ -4181,6 +4187,181 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
           res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
       }
   });
+
+  // Obtener comentarios de Servicios
+router.get('/comments-servicio', authMiddleware, async (req, res) => {
+  const { id, type } = req.query;
+  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+
+  const isPositive = type === 'positive' ? 1 : 0;
+  const query = `
+    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cs.comentario_servicio as comment
+    FROM Comentario_Servicio cs
+    JOIN Alumno a ON cs.id_alumno = a.id_alumno
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    WHERE cs.id_servicio = ? AND cs.tipo_comentario = ?
+  `;
+
+  try {
+    const [results] = await db.query(query, [id, isPositive]);
+    const comments = results.map(row => ({
+      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+      comment: row.comment
+    }));
+    res.json({ success: true, comments });
+  } catch (error) {
+    console.error('Error al obtener comentarios de servicio:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage || 'N/A'
+    });
+    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+  }
+});
+
+// Obtener comentarios de Ligas Deportivas
+router.get('/comments-liga-deportiva', authMiddleware, async (req, res) => {
+  const { id, type } = req.query;
+  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+
+  const isPositive = type === 'positive' ? 1 : 0;
+  const query = `
+    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cld.comentario_servicio as comment
+    FROM Comentario_Liga_Deportiva cld
+    JOIN Alumno a ON cld.id_alumno = a.id_alumno
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    WHERE cld.id_liga_deportiva = ? AND cld.tipo_comentario = ?
+  `;
+
+  try {
+    const [results] = await db.query(query, [id, isPositive]);
+    const comments = results.map(row => ({
+      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+      comment: row.comment
+    }));
+    res.json({ success: true, comments });
+  } catch (error) {
+    console.error('Error al obtener comentarios de liga deportiva:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage || 'N/A'
+    });
+    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+  }
+});
+
+// Obtener comentarios de Disciplinas Deportivas de La Loma
+router.get('/comments-disciplina-deportiva', authMiddleware, async (req, res) => {
+  const { id, type } = req.query;
+  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+
+  const isPositive = type === 'positive' ? 1 : 0;
+  const query = `
+    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdd.comentario_servicio as comment
+    FROM Comentario_Disciplina_Deportiva cdd
+    JOIN Alumno a ON cdd.id_alumno = a.id_alumno
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    WHERE cdd.id_disciplina_deportiva = ? AND cdd.tipo_comentario = ?
+  `;
+
+  try {
+    const [results] = await db.query(query, [id, isPositive]);
+    const comments = results.map(row => ({
+      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+      comment: row.comment
+    }));
+    res.json({ success: true, comments });
+  } catch (error) {
+    console.error('Error al obtener comentarios de disciplina deportiva:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage || 'N/A'
+    });
+    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+  }
+});
+
+
+// Backend: routes/index.js or similar
+router.get('/personal-dashboard/:id/:type', authMiddleware, async (req, res) => {
+    const { id, type } = req.params;
+    const idPregunta = req.query.id_tipo_pregunta; // Treated as id_pregunta for most tables
+    try {
+        const tipoToId = { '360': 5, 'pares': 6, 'jefes': 7, 'subordinado': 4 }; // Defined here to avoid ReferenceError
+        let query;
+        let queryParams;
+        switch (type.toLowerCase()) {
+            case 'materias':
+            case 'artes':
+            case 'disciplina_deportiva':
+            case 'liga_deportiva':
+            case 'psicopedagogico':
+                query = `
+                    SELECT AVG(id_respuesta) as generalAverage
+                    FROM Respuesta_Alumno_Docente
+                    WHERE id_personal = ? AND id_pregunta = ?
+                `;
+                queryParams = [id, idPregunta];
+                break;
+            case 'ingles':
+                query = `
+                    SELECT AVG(id_respuesta) as generalAverage
+                    FROM Respuesta_Alumno_Docente_Ingles
+                    WHERE id_personal = ? AND id_pregunta = ?
+                `;
+                queryParams = [id, idPregunta];
+                break;
+            case 'talleres':
+                query = `
+                    SELECT AVG(id_respuesta) as generalAverage
+                    FROM Respuesta_Alumno_Taller
+                    WHERE id_personal = ? AND id_pregunta = ?
+                `;
+                queryParams = [id, idPregunta];
+                break;
+            case 'counselors':
+                query = `
+                    SELECT AVG(id_respuesta) as generalAverage
+                    FROM Respuesta_Alumno_Counselor
+                    WHERE id_personal = ? AND id_pregunta = ?
+                `;
+                queryParams = [id, idPregunta];
+                break;
+            case '360':
+            case 'pares':
+            case 'jefes':
+            case 'subordinado':
+                query = `
+                    SELECT AVG(id_respuesta) as generalAverage
+                    FROM Respuesta_Personal
+                    WHERE id_personal = ? AND id_pregunta = ? AND id_tipo_pregunta = ?
+                `;
+                queryParams = [id, idPregunta, tipoToId[type.toLowerCase()]];
+                break;
+            default:
+                console.warn(`[id_personal=${id}, type=${type}] Unsupported evaluation type`);
+                return res.json({ generalAverage: '0' });
+        }
+
+        const [results] = await db.query(query, queryParams);
+        const generalAverage = results[0]?.generalAverage ? (parseFloat(results[0].generalAverage) * 100).toFixed(2) : '0';
+        console.log(`[id_personal=${id}, type=${type}, id_pregunta=${idPregunta}, id_tipo_pregunta=${tipoToId[type.toLowerCase()] || 'N/A'}] General average:`, generalAverage);
+        res.json({ generalAverage });
+    } catch (error) {
+        console.error(`[id_personal=${id}, type=${type}] Error fetching evaluation results:`, {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error fetching evaluation results', error: error.message });
+    }
+});
+
+//FIN RUTAS DASHBOARD DIRECTOR
 
   //GESTION DE PERMISOS
 
@@ -5567,14 +5748,14 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
       WHERE gm.id_personal = ?
       ORDER BY m.grado_materia, m.nombre_materia
     `, [id_personal]);
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
-      FROM Personal_Taller pt
+      FROM Personal_taller pt
       JOIN Taller t ON pt.id_taller = t.id_taller
       WHERE pt.id_personal = ?
       ORDER BY t.nombre_taller
@@ -5686,7 +5867,7 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
 
     // Check for talleres
     const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
+      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
     `, [id_personal]);
     if (talleresCount[0].count > 0) {
       console.log(`Talleres encontrados para id_personal: ${id_personal}`);
@@ -5771,6 +5952,35 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
     console.error('Error al obtener tipos de evaluaciones:', error);
     res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
   }
+});
+
+// Obtener personal asociado a un rol específico
+router.get('/personal-by-role-permisos/:roleId', async (req, res) => {
+    const { roleId } = req.params;
+    try {
+        const [personal] = await db.query(
+            `SELECT DISTINCT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.id_usuario
+             FROM Personal p
+             JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
+             WHERE pr.id_rol = ?`,
+            [roleId]
+        );
+        res.json({ success: true, personal });
+    } catch (error) {
+        console.error('Error fetching personal by role:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta.' });
+    }
+});
+
+// Fetch all roles
+router.get('/personal-roles', authMiddleware, async (req, res) => {
+    try {
+        const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
+        res.json({ success: true, roles });
+    } catch (error) {
+        console.error('Error fetching roles:', error);
+        res.status(500).json({ success: false, message: 'Error en la consulta de roles.' });
+    }
 });
 
 // Fetch all categories with their roles
@@ -5876,7 +6086,7 @@ const responseTables = {
   'ingles': { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
   'artes': { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
   'servicios': { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
+  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
   'counselors': { table: 'Respuesta_Alumno_Counselor', single: true },
   'psicopedagogico': { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
   'coordinadores': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
@@ -6116,151 +6326,100 @@ router.get('/personal-evaluaciones-types/:idPersonal', authMiddleware, async (re
   }
 });
 
-// Fetch all general services
-router.get('/servicios', authMiddleware, async (req, res) => {
+
+// Obtener todos los servicios
+router.get('/servicios', async (req, res) => {
   try {
-    const [servicios] = await db.query(`
-      SELECT id_servicio, nombre_servicio, img_servicio
-      FROM Servicio
-    `);
+    const [servicios] = await db.query('SELECT id_servicio, nombre_servicio, img_servicio FROM Servicio');
     res.json(servicios);
   } catch (error) {
     console.error('Error al obtener servicios:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener servicios' });
+    res.status(500).json({ success: false, message: 'Error al cargar servicios' });
   }
 });
 
-// Fetch all disciplinas deportivas
-router.get('/disciplinas-deportivas', authMiddleware, async (req, res) => {
-  try {
-    const [disciplinas] = await db.query(`
-      SELECT id_disciplia_deportiva, nombre_disciplina_deportiva AS nombre_disciplina_deportiva, img_servicio
-      FROM Disciplina_Deportiva
-    `);
-    res.json(disciplinas);
-  } catch (error) {
-    console.error('Error al obtener disciplinas deportivas:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener disciplinas deportivas' });
-  }
-});
-
-// Fetch all ligas deportivas
-router.get('/ligas-deportivas', authMiddleware, async (req, res) => {
-  try {
-    const [ligas] = await db.query(`
-      SELECT id_liga_deportiva, nombre_liga_deportiva, img_servicio
-      FROM Liga_Deportiva
-    `);
-    res.json(ligas);
-  } catch (error) {
-    console.error('Error al obtener ligas deportivas:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener ligas deportivas' });
-  }
-});
-
-// Fetch evaluation results for a service
-router.get('/servicio-evaluaciones-results/:id/:type', authMiddleware, async (req, res) => {
-  const { id, type } = req.params;
-  const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()] || 1;
+router.get('/servicios-resultados/:id_servicio', async (req, res) => {
+  const { id_servicio } = req.params;
+  const idTipoPregunta = req.query.id_tipo_pregunta;
   const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
 
   try {
-    let serviceName = '';
-    let subjects = [];
+    if (!idTipoPregunta) {
+      return res.status(400).json({ success: false, message: 'id_tipo_pregunta requerido' });
+    }
+
     let isMultiple = false;
+    let subjects = [];
     let totalAlumnos = 0;
     let comments = [];
+    let nombre_servicio = '';
 
-    const responseTables = {
-      general: {
-        table: 'Respuesta_Alumno_Servicio',
-        idField: 'id_servicio',
-        nameField: 'nombre_servicio',
-        joinTable: 'Servicio',
-        joinCondition: 'id_servicio',
-        commentTable: 'Comentario_Servicio',
-        commentColumn: 'comentario_servicio'
-      },
-      disciplina_deportiva: {
-        table: 'Respuesta_Alumno_Disciplina_Deportiva',
-        idField: 'id_disciplia_deportiva',
-        nameField: 'nombre_disciplina_deportiva',
-        joinTable: 'Disciplina_Deportiva',
-        joinCondition: 'id_disciplia_deportiva',
-        commentTable: 'Comentario_Disciplina_Deportiva',
-        commentColumn: 'comentario_disciplina_deportiva'
-      },
-      liga_deportiva: {
-        table: 'Respuesta_Alumno_Liga_Deportiva',
-        idField: 'id_liga_deportiva',
-        nameField: 'nombre_liga_deportiva',
-        joinTable: 'Liga_Deportiva',
-        joinCondition: 'id_liga_deportiva',
-        commentTable: 'Comentario_Liga_Deportiva',
-        commentColumn: 'comentario_liga_deportiva'
-      }
+    const tableConfig = {
+      table: 'Respuesta_Alumno_Servicio',
+      idField: 'id_servicio',
+      nameField: 'nombre_servicio',
+      joinTable: 'Servicio',
+      joinCondition: 'id_servicio'
     };
 
-    const tableConfig = responseTables[type.toLowerCase()];
-    if (!tableConfig) {
-      return res.status(400).json({ success: false, message: `Invalid evaluation type: ${type}` });
-    }
-
-    // Get service name
-    if (type === 'general' && id === '0') {
-      serviceName = 'Servicios Generales';
-      const [serviciosData] = await db.query(`
-        SELECT id_servicio, nombre_servicio AS name
-        FROM Servicio
-        WHERE nombre_servicio NOT IN ('La Loma', 'Ligas Deportivas')
-      `);
-      subjects = serviciosData;
-      isMultiple = subjects.length > 1;
-    } else if (type === 'disciplina_deportiva' && id === '0') {
-      serviceName = 'Disciplinas Deportivas (La Loma)';
-      const [disciplinasData] = await db.query(`
-        SELECT id_disciplia_deportiva, nombre_disciplina_deportiva AS name
-        FROM Disciplina_Deportiva
-      `);
-      subjects = disciplinasData;
-      isMultiple = subjects.length > 1;
-    } else if (type === 'liga_deportiva' && id === '0') {
-      serviceName = 'Ligas Deportivas';
-      const [ligasData] = await db.query(`
-        SELECT id_liga_deportiva, nombre_liga_deportiva AS name
-        FROM Liga_Deportiva
-      `);
-      subjects = ligasData;
-      isMultiple = subjects.length > 1;
-    } else {
-      const [serviceData] = await db.query(`
-        SELECT ${tableConfig.nameField} AS name
-        FROM ${tableConfig.joinTable}
-        WHERE ${tableConfig.idField} = ?
-      `, [id]);
-      serviceName = serviceData[0]?.name || type.charAt(0).toUpperCase() + type.slice(1);
-      subjects = [{ [tableConfig.idField]: id, name: serviceName }];
-      isMultiple = false;
-    }
-
-    // Get questions
-    const [questions] = await db.query(`
+    // Obtener preguntas (criterios)
+    let questionsQuery = `
       SELECT id_pregunta, nombre_pregunta
       FROM Pregunta
       WHERE id_tipo_pregunta = ?
-      ORDER BY id_pregunta
-    `, [idTipoPregunta]);
-    if (questions.length === 0) {
-      return res.status(404).json({ success: false, message: 'No hay preguntas para este tipo de evaluación' });
+    `;
+    let queryParams = [idTipoPregunta];
+
+    if (id_servicio !== '0') {
+      // Para un servicio específico, filtrar preguntas por id_servicio
+      questionsQuery += ` AND id_servicio = ?`;
+      queryParams.push(id_servicio);
+    } else {
+      // Para todos los servicios, incluir solo preguntas con id_servicio no nulo
+      questionsQuery += ` AND id_servicio IS NOT NULL`;
     }
 
-    // Process subjects
+    questionsQuery += ` ORDER BY id_pregunta`;
+    const [questions] = await db.query(questionsQuery, queryParams);
+    if (questions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay preguntas para este tipo de evaluación o servicio' });
+    }
+
+    if (id_servicio === '0') {
+      // Manejo de todos los servicios (múltiples)
+      const [subjectsData] = await db.query(`
+        SELECT id_servicio AS ${tableConfig.idField}, ${tableConfig.nameField} AS name
+        FROM ${tableConfig.joinTable}
+        WHERE nombre_servicio NOT IN ('La Loma', 'Ligas Deportivas')
+      `);
+      subjects = subjectsData;
+      isMultiple = subjects.length > 1;
+      nombre_servicio = 'SERVICIOS GENERALES';
+    } else {
+      // Manejo de servicio individual
+      const [servicioData] = await db.query(`
+        SELECT ${tableConfig.nameField} AS name
+        FROM ${tableConfig.joinTable}
+        WHERE ${tableConfig.idField} = ?
+      `, [id_servicio]);
+      if (servicioData.length === 0) {
+        return res.status(404).json({ success: false, message: 'Servicio no encontrado' });
+      }
+      subjects = [{ [tableConfig.idField]: id_servicio, name: servicioData[0].name }];
+      isMultiple = false;
+      nombre_servicio = servicioData[0].name.toUpperCase();
+    }
+
+    console.log(`[id_servicio=${id_servicio}, idTipoPregunta=${idTipoPregunta}] Servicio(s): ${nombre_servicio}, subjects: ${JSON.stringify(subjects, null, 2)}`);
+
     for (const subject of subjects) {
       const [totalAlumnosData] = await db.query(`
         SELECT COUNT(DISTINCT id_alumno) as total
         FROM ${tableConfig.table}
-        WHERE ${tableConfig.idField} = ?
-      `, [subject[tableConfig.idField]]);
+        WHERE ${tableConfig.idField} = ? AND id_pregunta IN (
+          SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ? AND (id_servicio = ? OR id_servicio IS NULL)
+        )
+      `, [subject[tableConfig.idField], idTipoPregunta, subject[tableConfig.idField]]);
       subject.totalAlumnos = totalAlumnosData[0].total;
       totalAlumnos += subject.totalAlumnos;
 
@@ -6297,9 +6456,10 @@ router.get('/servicio-evaluaciones-results/:id/:type', authMiddleware, async (re
       subject.criteria = criteria;
       subject.avgSi = validCriteriaCount > 0 ? (sumAvgSi / validCriteriaCount).toFixed(2) : 'N/A';
       subject.avgNo = subject.avgSi !== 'N/A' ? (100 - parseFloat(subject.avgSi)).toFixed(2) : 'N/A';
+      console.log(`[servicio=${subject.name}, id=${subject[tableConfig.idField]}] avgSi: ${subject.avgSi}, avgNo: ${subject.avgNo}`);
     }
 
-    // Calculate criteria averages
+    // Calcular promedios por criterio
     const criteria = questions.map((q, index) => {
       let sumPctSi = 0;
       let validCount = 0;
@@ -6314,32 +6474,34 @@ router.get('/servicio-evaluaciones-results/:id/:type', authMiddleware, async (re
       return { no: index + 1, criterio: q.nombre_pregunta, promedio };
     });
 
-    // Fetch comments
-    if (id === '0') {
-      const [commentsData] = await db.query(`
-        SELECT ${tableConfig.commentColumn} AS comment
-        FROM ${tableConfig.commentTable}
-        WHERE ${tableConfig.idField} IN (
-          SELECT ${tableConfig.idField} FROM ${tableConfig.joinTable}
-          ${type === 'general' ? `WHERE nombre_servicio NOT IN ('La Loma', 'Ligas Deportivas')` : ''}
-        )
-      `);
-      comments = commentsData.map(c => c.comment);
-    } else {
-      const [commentsData] = await db.query(`
-        SELECT ${tableConfig.commentColumn} AS comment
-        FROM ${tableConfig.commentTable}
-        WHERE ${tableConfig.idField} = ?
-      `, [id]);
-      comments = commentsData.map(c => c.comment);
-    }
-
     const validSubjects = subjects.filter(s => s.avgSi !== 'N/A');
     const generalAverage = validSubjects.length > 0 ? (validSubjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / validSubjects.length).toFixed(2) : 'N/A';
 
+    // Obtener comentarios
+    if (id_servicio === '0') {
+      const [commentsData] = await db.query(`
+        SELECT comentario_servicio AS comment
+        FROM Comentario_Servicio
+        WHERE id_servicio IN (
+          SELECT id_servicio FROM Servicio WHERE nombre_servicio NOT IN ('La Loma', 'Ligas Deportivas')
+        )
+      `);
+      comments = commentsData.map(c => c.comment).filter(comment => comment && comment.trim() !== '');
+    } else {
+      const [commentsData] = await db.query(`
+        SELECT comentario_servicio AS comment
+        FROM Comentario_Servicio
+        WHERE id_servicio = ?
+      `, [id_servicio]);
+      comments = commentsData.map(c => c.comment).filter(comment => comment && comment.trim() !== '');
+    }
+    console.log(`[id_servicio=${id_servicio}] Comments: ${JSON.stringify(comments)}`);
+
+    console.log(`[id_servicio=${id_servicio}] totalAlumnos: ${totalAlumnos}, generalAverage: ${generalAverage}`);
+
     res.json({
       success: true,
-      serviceName,
+      teacherName: nombre_servicio, // Usamos 'teacherName' para consistencia con el frontend
       isMultiple,
       subjects,
       criteria,
@@ -6347,15 +6509,324 @@ router.get('/servicio-evaluaciones-results/:id/:type', authMiddleware, async (re
       comments
     });
   } catch (error) {
-    console.error(`[id=${id}, type=${type}] Error:`, error);
+    console.error(`[id_servicio=${id_servicio}, idTipoPregunta=${idTipoPregunta}] Error:`, error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
+  }
+});
+// 1. Lista de Disciplinas Deportivas
+router.get('/disciplinas-la-loma', async (req, res) => {
+  try {
+    const [disciplinas] = await db.query(`
+      SELECT id_disciplina_deportiva AS id_disciplina, nombre_disciplina_deportiva AS nombre_disciplina
+      FROM Disciplina_Deportiva
+    `);
+    res.json(disciplinas);
+  } catch (error) {
+    console.error('Error al obtener disciplinas deportivas:', error);
+    res.status(500).json({ success: false, message: 'Error al cargar disciplinas deportivas' });
+  }
+});
+
+// 2. Resultados de una Disciplina Deportiva
+router.get('/disciplinas-la-loma-resultados/:id_disciplina', async (req, res) => {
+  const { id_disciplina } = req.params;
+  const idTipoPregunta = req.query.id_tipo_pregunta || 8;
+  const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
+
+  try {
+    if (!idTipoPregunta) {
+      return res.status(400).json({ success: false, message: 'id_tipo_pregunta requerido' });
+    }
+
+    let subjects = [];
+    let totalAlumnos = 0;
+    let comments = [];
+    let nombre_disciplina = '';
+
+    const tableConfig = {
+      table: 'Respuesta_Alumno_Disciplina_Deportiva',
+      idField: 'id_disciplina_deportiva',
+      nameField: 'nombre_disciplina_deportiva',
+      joinTable: 'Disciplina_Deportiva',
+      joinCondition: 'id_disciplina_deportiva'
+    };
+
+    // Obtener preguntas (criterios) para id_servicio = 3
+    const [questions] = await db.query(`
+      SELECT id_pregunta, nombre_pregunta
+      FROM Pregunta
+      WHERE id_tipo_pregunta = ? AND id_servicio = 3
+      ORDER BY id_pregunta
+    `, [idTipoPregunta]);
+    if (questions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay preguntas para esta disciplina' });
+    }
+
+    // Obtener nombre de la disciplina
+    const [disciplinaData] = await db.query(`
+      SELECT ${tableConfig.nameField} AS name
+      FROM ${tableConfig.joinTable}
+      WHERE ${tableConfig.idField} = ?
+    `, [id_disciplina]);
+    if (disciplinaData.length === 0) {
+      return res.status(404).json({ success: false, message: 'Disciplina no encontrada' });
+    }
+    subjects = [{ [tableConfig.idField]: id_disciplina, name: disciplinaData[0].name }];
+    nombre_disciplina = disciplinaData[0].name.toUpperCase();
+    const isMultiple = false; // Disciplinas are always single
+
+    console.log(`[id_disciplina=${id_disciplina}, idTipoPregunta=${idTipoPregunta}] Disciplina: ${nombre_disciplina}, subjects: ${JSON.stringify(subjects, null, 2)}`);
+
+    for (const subject of subjects) {
+      // Obtener total de alumnos
+      const [totalAlumnosData] = await db.query(`
+        SELECT COUNT(DISTINCT id_alumno) as total
+        FROM ${tableConfig.table}
+        WHERE ${tableConfig.idField} = ? AND id_pregunta IN (
+          SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ? AND id_servicio = 3
+        )
+      `, [subject[tableConfig.idField], idTipoPregunta]);
+      subject.totalAlumnos = totalAlumnosData[0].total;
+      totalAlumnos += subject.totalAlumnos;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+      let validCriteriaCount = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.id_respuesta, r.nombre_respuesta, COUNT(*) as count
+          FROM ${tableConfig.table} rad
+          JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
+          WHERE rad.${tableConfig.idField} = ? AND rad.id_pregunta = ?
+          GROUP BY r.id_respuesta, r.nombre_respuesta
+        `, [subject[tableConfig.idField], q.id_pregunta]);
+
+        let si_count = 0;
+        counts.forEach(c => {
+          if (goodIds.includes(c.id_respuesta)) {
+            si_count += c.count;
+          }
+        });
+        const total_count = counts.reduce((sum, c) => sum + c.count, 0);
+        const pctSi = total_count > 0 ? (si_count / total_count * 100).toFixed(2) : 'N/A';
+        const pctNo = total_count > 0 ? ((total_count - si_count) / total_count * 100).toFixed(2) : 'N/A';
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        if (pctSi !== 'N/A') {
+          sumAvgSi += parseFloat(pctSi);
+          validCriteriaCount++;
+        }
+      }
+
+      subject.criteria = criteria;
+      subject.avgSi = validCriteriaCount > 0 ? (sumAvgSi / validCriteriaCount).toFixed(2) : 'N/A';
+      subject.avgNo = subject.avgSi !== 'N/A' ? (100 - parseFloat(subject.avgSi)).toFixed(2) : 'N/A';
+      console.log(`[disciplina=${subject.name}, id=${subject[tableConfig.idField]}] avgSi: ${subject.avgSi}, avgNo: ${subject.avgNo}`);
+    }
+
+    // Calcular promedios por criterio
+    const criteria = questions.map((q, index) => {
+      let sumPctSi = 0;
+      let validCount = 0;
+      subjects.forEach(s => {
+        const pctSi = s.criteria[index]?.pctSi;
+        if (pctSi !== 'N/A') {
+          sumPctSi += parseFloat(pctSi);
+          validCount++;
+        }
+      });
+      const promedio = validCount > 0 ? (sumPctSi / validCount).toFixed(2) : 'N/A';
+      return { no: index + 1, criterio: q.nombre_pregunta, promedio };
+    });
+
+    const validSubjects = subjects.filter(s => s.avgSi !== 'N/A');
+    const generalAverage = validSubjects.length > 0 ? (validSubjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / validSubjects.length).toFixed(2) : 'N/A';
+
+    // Obtener comentarios
+    const [commentsData] = await db.query(`
+      SELECT comentario_servicio AS comment
+      FROM Comentario_Disciplina_Deportiva
+      WHERE id_disciplina_deportiva = ?
+    `, [id_disciplina]);
+    comments = commentsData.map(c => c.comment).filter(comment => comment && comment.trim() !== '');
+
+    console.log(`[id_disciplina=${id_disciplina}] totalAlumnos: ${totalAlumnos}, generalAverage: ${generalAverage}, comments: ${JSON.stringify(comments)}`);
+
+    res.json({
+      success: true,
+      teacherName: nombre_disciplina, // Usamos 'teacherName' para consistencia con el frontend
+      isMultiple: false,
+      subjects,
+      criteria,
+      generalAverage,
+      comments
+    });
+  } catch (error) {
+    console.error(`[id_disciplina=${id_disciplina}, idTipoPregunta=${idTipoPregunta}] Error:`, error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
+  }
+});
+// 3. Lista de Ligas Deportivas
+router.get('/ligas-deportivas', async (req, res) => {
+  try {
+    const [ligas] = await db.query(`
+      SELECT id_liga_deportiva AS id_liga, nombre_liga_deportiva AS nombre_liga
+      FROM Liga_Deportiva
+    `);
+    res.json(ligas);
+  } catch (error) {
+    console.error('Error al obtener ligas deportivas:', error);
+    res.status(500).json({ success: false, message: 'Error al cargar ligas deportivas' });
+  }
+});
+
+// 4. Resultados de una Liga Deportiva
+router.get('/ligas-deportivas-resultados/:id_liga', async (req, res) => {
+  const { id_liga } = req.params;
+  const idTipoPregunta = req.query.id_tipo_pregunta || 8;
+  const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
+
+  try {
+    if (!idTipoPregunta) {
+      return res.status(400).json({ success: false, message: 'id_tipo_pregunta requerido' });
+    }
+
+    let subjects = [];
+    let totalAlumnos = 0;
+    let comments = [];
+    let nombre_liga = '';
+
+    const tableConfig = {
+      table: 'Respuesta_Alumno_Liga_Deportiva',
+      idField: 'id_liga_deportiva',
+      nameField: 'nombre_liga_deportiva',
+      joinTable: 'Liga_Deportiva',
+      joinCondition: 'id_liga_deportiva'
+    };
+
+    // Obtener preguntas (criterios) para id_servicio = 8
+    const [questions] = await db.query(`
+      SELECT id_pregunta, nombre_pregunta
+      FROM Pregunta
+      WHERE id_tipo_pregunta = ? AND id_servicio = 8
+      ORDER BY id_pregunta
+    `, [idTipoPregunta]);
+    if (questions.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay preguntas para esta liga' });
+    }
+
+    // Obtener nombre de la liga
+    const [ligaData] = await db.query(`
+      SELECT ${tableConfig.nameField} AS name
+      FROM ${tableConfig.joinTable}
+      WHERE ${tableConfig.idField} = ?
+    `, [id_liga]);
+    if (ligaData.length === 0) {
+      return res.status(404).json({ success: false, message: 'Liga no encontrada' });
+    }
+    subjects = [{ [tableConfig.idField]: id_liga, name: ligaData[0].name }];
+    nombre_liga = ligaData[0].name.toUpperCase();
+    const isMultiple = false; // Ligas are always single
+
+    console.log(`[id_liga=${id_liga}, idTipoPregunta=${idTipoPregunta}] Liga: ${nombre_liga}, subjects: ${JSON.stringify(subjects, null, 2)}`);
+
+    for (const subject of subjects) {
+      // Obtener total de alumnos
+      const [totalAlumnosData] = await db.query(`
+        SELECT COUNT(DISTINCT id_alumno) as total
+        FROM ${tableConfig.table}
+        WHERE ${tableConfig.idField} = ? AND id_pregunta IN (
+          SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ? AND id_servicio = 8
+        )
+      `, [subject[tableConfig.idField], idTipoPregunta]);
+      subject.totalAlumnos = totalAlumnosData[0].total;
+      totalAlumnos += subject.totalAlumnos;
+
+      const criteria = [];
+      let sumAvgSi = 0;
+      let validCriteriaCount = 0;
+
+      for (const [index, q] of questions.entries()) {
+        const [counts] = await db.query(`
+          SELECT r.id_respuesta, r.nombre_respuesta, COUNT(*) as count
+          FROM ${tableConfig.table} rald
+          JOIN Respuesta r ON rald.id_respuesta = r.id_respuesta
+          WHERE rald.${tableConfig.idField} = ? AND rald.id_pregunta = ?
+          GROUP BY r.id_respuesta, r.nombre_respuesta
+        `, [subject[tableConfig.idField], q.id_pregunta]);
+
+        let si_count = 0;
+        counts.forEach(c => {
+          if (goodIds.includes(c.id_respuesta)) {
+            si_count += c.count;
+          }
+        });
+        const total_count = counts.reduce((sum, c) => sum + c.count, 0);
+        const pctSi = total_count > 0 ? (si_count / total_count * 100).toFixed(2) : 'N/A';
+        const pctNo = total_count > 0 ? ((total_count - si_count) / total_count * 100).toFixed(2) : 'N/A';
+
+        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
+        if (pctSi !== 'N/A') {
+          sumAvgSi += parseFloat(pctSi);
+          validCriteriaCount++;
+        }
+      }
+
+      subject.criteria = criteria;
+      subject.avgSi = validCriteriaCount > 0 ? (sumAvgSi / validCriteriaCount).toFixed(2) : 'N/A';
+      subject.avgNo = subject.avgSi !== 'N/A' ? (100 - parseFloat(subject.avgSi)).toFixed(2) : 'N/A';
+      console.log(`[liga=${subject.name}, id=${subject[tableConfig.idField]}] avgSi: ${subject.avgSi}, avgNo: ${subject.avgNo}`);
+    }
+
+    // Calcular promedios por criterio
+    const criteria = questions.map((q, index) => {
+      let sumPctSi = 0;
+      let validCount = 0;
+      subjects.forEach(s => {
+        const pctSi = s.criteria[index]?.pctSi;
+        if (pctSi !== 'N/A') {
+          sumPctSi += parseFloat(pctSi);
+          validCount++;
+        }
+      });
+      const promedio = validCount > 0 ? (sumPctSi / validCount).toFixed(2) : 'N/A';
+      return { no: index + 1, criterio: q.nombre_pregunta, promedio };
+    });
+
+    const validSubjects = subjects.filter(s => s.avgSi !== 'N/A');
+    const generalAverage = validSubjects.length > 0 ? (validSubjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / validSubjects.length).toFixed(2) : 'N/A';
+
+    // Obtener comentarios
+    const [commentsData] = await db.query(`
+      SELECT comentario_servicio AS comment
+      FROM Comentario_Liga_Deportiva
+      WHERE id_liga_deportiva = ?
+    `, [id_liga]);
+    comments = commentsData.map(c => c.comment).filter(comment => comment && comment.trim() !== '');
+
+    console.log(`[id_liga=${id_liga}] totalAlumnos: ${totalAlumnos}, generalAverage: ${generalAverage}, comments: ${JSON.stringify(comments)}`);
+
+    res.json({
+      success: true,
+      teacherName: nombre_liga, // Usamos 'teacherName' para consistencia con el frontend
+      isMultiple: false,
+      subjects,
+      criteria,
+      generalAverage,
+      comments
+    });
+  } catch (error) {
+    console.error(`[id_liga=${id_liga}, idTipoPregunta=${idTipoPregunta}] Error:`, error);
     res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
   }
 });
 
 
+
 //FIN RUTAS DE RESULTADOS
 
-//INICIO RUTAS HISTORICO
+//INICIO RUTAS DE HISTORICO
 
 // Fetch available cycles
 router.get('/historico-ciclos', async (req, res) => {
@@ -6389,8 +6860,8 @@ router.get('/historico-personal-resultados/:ciclo', async (req, res) => {
         p.amaterno_personal, 
         p.img_personal,
         pu.nombre_puesto AS roles,
-        GROUP_CONCAT(r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
-      FROM Personal p
+        GROUP_CONCAT(DISTINCT r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
+      FROM Personal_Historico p
       INNER JOIN Respuesta_Alumno_Docente_Historico rad ON p.id_personal = rad.id_personal
       JOIN Puesto pu ON p.id_puesto = pu.id_puesto
       LEFT JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
@@ -6421,17 +6892,17 @@ router.get('/historico-personal-resultados/:id/:ciclo', async (req, res) => {
         p.fecha_nacimiento_personal, 
         p.img_personal,
         pu.nombre_puesto AS roles,
-        GROUP_CONCAT(r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
-      FROM Personal p
+        GROUP_CONCAT(DISTINCT r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
+      FROM Personal_Historico p
       JOIN Puesto pu ON p.id_puesto = pu.id_puesto
       LEFT JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
       LEFT JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE p.id_personal = ? AND p.estado_personal = 1 AND EXISTS (
+      WHERE p.id_personal = ? AND p.estado_personal = 1 AND p.ciclo = ? AND EXISTS (
         SELECT 1 FROM Respuesta_Alumno_Docente_Historico rad
         WHERE rad.id_personal = p.id_personal AND rad.ciclo = ?
       )
-      GROUP BY p.id_personal
-    `, [id, ciclo]);
+      GROUP BY p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.telefono_personal, p.fecha_nacimiento_personal, p.img_personal, pu.nombre_puesto
+    `, [id, ciclo, ciclo]);
 
     if (personal.length === 0) {
       console.log(`Personal not found for id: ${id}, ciclo: ${ciclo}`);
@@ -6439,23 +6910,23 @@ router.get('/historico-personal-resultados/:id/:ciclo', async (req, res) => {
     }
 
     const [materias] = await db.query(`
-  SELECT 
-    m.nombre_materia, 
-    gg.grado, 
-    gg.grupo
-  FROM Alumno_Materia_Historico am
-  INNER JOIN Materia m 
-    ON am.id_materia = m.id_materia
-  INNER JOIN Grupo_Materia gm 
-    ON am.id_materia = gm.id_materia 
-   AND am.id_personal = gm.id_personal
-  INNER JOIN Grado_Grupo gg 
-    ON gm.id_grado_grupo = gg.id_grado_grupo
-  WHERE am.id_personal = ? 
-    AND am.ciclo = ?
-`, [id, ciclo]);
-
-
+      SELECT 
+        m.nombre_materia, 
+        gg.grado as grado_materia, 
+        GROUP_CONCAT(DISTINCT gg.grupo ORDER BY gg.grupo SEPARATOR ', ') as grupos
+      FROM Alumno_Materia_Historico am
+      INNER JOIN Materia m 
+        ON am.id_materia = m.id_materia
+      INNER JOIN Grupo_Materia_Historico gm 
+        ON am.id_materia = gm.id_materia 
+        AND am.id_personal = gm.id_personal
+        AND am.ciclo = gm.ciclo
+      INNER JOIN Grado_Grupo gg 
+        ON gm.id_grado_grupo = gg.id_grado_grupo
+      WHERE am.id_personal = ? 
+        AND am.ciclo = ?
+      GROUP BY m.nombre_materia, gg.grado
+    `, [id, ciclo]);
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
@@ -6481,31 +6952,31 @@ router.get('/historico-personal-kpis/:id/:ciclo', async (req, res) => {
     const [kpis] = await db.query(`
       SELECT 
         ck.nombre_categoria_kpi, 
-        pc.porcentaje_categoria,   -- AHORA VIENE DE Puesto_Categoria
+        pc.porcentaje_categoria,
         k.id_kpi, 
         k.nombre_kpi, 
         k.meta_kpi, 
         k.tipo_kpi, 
-        ae.siglas_area_estrategica,   -- AHORA VIENE DE Area_Estrategica
+        ae.siglas_area_estrategica,
         ik.sigla_indicador_kpi, 
         k.id_rol, 
         rk.resultado_kpi
       FROM Categoria_Kpi ck
       JOIN Kpi k 
         ON ck.id_categoria_kpi = k.id_categoria_kpi
-      JOIN Personal p 
+      JOIN Personal_Historico p 
         ON p.id_personal = ?
       JOIN Puesto_Categoria pc 
         ON pc.id_puesto = p.id_puesto 
-       AND pc.id_categoria_kpi = ck.id_categoria_kpi
+        AND pc.id_categoria_kpi = ck.id_categoria_kpi
       JOIN Area_Estrategica ae 
         ON ae.id_area_estrategica = k.id_area_estrategica
       JOIN Indicador_Kpi ik
         ON ik.id_indicador_kpi = k.id_indicador_kpi
       LEFT JOIN Resultado_Kpi_Historico rk 
         ON k.id_kpi = rk.id_kpi 
-       AND rk.id_personal = ? 
-       AND rk.ciclo = ?
+        AND rk.id_personal = ? 
+        AND rk.ciclo = ?
       WHERE rk.id_personal IS NOT NULL
       ORDER BY ck.id_categoria_kpi, k.id_kpi
     `, [id, id, ciclo]);
@@ -6526,7 +6997,6 @@ router.get('/historico-personal-kpis/:id/:ciclo', async (req, res) => {
         tipo_kpi: row.tipo_kpi,
         siglas_area_estrategica: row.siglas_area_estrategica,
         sigla_indicador_kpi: row.sigla_indicador_kpi,
-        responsable_medicion: row.responsable_medicion,
         resultado_kpi: row.resultado_kpi
       });
       return acc;
@@ -6582,25 +7052,23 @@ router.get('/historico-personal-evaluaciones-types/:idPersonal/:ciclo', async (r
 // Fetch evaluation results for a specific personal, type, and cycle
 router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', async (req, res) => {
   const tipoToIdPregunta = {
-  'materias': 1,
-  'counselors': 2,
-  'coordinadores': 3,
-  'subordinados': 4,
-  '360': 5,
-  'pares': 6,
-  'jefes': 7,
-  'servicios': 8,
-  'talleres': 9,
-  'instalaciones': 10,
-  'ingles': 1,
-  'artes': 1,
-  'psicopedagogico': 1
-};
+    'materias': 1,
+    'counselors': 2,
+    'coordinadores': 3,
+    'subordinados': 4,
+    '360': 5,
+    'pares': 6,
+    'jefes': 7,
+    'servicios': 8,
+    'talleres': 9,
+    'instalaciones': 10,
+    'ingles': 1,
+    'artes': 1,
+    'psicopedagogico': 1
+  };
   const { idPersonal, type, ciclo } = req.params;
   const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()] || 1;
   const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
-
-  
 
   try {
     console.log(`Fetching evaluation results for idPersonal: ${idPersonal}, type: ${type}, ciclo: ${ciclo}`);
@@ -6610,8 +7078,8 @@ router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', 
 
     const [personal] = await db.query(`
       SELECT CONCAT(nombre_personal, ' ', apaterno_personal, ' ', amaterno_personal) AS teacherName
-      FROM Personal WHERE id_personal = ?
-    `, [idPersonal]);
+      FROM Personal_Historico WHERE id_personal = ? AND ciclo = ?
+    `, [idPersonal, ciclo]);
     const teacherName = personal[0]?.teacherName?.toUpperCase() || '';
 
     const [questions] = await db.query(`
@@ -6628,8 +7096,8 @@ router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', 
       materias: { table: 'Respuesta_Alumno_Docente_Historico', idField: 'id_materia', nameField: 'nombre_materia', joinTable: 'Materia', joinCondition: 'id_materia' },
       ingles: { table: 'Respuesta_Alumno_Docente_Ingles_Historico', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
       artes: { table: 'Respuesta_Alumno_Docente_Arte_Historico', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
-      servicios: { table: 'Respuesta_Alumno_Servicio_Historico', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-      talleres: { table: 'Respuesta_Alumno_Taller_Historico', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
+      servicios: { table: 'Respuesta_Alumno_Servicio_Historico', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio', personalTable: 'Personal_Historico' },
+      talleres: { table: 'Respuesta_Alumno_Taller_Historico', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller_Historico' },
       counselors: { table: 'Respuesta_Alumno_Counselor_Historico', single: true },
       psicopedagogico: { table: 'Respuesta_Alumno_Psicopedagogico_Historico', single: true, idField: 'id_personal' },
       coordinadores: { table: 'Respuesta_Personal_Historico', single: true, idField: 'id_personal', tipoPregunta: true },
@@ -6682,7 +7150,7 @@ router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', 
           SELECT DISTINCT t.${tableConfig.idField}, t.${tableConfig.nameField} AS name
           FROM ${tableConfig.personalTable} pt
           JOIN ${tableConfig.joinTable} t ON pt.${tableConfig.idField} = t.${tableConfig.idField}
-          WHERE pt.id_personal = ?
+          WHERE pt.id_personal = ? AND pt.ciclo = ?
         `;
       } else {
         subjectsDataQuery = `
@@ -6692,7 +7160,7 @@ router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', 
           WHERE rad.id_personal = ? AND rad.ciclo = ? AND rad.id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ?)
         `;
       }
-      const [subjectsData] = await db.query(subjectsDataQuery, type.toLowerCase() === 'talleres' ? [idPersonal] : [idPersonal, ciclo, idTipoPregunta]);
+      const [subjectsData] = await db.query(subjectsDataQuery, type.toLowerCase() === 'talleres' ? [idPersonal, ciclo] : [idPersonal, ciclo, idTipoPregunta]);
       subjects = subjectsData;
       isMultiple = subjects.length > 1;
 
@@ -6817,821 +7285,86 @@ router.get('/historico-personal-evaluaciones-results/:idPersonal/:type/:ciclo', 
   }
 });
 
-// Results Routes (as provided)
-router.get('/personal-por-rol-resultados/:id_rol', async (req, res) => {
-  const { id_rol } = req.params;
-  try {
-    const [personal] = await db.query(`
-      SELECT 
-        p.id_personal, 
-        p.nombre_personal, 
-        p.apaterno_personal, 
-        p.amaterno_personal, 
-        p.img_personal, 
-        pu.nombre_puesto,
-        GROUP_CONCAT(r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
-      FROM Personal p
-      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-      JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE pr.id_rol = ? AND p.estado_personal = 1
-      GROUP BY p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pu.nombre_puesto
-    `, [id_rol]);
-    res.json(personal);
-  } catch (error) {
-    console.error('Error al obtener personal por rol:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener personal por rol' });
-  }
-});
-
-router.get('/personal-resultados', async (req, res) => {
-  try {
-    const [personal] = await db.query(`
-      SELECT 
-        p.id_personal, 
-        p.nombre_personal, 
-        p.apaterno_personal, 
-        p.amaterno_personal, 
-        p.img_personal, 
-        pu.nombre_puesto,
-        GROUP_CONCAT(r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
-      FROM Personal p
-      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      LEFT JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-      LEFT JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE p.estado_personal = 1
-      GROUP BY p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, pu.nombre_puesto
-    `);
-    res.json(personal);
-  } catch (error) {
-    console.error('Error al obtener personal:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener personal' });
-  }
-});
-
-router.get('/personal-resultados/:id_personal', async (req, res) => {
+// Fetch cycles for a specific personal
+router.get('/historico-ciclos-personal/:id_personal', async (req, res) => {
   const { id_personal } = req.params;
   try {
-    const [personal] = await db.query(`
-      SELECT 
-        p.id_personal, 
-        p.nombre_personal, 
-        p.apaterno_personal, 
-        p.amaterno_personal, 
-        p.telefono_personal, 
-        p.fecha_nacimiento_personal, 
-        p.img_personal, 
-        pu.nombre_puesto,
-        GROUP_CONCAT(r.nombre_rol ORDER BY r.nombre_rol SEPARATOR ', ') AS roles_puesto
-      FROM Personal p
-      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      LEFT JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-      LEFT JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE p.id_personal = ? AND p.estado_personal = 1
-      GROUP BY p.id_personal
+    const [ciclos] = await db.query(`
+      SELECT DISTINCT ciclo
+      FROM Personal_Historico
+      WHERE id_personal = ?
+      ORDER BY ciclo DESC
     `, [id_personal]);
-
-    if (personal.length === 0) {
-      return res.status(404).json({ success: false, message: 'Personal no encontrado' });
-    }
-
-    const [materias] = await db.query(`
-      SELECT 
-        m.nombre_materia, 
-        m.modelo_materia, 
-        m.grado_materia, 
-        gm.horas_materia, 
-        gg.grupo
-      FROM Grupo_Materia gm
-      JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
-      WHERE gm.id_personal = ?
-      ORDER BY m.grado_materia, m.nombre_materia
-    `, [id_personal]);
-
-    const [talleres] = await db.query(`
-      SELECT t.nombre_taller
-      FROM Personal_Taller pt
-      JOIN Taller t ON pt.id_taller = t.id_taller
-      WHERE pt.id_personal = ?
-      ORDER BY t.nombre_taller
-    `, [id_personal]);
-
-    res.json({
-      ...personal[0],
-      materias: materias || [],
-      talleres: talleres || []
-    });
+    res.json(ciclos);
   } catch (error) {
-    console.error('Error al obtener datos del personal:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener datos del personal' });
+    console.error(`Error fetching cycles for personal ${id_personal}:`, error);
+    res.status(500).json({ success: false, message: 'Error fetching cycles for personal', error: error.message });
   }
 });
 
-router.get('/personal-kpis/:id_personal', async (req, res) => {
-  const { id_personal } = req.params;
-  try {
-    const [categorias] = await db.query(`
-      SELECT 
-        pc.id_categoria_kpi,
-        ck.nombre_categoria_kpi,
-        pc.porcentaje_categoria
-      FROM Puesto_Categoria pc
-      JOIN Categoria_Kpi ck ON pc.id_categoria_kpi = ck.id_categoria_kpi
-      JOIN Personal p ON pc.id_puesto = p.id_puesto
-      WHERE p.id_personal = ? AND p.estado_personal = 1
-    `, [id_personal]);
+// Fetch historical comments for a personal and cycle
+router.get('/historico-comments-director/:id_personal/:ciclo', async (req, res) => {
+  const { id_personal, ciclo } = req.params;
+  const { type } = req.query;
+  if (!id_personal || !ciclo || !type) return res.status(400).json({ success: false, message: 'id_personal, ciclo y type son requeridos' });
 
-    const kpiData = [];
-    for (const categoria of categorias) {
-      const [kpis] = await db.query(`
-        SELECT 
-          k.id_kpi,
-          k.nombre_kpi,
-          k.meta_kpi,
-          k.tipo_kpi,
-          ae.nombre_area_estrategica,
-          ae.siglas_area_estrategica,
-          ik.nombre_indicador_kpi,
-          ik.sigla_indicador_kpi,
-          r.nombre_rol AS responsable_medicion,
-          rk.resultado_kpi
-        FROM Puesto_Kpi pk
-        JOIN Kpi k ON pk.id_kpi = k.id_kpi
-        JOIN Area_Estrategica ae ON k.id_area_estrategica = ae.id_area_estrategica
-        JOIN Indicador_Kpi ik ON k.id_indicador_kpi = ik.id_indicador_kpi
-        LEFT JOIN Rol r ON k.id_rol = r.id_rol
-        LEFT JOIN Resultado_Kpi rk ON k.id_kpi = rk.id_kpi AND rk.id_personal = ?
-        JOIN Personal p ON pk.id_puesto = p.id_puesto
-        WHERE p.id_personal = ? AND k.id_categoria_kpi = ?
-        ORDER BY k.id_kpi
-      `, [id_personal, id_personal, categoria.id_categoria_kpi]);
-
-      kpiData.push({
-        ...categoria,
-        kpis: kpis.map(kpi => ({
-          ...kpi,
-          resultado_kpi: kpi.resultado_kpi !== null ? kpi.resultado_kpi : 'No evaluado'
-        }))
-      });
-    }
-
-    res.json(kpiData);
-  } catch (error) {
-    console.error('Error al obtener KPIs del personal:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener KPIs' });
-  }
-});
-
-router.get('/personal-evaluaciones-types/:id_personal', async (req, res) => {
-  const { id_personal } = req.params;
-  try {
-    const tipos = [];
-
-    // Obtener el puesto del personal
-    const [personalPuesto] = await db.query(`
-      SELECT pu.nombre_puesto
-      FROM Personal p
-      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      WHERE p.id_personal = ?
-    `, [id_personal]);
-    if (personalPuesto.length === 0) {
-      console.log(`No se encontró personal con id_personal: ${id_personal}`);
-      return res.json([]);
-    }
-    const nombrePuesto = personalPuesto[0].nombre_puesto.toLowerCase();
-
-    // Obtener roles del personal
-    const [rolesPersonal] = await db.query(`
-      SELECT r.nombre_rol
-      FROM Personal p
-      JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-      JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-      JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE p.id_personal = ?
-    `, [id_personal]);
-    const roles = rolesPersonal.map(r => r.nombre_rol.toLowerCase());
-
-    // Check for materias
-    const [materiasCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Grupo_Materia WHERE id_personal = ?
-    `, [id_personal]);
-    if (materiasCount[0].count > 0) {
-      console.log(`Materias encontradas para id_personal: ${id_personal}`);
-      tipos.push('materias');
-    }
-
-    // Check for talleres
-    const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
-    `, [id_personal]);
-    if (talleresCount[0].count > 0) {
-      console.log(`Talleres encontrados para id_personal: ${id_personal}`);
-      tipos.push('talleres');
-    }
-
-    // Check for artes (usando Personal_Arte_Especialidad)
-    const [artesCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Arte_Especialidad WHERE id_personal = ?
-    `, [id_personal]);
-    if (artesCount[0].count > 0) {
-      console.log(`Especialidades de arte encontradas para id_personal: ${id_personal}`);
-      tipos.push('artes');
-    }
-
-    // Check for niveles de inglés
-    const [inglesCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Nivel_Ingles WHERE id_personal = ?
-    `, [id_personal]);
-    if (inglesCount[0].count > 0) {
-      console.log(`Niveles de inglés encontrados para id_personal: ${id_personal}`);
-      tipos.push('ingles');
-    }
-
-    // Check for pares
-    const [paresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Par WHERE id_personal = ?
-    `, [id_personal]);
-    if (paresCount[0].count > 0) {
-      console.log(`Pares encontrados para id_personal: ${id_personal}`);
-      tipos.push('pares');
-    }
-
-    // Check for jefes
-    const [jefesCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Jefe WHERE id_personal = ?
-    `, [id_personal]);
-    if (jefesCount[0].count > 0) {
-      console.log(`Jefes encontrados para id_personal: ${id_personal}`);
-      tipos.push('jefes');
-    }
-
-    // Check for subordinados
-    const [subordinadosCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Subordinado WHERE id_personal = ?
-    `, [id_personal]);
-    if (subordinadosCount[0].count > 0) {
-      console.log(`Subordinados encontrados para id_personal: ${id_personal}`);
-      tipos.push('subordinados');
-    }
-
-    // Check for coordinadores
-    const [coordinadoresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_Coordinador WHERE id_personal = ?
-    `, [id_personal]);
-    if (coordinadoresCount[0].count > 0) {
-      console.log(`Coordinadores encontrados para id_personal: ${id_personal}`);
-      tipos.push('coordinadores');
-    }
-
-    // Check for 360
-    const [tres60Count] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_360 WHERE id_personal = ?
-    `, [id_personal]);
-    if (tres60Count[0].count > 0) {
-      console.log(`Evaluaciones 360 encontradas para id_personal: ${id_personal}`);
-      tipos.push('360');
-    }
-
-    // Ajustes basados en roles/puesto (ejemplo para subdirectores que dan clases)
-    if (roles.some(r => r.includes('subdirector')) && (materiasCount[0].count > 0 || talleresCount[0].count > 0 || inglesCount[0].count > 0 || artesCount[0].count > 0)) {
-      console.log(`Subdirector con actividades docentes encontrado para id_personal: ${id_personal}`);
-      tipos.push('alumnos');
-    }
-
-    // Elimina duplicados
-    const uniqueTipos = [...new Set(tipos)];
-    console.log(`Tipos de evaluaciones finales para id_personal ${id_personal}:`, uniqueTipos);
-
-    res.json(uniqueTipos);
-  } catch (error) {
-    console.error('Error al obtener tipos de evaluaciones:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener tipos de evaluaciones' });
-  }
-});
-
-// Fetch all categories with their roles
-router.get('/personal-categories', async (req, res) => {
-    try {
-        const [categories] = await db.query(`
-            SELECT r.id_rol, r.nombre_rol, p.nombre_puesto
-            FROM Rol r
-            JOIN Puesto_Rol pr ON r.id_rol = pr.id_rol
-            JOIN Puesto p ON pr.id_puesto = p.id_puesto
-        `);
-        const roleCategories = [
-            { name: 'Dirección', roleIds: [3, 12] },
-            { name: 'Subdirección', roleIds: [4, 5, 8, 11, 16, 18, 21, 23, 37] },
-            { name: 'Docentes', roleIds: [1, 2, 15, 19, 30, 31, 36] },
-            { name: 'Servicios', roleIds: [9, 10, 20, 24, 27] },
-            { name: 'Otros', roleIds: [6, 7, 13, 14, 17, 22, 25, 26, 28, 29, 32, 33, 34, 35] }
-        ];
-        res.json({ success: true, categories: roleCategories });
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta de categorías.' });
-    }
-});
-
-// Fetch personal by role
-router.get('/personal-by-role/:roleId', async (req, res) => {
-    const { roleId } = req.params;
-    try {
-        const [personal] = await db.query(`
-            SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.telefono_personal, p.id_usuario, p.id_puesto, p.img_personal
-            FROM Personal p
-            JOIN Puesto_Rol pr ON p.id_puesto = pr.id_puesto
-            WHERE pr.id_rol = ? AND p.estado_personal = 1
-        `, [roleId]);
-        res.json({ success: true, personal });
-    } catch (error) {
-        console.error('Error fetching personal:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta de personal.' });
-    }
-});
-
-// Fetch KPI results for a personal with responsible role
-router.get('/personal-kpi-results/:id_personal', async (req, res) => {
-    const { id_personal } = req.params;
-    try {
-        const [results] = await db.query(`
-            SELECT rk.id_resultado_kpi, rk.resultado_kpi, k.nombre_kpi, k.meta_kpi, k.tipo_kpi, ck.nombre_categoria_kpi, pc.porcentaje_categoria, r.nombre_rol AS responsable
-            FROM Resultado_Kpi rk
-            JOIN Kpi k ON rk.id_kpi = k.id_kpi
-            JOIN Categoria_Kpi ck ON k.id_categoria_kpi = ck.id_categoria_kpi
-            JOIN Puesto_Kpi pk ON k.id_kpi = pk.id_kpi
-            JOIN Puesto_Categoria pc ON pk.id_puesto = pc.id_puesto AND k.id_categoria_kpi = pc.id_categoria_kpi
-            JOIN Personal p ON rk.id_personal = p.id_personal
-            JOIN Rol r ON k.id_rol = r.id_rol
-            WHERE rk.id_personal = ? AND p.id_puesto = pk.id_puesto
-        `, [id_personal]);
-        res.json({ success: true, results });
-    } catch (error) {
-        console.error('Error fetching KPI results:', error);
-        res.status(500).json({ success: false, message: 'Error en la consulta de resultados KPI.' });
-    }
-});
-
-/*router.get('/personal-evaluaciones-results/:idPersonal/:type', async (req, res) => {
-  const { idPersonal, type } = req.params;
-  const idTipoPregunta = req.query.id_tipo_pregunta;
-  const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
+  const isPositive = type === 'positive' ? 1 : 0;
+  const queries = [
+    // Comentario_Docente_Historico
+    `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cd.comentario_docente as comment 
+    FROM Comentario_Docente_Historico cd 
+    JOIN Alumno_Historico a ON cd.id_alumno = a.id_alumno AND cd.ciclo = a.ciclo
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    WHERE cd.id_personal = ? AND cd.tipo_comentario = ? AND cd.ciclo = ?`,
+    // Comentario_Docente_Ingles_Historico
+    `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cdi.comentario_docente_ingles as comment 
+    FROM Comentario_Docente_Ingles_Historico cdi 
+    JOIN Alumno_Historico a ON cdi.id_alumno = a.id_alumno AND cdi.ciclo = a.ciclo
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ? AND cdi.ciclo = ?`,
+    // Comentario_Docente_Arte_Historico
+    `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cda.comentario_docente_arte as comment 
+    FROM Comentario_Docente_Arte_Historico cda 
+    JOIN Alumno_Historico a ON cda.id_alumno = a.id_alumno AND cda.ciclo = a.ciclo
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    WHERE cda.id_personal = ? AND cda.tipo_comentario = ? AND cda.ciclo = ?`,
+    // Comentario_Taller_Historico
+    `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, ct.comentario_taller as comment 
+    FROM Comentario_Taller_Historico ct 
+    JOIN Alumno_Historico a ON ct.id_alumno = a.id_alumno AND ct.ciclo = a.ciclo
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    WHERE ct.id_personal = ? AND ct.tipo_comentario = ? AND ct.ciclo = ?`,
+    // Comentario_Counselor_Historico
+    `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cc.comentario_counselor as comment 
+    FROM Comentario_Counselor_Historico cc 
+    JOIN Alumno_Historico a ON cc.id_alumno = a.id_alumno AND cc.ciclo = a.ciclo
+    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    WHERE cc.id_personal = ? AND cc.tipo_comentario = ? AND cc.ciclo = ?`,
+    // Comentario_Personal_Historico (staff comments)
+    `SELECT CONCAT(p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal) AS commenter, cp.comentario_personal as comment 
+    FROM Comentario_Personal_Historico cp 
+    JOIN Evaluador e ON cp.id_evaluador = e.id_evaluador 
+    JOIN Personal_Historico p ON e.id_personal = p.id_personal AND cp.ciclo = p.ciclo 
+    WHERE cp.id_personal = ? AND cp.tipo_comentario = ? AND cp.ciclo = ?`,
+    // Add similar for other comment tables if needed (e.g., Comentario_Servicio_Historico, etc.)
+  ];
 
   try {
-    if (!idTipoPregunta) {
-      return res.status(400).json({ success: false, message: 'id_tipo_pregunta requerido' });
+    let allComments = [];
+    for (const query of queries) {
+      const [results] = await db.query(query, [id_personal, isPositive, ciclo]);
+      allComments = allComments.concat(results);
     }
-
-    // Obtener nombre del personal
-    const [personal] = await db.query(`
-      SELECT CONCAT(nombre_personal, ' ', apaterno_personal, ' ', amaterno_personal) AS teacherName
-      FROM Personal WHERE id_personal = ?
-    `, [idPersonal]);
-    const teacherName = personal[0]?.teacherName?.toUpperCase() || '';
-    console.log(`[idPersonal=${idPersonal}, type=${type}, idTipoPregunta=${idTipoPregunta}] Teacher name: ${teacherName}`);
-
-    // Obtener preguntas (criterios)
-    const [questions] = await db.query(`
-      SELECT id_pregunta, nombre_pregunta
-      FROM Pregunta
-      WHERE id_tipo_pregunta = ?
-      ORDER BY id_pregunta
-    `, [idTipoPregunta]);
-    if (questions.length === 0) {
-      return res.status(404).json({ success: false, message: 'No hay preguntas para este tipo de evaluación' });
-    }
-
-    let isMultiple = false;
-    let subjects = [];
-    let totalAlumnos = 0;
-    let comments = [];
-
-    // Definir mapeos de tablas
-    const responseTables = {
-      materias: { table: 'Respuesta_Alumno_Docente', idField: 'id_materia', nameField: 'nombre_materia', joinTable: 'Materia', joinCondition: 'id_materia' },
-      ingles: { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
-      artes: { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
-      servicios: { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-      talleres: { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
-      counselors: { table: 'Respuesta_Alumno_Counselor', single: true },
-      psicopedagogico: { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
-      coordinadores: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      '360': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true, fixedTipoPregunta: 5 },
-      pares: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      jefes: { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
-      disciplina_deportiva: { table: 'Respuesta_Alumno_Disciplina_Deportiva', single: true, idField: 'id_disciplia_deportiva' },
-      liga_deportiva: { table: 'Respuesta_Alumno_Liga_Deportiva', single: true, idField: 'id_liga_deportiva' }
-    };
-
-    const commentTables = {
-      materias: 'Comentario_Docente',
-      ingles: 'Comentario_Docente_Ingles',
-      artes: 'Comentario_Docente_Arte',
-      servicios: 'Comentario_Servicio',
-      talleres: 'Comentario_Taller',
-      counselors: 'Comentario_Counselor',
-      psicopedagogico: 'Comentario_Psicopedagogico',
-      coordinadores: 'Comentario_Personal',
-      '360': 'Comentario_Personal',
-      pares: 'Comentario_Personal',
-      jefes: 'Comentario_Personal',
-      disciplina_deportiva: 'Comentario_Disciplina_Deportiva',
-      liga_deportiva: 'Comentario_Liga_Deportiva'
-    };
-
-    const commentColumnNames = {
-      materias: 'comentario_docente',
-      ingles: 'comentario_docente_ingles',
-      artes: 'comentario_docente_arte',
-      servicios: 'comentario_servicio',
-      talleres: 'comentario_taller',
-      counselors: 'comentario_counselor',
-      psicopedagogico: 'comentario_psicopedagogico',
-      coordinadores: 'comentario_personal',
-      '360': 'comentario_personal',
-      pares: 'comentario_personal',
-      jefes: 'comentario_personal',
-      disciplina_deportiva: 'comentario_disciplina_deportiva',
-      liga_deportiva: 'comentario_liga_deportiva'
-    };
-
-    const tableConfig = responseTables[type.toLowerCase()];
-    if (!tableConfig) {
-      return res.status(400).json({ success: false, message: `Invalid evaluation type: ${type}` });
-    }
-
-    if (!tableConfig.single) {
-      // Manejo de evaluaciones múltiples (materias, ingles, artes, servicios, talleres)
-      let subjectsDataQuery = '';
-      if (type.toLowerCase() === 'talleres') {
-        subjectsDataQuery = `
-          SELECT DISTINCT t.${tableConfig.idField}, t.${tableConfig.nameField} AS name
-          FROM ${tableConfig.personalTable} pt
-          JOIN ${tableConfig.joinTable} t ON pt.${tableConfig.idField} = t.${tableConfig.idField}
-          WHERE pt.id_personal = ?
-        `;
-      } else {
-        subjectsDataQuery = `
-          SELECT DISTINCT t.${tableConfig.idField}, t.${tableConfig.nameField} AS name
-          FROM ${tableConfig.table} rad
-          JOIN ${tableConfig.joinTable} t ON rad.${tableConfig.idField} = t.${tableConfig.joinCondition}
-          WHERE rad.id_personal = ? AND rad.id_pregunta IN (SELECT id_pregunta FROM Pregunta WHERE id_tipo_pregunta = ?)
-        `;
-      }
-      const [subjectsData] = await db.query(subjectsDataQuery, type.toLowerCase() === 'talleres' ? [idPersonal] : [idPersonal, idTipoPregunta]);
-      console.log(`[${type}] Subjects found:`, JSON.stringify(subjectsData, null, 2));
-
-      subjects = subjectsData;
-      isMultiple = subjects.length > 1;
-
-      for (const subject of subjects) {
-        const [totalAlumnosData] = await db.query(`
-          SELECT COUNT(DISTINCT id_alumno) as total
-          FROM ${tableConfig.table}
-          WHERE id_personal = ? AND ${tableConfig.idField} = ?
-        `, [idPersonal, subject[tableConfig.idField]]);
-        subject.totalAlumnos = totalAlumnosData[0].total;
-
-        const criteria = [];
-        let sumAvgSi = 0;
-        let validCriteriaCount = 0;
-
-        for (const [index, q] of questions.entries()) {
-          const [counts] = await db.query(`
-            SELECT r.id_respuesta, r.nombre_respuesta, COUNT(*) as count
-            FROM ${tableConfig.table} rad
-            JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
-            WHERE rad.id_personal = ? AND rad.${tableConfig.idField} = ? AND rad.id_pregunta = ?
-            GROUP BY r.id_respuesta, r.nombre_respuesta
-          `, [idPersonal, subject[tableConfig.idField], q.id_pregunta]);
-
-          let si_count = 0;
-          counts.forEach(c => {
-            if (goodIds.includes(c.id_respuesta)) {
-              si_count += c.count;
-            }
-          });
-          const total_count = counts.reduce((sum, c) => sum + c.count, 0);
-          const pctSi = total_count > 0 ? (si_count / total_count * 100).toFixed(2) : 'N/A';
-          const pctNo = total_count > 0 ? ((total_count - si_count) / total_count * 100).toFixed(2) : 'N/A';
-
-          criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
-          if (pctSi !== 'N/A') {
-            sumAvgSi += parseFloat(pctSi);
-            validCriteriaCount++;
-          }
-        }
-
-        subject.criteria = criteria;
-        subject.avgSi = validCriteriaCount > 0 ? (sumAvgSi / validCriteriaCount).toFixed(2) : 'N/A';
-        subject.avgNo = subject.avgSi !== 'N/A' ? (100 - parseFloat(subject.avgSi)).toFixed(2) : 'N/A';
-        console.log(`[${type}, ${subject.name}, ${tableConfig.idField}=${subject[tableConfig.idField]}] avgSi: ${subject.avgSi}, avgNo: ${subject.avgNo}`);
-
-        const [commentsData] = await db.query(`
-          SELECT ${commentColumnNames[type.toLowerCase()]} AS comment
-          FROM ${commentTables[type.toLowerCase()]}
-          WHERE id_personal = ? AND ${tableConfig.idField} = ?
-        `, [idPersonal, subject[tableConfig.idField]]);
-        comments = comments.concat(commentsData.map(c => c.comment));
-        console.log(`[${type}] Comments:`, comments);
-      }
-
-      totalAlumnos = subjects.reduce((sum, s) => sum + s.totalAlumnos, 0) || 0;
-    } else {
-      // Manejo de evaluaciones individuales (counselors, psicopedagogico, coordinadores, 360, pares, jefes, disciplina_deportiva, liga_deportiva)
-      const idField = tableConfig.idField || 'id_personal';
-      const tipoPreguntaValue = tableConfig.fixedTipoPregunta || idTipoPregunta;
-
-      const [data] = await db.query(`
-        SELECT COUNT(DISTINCT ${type.toLowerCase() === 'coordinadores' || type.toLowerCase() === '360' || type.toLowerCase() === 'pares' || type.toLowerCase() === 'jefes' ? 'id_evaluador' : 'id_alumno'}) AS totalAlumnos,
-          pr.id_pregunta AS no, pr.nombre_pregunta AS criterio,
-          SUM(IF(r.id_respuesta IN (?), 1, 0)) AS si_count,
-          COUNT(*) AS total_count
-        FROM ${tableConfig.table} rad
-        JOIN Pregunta pr ON rad.id_pregunta = pr.id_pregunta
-        JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
-        WHERE rad.${idField} = ? ${tableConfig.tipoPregunta ? `AND rad.id_tipo_pregunta = ?` : `AND pr.id_tipo_pregunta = ?`}
-        GROUP BY pr.id_pregunta
-      `, tableConfig.tipoPregunta ? [goodIds, idPersonal, tipoPreguntaValue] : [goodIds, idPersonal, idTipoPregunta]);
-      console.log(`[${type}] Criteria data:`, JSON.stringify(data, null, 2));
-
-      if (data.length === 0) {
-        totalAlumnos = 0;
-        subjects = [{ name: type.charAt(0).toUpperCase() + type.slice(1), totalAlumnos: 0, criteria: [], avgSi: 'N/A', avgNo: 'N/A' }];
-      } else {
-        totalAlumnos = data[0].totalAlumnos;
-        const criteria = questions.map((q, index) => {
-          const questionData = data.find(d => d.no === q.id_pregunta) || { si_count: 0, total_count: 0 };
-          const pctSi = questionData.total_count > 0 ? (questionData.si_count / questionData.total_count * 100).toFixed(2) : 'N/A';
-          const pctNo = questionData.total_count > 0 ? ((questionData.total_count - questionData.si_count) / questionData.total_count * 100).toFixed(2) : 'N/A';
-          return { no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo };
-        });
-
-        const validCriteria = criteria.filter(c => c.pctSi !== 'N/A');
-        const avgSi = validCriteria.length > 0 ? (validCriteria.reduce((sum, c) => sum + parseFloat(c.pctSi), 0) / validCriteria.length).toFixed(2) : 'N/A';
-        const avgNo = avgSi !== 'N/A' ? (100 - parseFloat(avgSi)).toFixed(2) : 'N/A';
-        subjects = [{ name: type.charAt(0).toUpperCase() + type.slice(1), totalAlumnos, criteria, avgSi, avgNo }];
-      }
-
-      const commentQuery = tableConfig.tipoPregunta
-        ? `SELECT ${commentColumnNames[type.toLowerCase()]} AS comment FROM ${commentTables[type.toLowerCase()]} WHERE id_personal = ? AND id_tipo_pregunta = ?`
-        : `SELECT ${commentColumnNames[type.toLowerCase()]} AS comment FROM ${commentTables[type.toLowerCase()]} WHERE ${idField} = ?`;
-      const [commentsData] = await db.query(commentQuery, tableConfig.tipoPregunta ? [idPersonal, tipoPreguntaValue] : [idPersonal]);
-      comments = commentsData.map(c => c.comment);
-      console.log(`[${type}] Comments:`, comments);
-    }
-
-    // Calcular promedios por criterio
-    const criteria = questions.map((q, index) => {
-      let sumPctSi = 0;
-      let validCount = 0;
-      subjects.forEach(s => {
-        const pctSi = s.criteria[index]?.pctSi;
-        if (pctSi !== 'N/A') {
-          sumPctSi += parseFloat(pctSi);
-          validCount++;
-        }
-      });
-      const promedio = validCount > 0 ? (sumPctSi / validCount).toFixed(2) : 'N/A';
-      return { no: index + 1, criterio: q.nombre_pregunta, promedio };
-    });
-
-    const validSubjects = subjects.filter(s => s.avgSi !== 'N/A');
-    const generalAverage = validSubjects.length > 0 ? (validSubjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / validSubjects.length).toFixed(2) : 'N/A';
-    console.log(`[${type}] totalAlumnos: ${totalAlumnos}, generalAverage: ${generalAverage}`);
-
-    res.json({
-      success: true,
-      teacherName,
-      isMultiple,
-      subjects,
-      criteria,
-      generalAverage,
-      comments
-    });
+    res.json({ success: true, comments: allComments });
   } catch (error) {
-    console.error(`[idPersonal=${idPersonal}, type=${type}, idTipoPregunta=${idTipoPregunta}] Error:`, error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
-  }
-}); */
-
-router.get('/servicios', async (req, res) => {
-  try {
-    const [servicios] = await db.query(`
-      SELECT id_servicio, nombre_servicio, img_servicio
-      FROM Servicio
-    `);
-    res.json(servicios);
-  } catch (error) {
-    console.error('Error al obtener servicios:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener servicios' });
-  }
-});
-
-// Fetch all disciplinas deportivas
-router.get('/disciplinas-deportivas', async (req, res) => {
-  try {
-    const [disciplinas] = await db.query(`
-      SELECT id_disciplia_deportiva, nombre_disciplina_deportiva AS nombre_disciplina_deportiva, img_servicio
-      FROM Disciplina_Deportiva
-    `);
-    res.json(disciplinas);
-  } catch (error) {
-    console.error('Error al obtener disciplinas deportivas:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener disciplinas deportivas' });
-  }
-});
-
-// Fetch all ligas deportivas
-router.get('/ligas-deportivas', async (req, res) => {
-  try {
-    const [ligas] = await db.query(`
-      SELECT id_liga_deportiva, nombre_liga_deportiva, img_servicio
-      FROM Liga_Deportiva
-    `);
-    res.json(ligas);
-  } catch (error) {
-    console.error('Error al obtener ligas deportivas:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener ligas deportivas' });
-  }
-});
-
-// Fetch evaluation results for a service
-router.get('/servicio-evaluaciones-results/:id/:type', async (req, res) => {
-  const { id, type } = req.params;
-  const idTipoPregunta = tipoToIdPregunta[type.toLowerCase()] || 1;
-  const goodIds = [1, 5, 6, 9, 10]; // SÍ, 3-4, >5, BUENO, EXCELENTE
-
-  try {
-    let serviceName = '';
-    let subjects = [];
-    let isMultiple = false;
-    let totalAlumnos = 0;
-    let comments = [];
-
-    const responseTables = {
-      general: {
-        table: 'Respuesta_Alumno_Servicio',
-        idField: 'id_servicio',
-        nameField: 'nombre_servicio',
-        joinTable: 'Servicio',
-        joinCondition: 'id_servicio',
-        commentTable: 'Comentario_Servicio',
-        commentColumn: 'comentario_servicio'
-      },
-      disciplina_deportiva: {
-        table: 'Respuesta_Alumno_Disciplina_Deportiva',
-        idField: 'id_disciplia_deportiva',
-        nameField: 'nombre_disciplina_deportiva',
-        joinTable: 'Disciplina_Deportiva',
-        joinCondition: 'id_disciplia_deportiva',
-        commentTable: 'Comentario_Disciplina_Deportiva',
-        commentColumn: 'comentario_disciplina_deportiva'
-      },
-      liga_deportiva: {
-        table: 'Respuesta_Alumno_Liga_Deportiva',
-        idField: 'id_liga_deportiva',
-        nameField: 'nombre_liga_deportiva',
-        joinTable: 'Liga_Deportiva',
-        joinCondition: 'id_liga_deportiva',
-        commentTable: 'Comentario_Liga_Deportiva',
-        commentColumn: 'comentario_liga_deportiva'
-      }
-    };
-
-    const tableConfig = responseTables[type.toLowerCase()];
-    if (!tableConfig) {
-      return res.status(400).json({ success: false, message: `Invalid evaluation type: ${type}` });
-    }
-
-    // Get service name
-    if (type === 'general' && id === '0') {
-      serviceName = 'Servicios Generales';
-      const [serviciosData] = await db.query(`
-        SELECT id_servicio, nombre_servicio AS name
-        FROM Servicio
-        WHERE nombre_servicio NOT IN ('La Loma', 'Ligas Deportivas')
-      `);
-      subjects = serviciosData;
-      isMultiple = subjects.length > 1;
-    } else if (type === 'disciplina_deportiva' && id === '0') {
-      serviceName = 'Disciplinas Deportivas (La Loma)';
-      const [disciplinasData] = await db.query(`
-        SELECT id_disciplia_deportiva, nombre_disciplina_deportiva AS name
-        FROM Disciplina_Deportiva
-      `);
-      subjects = disciplinasData;
-      isMultiple = subjects.length > 1;
-    } else if (type === 'liga_deportiva' && id === '0') {
-      serviceName = 'Ligas Deportivas';
-      const [ligasData] = await db.query(`
-        SELECT id_liga_deportiva, nombre_liga_deportiva AS name
-        FROM Liga_Deportiva
-      `);
-      subjects = ligasData;
-      isMultiple = subjects.length > 1;
-    } else {
-      const [serviceData] = await db.query(`
-        SELECT ${tableConfig.nameField} AS name
-        FROM ${tableConfig.joinTable}
-        WHERE ${tableConfig.idField} = ?
-      `, [id]);
-      serviceName = serviceData[0]?.name || type.charAt(0).toUpperCase() + type.slice(1);
-      subjects = [{ [tableConfig.idField]: id, name: serviceName }];
-      isMultiple = false;
-    }
-
-    // Get questions
-    const [questions] = await db.query(`
-      SELECT id_pregunta, nombre_pregunta
-      FROM Pregunta
-      WHERE id_tipo_pregunta = ?
-      ORDER BY id_pregunta
-    `, [idTipoPregunta]);
-    if (questions.length === 0) {
-      return res.status(404).json({ success: false, message: 'No hay preguntas para este tipo de evaluación' });
-    }
-
-    // Process subjects
-    for (const subject of subjects) {
-      const [totalAlumnosData] = await db.query(`
-        SELECT COUNT(DISTINCT id_alumno) as total
-        FROM ${tableConfig.table}
-        WHERE ${tableConfig.idField} = ?
-      `, [subject[tableConfig.idField]]);
-      subject.totalAlumnos = totalAlumnosData[0].total;
-      totalAlumnos += subject.totalAlumnos;
-
-      const criteria = [];
-      let sumAvgSi = 0;
-      let validCriteriaCount = 0;
-
-      for (const [index, q] of questions.entries()) {
-        const [counts] = await db.query(`
-          SELECT r.id_respuesta, r.nombre_respuesta, COUNT(*) as count
-          FROM ${tableConfig.table} rad
-          JOIN Respuesta r ON rad.id_respuesta = r.id_respuesta
-          WHERE rad.${tableConfig.idField} = ? AND rad.id_pregunta = ?
-          GROUP BY r.id_respuesta, r.nombre_respuesta
-        `, [subject[tableConfig.idField], q.id_pregunta]);
-
-        let si_count = 0;
-        counts.forEach(c => {
-          if (goodIds.includes(c.id_respuesta)) {
-            si_count += c.count;
-          }
-        });
-        const total_count = counts.reduce((sum, c) => sum + c.count, 0);
-        const pctSi = total_count > 0 ? (si_count / total_count * 100).toFixed(2) : 'N/A';
-        const pctNo = total_count > 0 ? ((total_count - si_count) / total_count * 100).toFixed(2) : 'N/A';
-
-        criteria.push({ no: index + 1, criterio: q.nombre_pregunta, pctSi, pctNo });
-        if (pctSi !== 'N/A') {
-          sumAvgSi += parseFloat(pctSi);
-          validCriteriaCount++;
-        }
-      }
-
-      subject.criteria = criteria;
-      subject.avgSi = validCriteriaCount > 0 ? (sumAvgSi / validCriteriaCount).toFixed(2) : 'N/A';
-      subject.avgNo = subject.avgSi !== 'N/A' ? (100 - parseFloat(subject.avgSi)).toFixed(2) : 'N/A';
-    }
-
-    // Calculate criteria averages
-    const criteria = questions.map((q, index) => {
-      let sumPctSi = 0;
-      let validCount = 0;
-      subjects.forEach(s => {
-        const pctSi = s.criteria[index]?.pctSi;
-        if (pctSi !== 'N/A') {
-          sumPctSi += parseFloat(pctSi);
-          validCount++;
-        }
-      });
-      const promedio = validCount > 0 ? (sumPctSi / validCount).toFixed(2) : 'N/A';
-      return { no: index + 1, criterio: q.nombre_pregunta, promedio };
-    });
-
-    const validSubjects = subjects.filter(s => s.avgSi !== 'N/A');
-    const generalAverage = validSubjects.length > 0 ? (validSubjects.reduce((sum, s) => sum + parseFloat(s.avgSi), 0) / validSubjects.length).toFixed(2) : 'N/A';
-
-    res.json({
-      success: true,
-      serviceName,
-      isMultiple,
-      subjects,
-      criteria,
-      generalAverage,
-      comments
-    });
-  } catch (error) {
-    console.error(`[id=${id}, type=${type}] Error:`, error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener resultados', error: error.message });
+    console.error('Error al obtener comentarios:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
   }
 });
 
 
-//FIN RUTAS HISTORICO
+
+//FIN RUTAS DE HISTORICO
 
 
 // HACER CIERRE DE CICLO

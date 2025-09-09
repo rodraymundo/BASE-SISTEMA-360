@@ -11,9 +11,9 @@ const tipoToIdPregunta = {
   'servicios': 8,
   'talleres': 9,
   'instalaciones': 10,
-  'ingles': 1, // Asumiendo DOCENTE
-  'artes': 1, // Asumiendo DOCENTE
-  'psicopedagogico': 1 // Asumiendo DOCENTE
+  'ingles': 1,
+  'artes': 1,
+  'psicopedagogico': 1
 };
 
 async function fetchWithRetry(url, options, retries = 3) {
@@ -33,10 +33,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('Bootstrap disponible:', typeof bootstrap !== 'undefined' ? bootstrap : 'No encontrado');
   const sidebar = document.getElementById('sidebar');
   const personalContainer = document.getElementById('personalContainer');
+  const serviciosContainer = document.getElementById('serviciosContainer');
   const buscadorPersonal = document.getElementById('buscadorPersonal');
+  const mainTitle = document.getElementById('mainTitle');
   let roles = [];
   let personal = [];
   let personalCompleto = [];
+  let servicios = [];
+  let disciplinas = [];
+  let ligas = [];
 
   try {
     const response = await fetch('/auth-check', { credentials: 'include' });
@@ -119,6 +124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       personalContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando personal...</div>';
       personal = await fetchWithRetry(`/personal-por-rol-resultados/${id_rol}`, { credentials: 'include' });
+      mainTitle.innerHTML = '<i class="fas fa-users me-2"></i>Resultados del Personal';
+      serviciosContainer.style.display = 'none';
+      personalContainer.style.display = 'flex';
       mostrarPersonal(personal);
     } catch (error) {
       console.error('Error al cargar personal por rol:', error);
@@ -138,6 +146,91 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  async function cargarServicios() {
+    try {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando servicios...</div>';
+      servicios = await fetchWithRetry('/servicios', { credentials: 'include' });
+      servicios = servicios.filter(s => s.id_servicio !== 3 && s.id_servicio !== 8);
+      mainTitle.innerHTML = '<i class="fas fa-concierge-bell me-2"></i>Resultados de Servicios';
+      personalContainer.style.display = 'none';
+      serviciosContainer.style.display = 'flex';
+      serviciosContainer.style.flexWrap = 'wrap';
+      serviciosContainer.style.justifyContent = 'flex-start';
+      mostrarServicios(servicios);
+    } catch (error) {
+      console.error('Error al cargar servicios:', error);
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar servicios.</div>';
+      Swal.fire({
+        title: 'Error',
+        text: error.message.includes('404')
+          ? 'El servidor no tiene configurada la lista de servicios (/servicios).'
+          : 'No se pudieron cargar los datos de servicios. Asegúrese de que el servidor esté corriendo.',
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonText: 'Reintentar',
+        cancelButtonText: 'Cancelar'
+      }).then(result => {
+        if (result.isConfirmed) cargarServicios();
+      });
+    }
+  }
+
+  async function cargarDisciplinasLaLoma() {
+    try {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando disciplinas...</div>';
+      disciplinas = await fetchWithRetry('/disciplinas-la-loma', { credentials: 'include' });
+      mainTitle.innerHTML = '<i class="fas fa-futbol me-2"></i>Disciplinas de La Loma';
+      personalContainer.style.display = 'none';
+      serviciosContainer.style.display = 'flex';
+      serviciosContainer.style.flexWrap = 'wrap';
+      serviciosContainer.style.justifyContent = 'flex-start';
+      mostrarDisciplinasLaLoma(disciplinas);
+    } catch (error) {
+      console.error('Error al cargar disciplinas de La Loma:', error);
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar disciplinas.</div>';
+      Swal.fire({
+        title: 'Error',
+        text: error.message.includes('404')
+          ? 'El servidor no tiene configurada la lista de disciplinas (/disciplinas-la-loma).'
+          : 'No se pudieron cargar los datos de disciplinas. Asegúrese de que el servidor esté corriendo.',
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonText: 'Reintentar',
+        cancelButtonText: 'Cancelar'
+      }).then(result => {
+        if (result.isConfirmed) cargarDisciplinasLaLoma();
+      });
+    }
+  }
+
+  async function cargarLigasDeportivas() {
+    try {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando ligas deportivas...</div>';
+      ligas = await fetchWithRetry('/ligas-deportivas', { credentials: 'include' });
+      mainTitle.innerHTML = '<i class="fas fa-trophy me-2"></i>Ligas Deportivas';
+      personalContainer.style.display = 'none';
+      serviciosContainer.style.display = 'flex';
+      serviciosContainer.style.flexWrap = 'wrap';
+      serviciosContainer.style.justifyContent = 'flex-start';
+      mostrarLigasDeportivas(ligas);
+    } catch (error) {
+      console.error('Error al cargar ligas deportivas:', error);
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar ligas deportivas.</div>';
+      Swal.fire({
+        title: 'Error',
+        text: error.message.includes('404')
+          ? 'El servidor no tiene configurada la lista de ligas (/ligas-deportivas).'
+          : 'No se pudieron cargar los datos de ligas deportivas. Asegúrese de que el servidor esté corriendo.',
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonText: 'Reintentar',
+        cancelButtonText: 'Cancelar'
+      }).then(result => {
+        if (result.isConfirmed) cargarLigasDeportivas();
+      });
+    }
+  }
+
   function mostrarPersonal(personalList) {
     const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
     const listaParaMostrar = textoBusqueda ? personalCompleto : personalList;
@@ -153,12 +246,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     personalContainer.innerHTML = filtrados.map(p => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-        <div class="card-content">
-          <img src="./assets/img/${p.img_personal || '/assets/img/user.png'}" alt="Foto de ${p.nombre_personal}">
+          <img src="/assets/img/${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
           <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
           <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
-          </div>
-          <div class="card-buttons">
+          <div>
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>
           </div>
@@ -166,39 +257,132 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `).join('');
 
-    // Eventos para botones
     personalContainer.querySelectorAll('.btn-perfil').forEach(button => {
       button.addEventListener('click', () => {
         const id_personal = button.getAttribute('data-id');
-        console.log('Clic en botón Perfil, id_personal:', id_personal);
-        mostrarFichaCompleta(id_personal); // Fixed: Call the profile modal function
+        mostrarFichaCompleta(id_personal);
       });
     });
 
     personalContainer.querySelectorAll('.btn-resultados').forEach(button => {
       button.addEventListener('click', () => {
         const id_personal = button.getAttribute('data-id');
-        console.log('Clic en botón Resultados, id_personal:', id_personal);
         const resultadosModal = new bootstrap.Modal(document.getElementById('resultadosModal'));
         resultadosModal.show();
 
-        // Set data-id on choice buttons
         const kpisButton = document.querySelector('#resultadosModal .btn-kpis');
         const evaluacionesButton = document.querySelector('#resultadosModal .btn-evaluaciones');
         kpisButton.setAttribute('data-id', id_personal);
         evaluacionesButton.setAttribute('data-id', id_personal);
 
-        // Handle KPIs choice
         kpisButton.onclick = () => {
           resultadosModal.hide();
           mostrarKPIs(id_personal);
         };
 
-        // Handle Evaluations choice
         evaluacionesButton.onclick = () => {
           resultadosModal.hide();
           mostrarEvaluaciones(id_personal);
         };
+      });
+    });
+  }
+
+  function mostrarServicios(serviciosList) {
+    const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
+    const filtrados = serviciosList.filter(s =>
+      s.nombre_servicio.toLowerCase().includes(textoBusqueda)
+    );
+
+    if (filtrados.length === 0) {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">No se encontraron servicios.</div>';
+      return;
+    }
+
+    serviciosContainer.innerHTML = filtrados.map(s => `
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+        <div class="personal-card">
+          <img src="/assets/img/${s.img_servicio || 'service.png'}" alt="Foto de ${s.nombre_servicio}">
+          <h5>${s.nombre_servicio}</h5>
+          <p>Servicio</p>
+          <div>
+            <button class="btn btn-resultados" data-id="${s.id_servicio}" data-type="servicio">Resultados</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    serviciosContainer.querySelectorAll('.btn-resultados').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-id');
+        const type = button.getAttribute('data-type');
+        mostrarServiciosResultados(id, type);
+      });
+    });
+  }
+
+  function mostrarDisciplinasLaLoma(disciplinasList) {
+    const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
+    const filtrados = disciplinasList.filter(d =>
+      d.nombre_disciplina.toLowerCase().includes(textoBusqueda)
+    );
+
+    if (filtrados.length === 0) {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">No se encontraron disciplinas.</div>';
+      return;
+    }
+
+    serviciosContainer.innerHTML = filtrados.map(d => `
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+        <div class="personal-card">
+          <img src="/assets/img/${d.img_disciplina || 'sport.png'}" alt="Foto de ${d.nombre_disciplina}">
+          <h5>${d.nombre_disciplina}</h5>
+          <p>Disciplina Deportiva</p>
+          <div>
+            <button class="btn btn-resultados" data-id="${d.id_disciplina}" data-type="disciplina">Resultados</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    serviciosContainer.querySelectorAll('.btn-resultados').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-id');
+        const type = button.getAttribute('data-type');
+        mostrarServiciosResultados(id, type);
+      });
+    });
+  }
+
+  function mostrarLigasDeportivas(ligasList) {
+    const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
+    const filtrados = ligasList.filter(l =>
+      l.nombre_liga.toLowerCase().includes(textoBusqueda)
+    );
+
+    if (filtrados.length === 0) {
+      serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">No se encontraron ligas deportivas.</div>';
+      return;
+    }
+
+    serviciosContainer.innerHTML = filtrados.map(l => `
+      <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+        <div class="personal-card">
+          <img src="/assets/img/${l.img_liga || 'league.png'}" alt="Foto de ${l.nombre_liga}">
+          <h5>${l.nombre_liga}</h5>
+          <p>Liga Deportiva</p>
+          <div>
+            <button class="btn btn-resultados" data-id="${l.id_liga}" data-type="liga">Resultados</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    serviciosContainer.querySelectorAll('.btn-resultados').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-id');
+        const type = button.getAttribute('data-type');
+        mostrarServiciosResultados(id, type);
       });
     });
   }
@@ -234,342 +418,311 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function mostrarFichaCompleta(id_personal) {
-  try {
-    const modalElement = document.getElementById('perfilModal');
-    console.log('Perfil modal element:', modalElement);
-    if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
+    try {
+      const modalElement = document.getElementById('perfilModal');
+      if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
 
-    const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
-    const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
-    const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
-    const groupedMaterias = materias.reduce((acc, materia) => {
-      const key = `${materia.nombre_materia}|${materia.grado_materia}`;
-      if (!acc[key]) {
-        acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
-      }
-      acc[key].grupos.push(materia.grupo);
-      return acc;
-    }, {});
-    const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
-    const modalBody = document.querySelector('#perfilModal .modal-body');
-    modalBody.innerHTML = `
-      <div class="text-center">
-        <img src="/assets/img/${img_personal || '/assets/img/user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
-        <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
-        <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
-      </div>
-      <div class="perfil-details">
-        <h5>Datos Personales</h5>
-        <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
-        <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
-        <h5>Materias Impartidas</h5>
-        ${materiasList.length > 0 ? `
-          <ul class="list-group mb-3">
-            ${materiasList.map(m => `
-              <li class="list-group-item">
-                <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
-              </li>
-            `).join('')}
-          </ul>
-        ` : '<p class="text-muted">No imparte materias</p>'}
-        <h5>Talleres Asignados</h5>
-        ${talleres.length > 0 ? `
-          <ul class="list-group">
-            ${talleres.map(t => `
-              <li class="list-group-item">${t.nombre_taller}</li>
-            `).join('')}
-          </ul>
-        ` : '<p class="text-muted">No está asignado a talleres</p>'}
-      </div>
-    `;
-
-    // Agregar botón de Resultados al footer del modal
-    const modalFooter = document.querySelector('#perfilModal .modal-footer');
-    const existingDownloadButton = modalFooter.querySelector('.btn-resultados-pdf');
-    if (existingDownloadButton) existingDownloadButton.remove(); // Evitar duplicados
-    const downloadButton = document.createElement('button');
-    downloadButton.className = 'btn btn-resultados-pdf';
-    downloadButton.innerHTML = '<i class="fas fa-download"></i> Resultados';
-    downloadButton.addEventListener('click', () => generarPDFResultados(id_personal, data));
-    modalFooter.insertBefore(downloadButton, modalFooter.firstChild);
-
-    const modal = new bootstrap.Modal(modalElement);
-    console.log('Perfil modal inicializado:', modal);
-    modal.show();
-  } catch (error) {
-    console.error('Error en mostrarFichaCompleta:', error);
-    Swal.fire({
-      title: 'Error',
-      text: error.message.includes('404') ? 'Personal no encontrado.' : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
-      icon: 'error',
-      confirmButtonText: 'Aceptar'
-    });
-  }
-}
-
-async function generarPDFResultados(id_personal, personalData) {
-  try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    const margin = 15;
-
-    // ====== HEADER (encabezado institucional arriba del todo, suave) ======
-    const logo = "/assets/img/logo_balmoral.png"; // ruta de tu logo
-    doc.addImage(logo, "PNG", margin, 8, 25, 12); // Logo arriba izquierda
-
-    // Nombre de la escuela (centrado, en gris medio para efecto "transparente")
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(120, 120, 120); // gris suave
-    doc.text("Preparatoria Balmoral Escocés", 105, 14, { align: "center" });
-
-    // Slogan (más pequeño, en gris claro)
-    doc.setFontSize(9);
-    doc.setFont("times", "italic");
-    doc.setTextColor(150, 150, 150); // aún más claro
-    doc.text(
-      '"Inspiro a creer que es posible lo que pareciera imposible"',
-      105,
-      20,
-      { align: "center" }
-    );
-
-    // Quitamos la línea divisoria y dejamos solo espacio
-    let y = 40;
-
-    // ====== TÍTULO DEL REPORTE ======
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor("#000000");
-    doc.text("Resultados del Personal", 105, y, { align: "center" });
-    y += 12;
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor("#555555");
-    doc.text(
-      `Este reporte muestra los resultados de las evaluaciones aplicadas a ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}.`,
-      105,
-      y,
-      { align: "center", maxWidth: 180 }
-    );
-    y += 18;
-
-    // Línea divisoria de la sección de contenido
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, y, 195, y);
-    y += 10;
-
-    // ... 🔽 aquí sigue igual el resto de tu código
-
-
-    // ====== DATOS DEL PERSONAL ======
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor("#000000");
-    doc.text("Datos del Personal", margin, y);
-    y += 8;
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor("#333333");
-    doc.text(
-      `Nombre: ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}`,
-      margin,
-      y
-    );
-    y += 6;
-    doc.text(`Teléfono: ${personalData.telefono_personal || "No disponible"}`, margin, y);
-    y += 6;
-    doc.text(
-      `Fecha de Nacimiento: ${
-        personalData.fecha_nacimiento_personal
-          ? new Date(personalData.fecha_nacimiento_personal).toLocaleDateString("es-MX")
-          : "No disponible"
-      }`,
-      margin,
-      y
-    );
-    y += 6;
-    doc.text(
-      `Roles: ${personalData.roles_puesto || personalData.roles || "Sin roles"}`,
-      margin,
-      y
-    );
-    y += 12;
-
-    // ====== SECCIONES (Materias y Talleres) ======
-    doc.setFontSize(13);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor("#d9534f");
-    doc.text("Materias Impartidas:", margin, y);
-    y += 6;
-
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor("#000000");
-
-    if (personalData.materias && personalData.materias.length > 0) {
-      const groupedMaterias = personalData.materias.reduce((acc, materia) => {
+      const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
+      const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
+      const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
+      const groupedMaterias = materias.reduce((acc, materia) => {
         const key = `${materia.nombre_materia}|${materia.grado_materia}`;
         if (!acc[key]) {
-          acc[key] = {
-            nombre_materia: materia.nombre_materia,
-            grado_materia: materia.grado_materia,
-            grupos: []
-          };
+          acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
         }
-        acc[key].grupos.push(materia.grupo || "N/A");
+        acc[key].grupos.push(materia.grupo);
         return acc;
       }, {});
-      Object.values(groupedMaterias).forEach(m => {
-        doc.text(
-          `- ${m.nombre_materia} (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(", ")})`,
-          margin + 5,
-          y
-        );
-        y += 6;
+      const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
+      const modalBody = document.querySelector('#perfilModal .modal-body');
+      modalBody.innerHTML = `
+        <div class="text-center">
+          <img src="/assets/img/${img_personal || 'user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
+          <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
+          <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
+        </div>
+        <div class="perfil-details">
+          <h5>Datos Personales</h5>
+          <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
+          <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
+          <h5>Materias Impartidas</h5>
+          ${materiasList.length > 0 ? `
+            <ul class="list-group mb-3">
+              ${materiasList.map(m => `
+                <li class="list-group-item">
+                  <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
+                </li>
+              `).join('')}
+            </ul>
+          ` : '<p class="text-muted">No imparte materias</p>'}
+          <h5>Talleres Asignados</h5>
+          ${talleres.length > 0 ? `
+            <ul class="list-group">
+              ${talleres.map(t => `
+                <li class="list-group-item">${t.nombre_taller}</li>
+              `).join('')}
+            </ul>
+          ` : '<p class="text-muted">No está asignado a talleres</p>'}
+        </div>
+      `;
+
+      const modalFooter = document.querySelector('#perfilModal .modal-footer');
+      const existingDownloadButton = modalFooter.querySelector('.btn-resultados-pdf');
+      if (existingDownloadButton) existingDownloadButton.remove();
+      const downloadButton = document.createElement('button');
+      downloadButton.className = 'btn btn-resultados-pdf';
+      downloadButton.innerHTML = '<i class="fas fa-download"></i> Resultados';
+      downloadButton.addEventListener('click', () => generarPDFResultados(id_personal, data));
+      modalFooter.insertBefore(downloadButton, modalFooter.firstChild);
+
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
+    } catch (error) {
+      console.error('Error en mostrarFichaCompleta:', error);
+      Swal.fire({
+        title: 'Error',
+        text: error.message.includes('404') ? 'Personal no encontrado.' : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
+        icon: 'error',
+        confirmButtonText: 'Aceptar'
       });
-    } else {
-      doc.text("No imparte materias", margin + 5, y);
-      y += 6;
     }
-    y += 6;
+  }
 
-    doc.setFontSize(13);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor("#d9534f");
-    doc.text("Talleres Asignados:", margin, y);
-    y += 6;
+  async function generarPDFResultados(id_personal, personalData) {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const margin = 15;
 
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor("#000000");
+      doc.addImage("/assets/img/logo_balmoral.png", "PNG", margin, 8, 25, 12);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(120, 120, 120);
+      doc.text("Preparatoria Balmoral Escocés", 105, 14, { align: "center" });
+      doc.setFontSize(9);
+      doc.setFont("times", "italic");
+      doc.setTextColor(150, 150, 150);
+      doc.text('"Construir conciencias y potenciar talentos"', 105, 20, { align: "center" });
+      let y = 40;
 
-    if (personalData.talleres && personalData.talleres.length > 0) {
-      personalData.talleres.forEach(t => {
-        doc.text(`- ${t.nombre_taller}`, margin + 5, y);
-        y += 6;
-      });
-    } else {
-      doc.text("No asignado a talleres", margin + 5, y);
-      y += 6;
-    }
-    y += 12;
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#000000");
+      doc.text("Resultados del Personal", 105, y, { align: "center" });
+      y += 12;
 
-    // ====== EVALUACIONES ======
-    const tipos = await fetchWithRetry(`/personal-evaluaciones-types/${id_personal}`, {
-      credentials: "include"
-    });
-    if (tipos.length === 0) {
-      doc.text("No hay evaluaciones calificadas disponibles.", margin, y);
-      doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
-      return;
-    }
-
-    const labels = [];
-    const dataScores = [];
-    for (const tipo of tipos) {
-      const idTipoPregunta = tipoToIdPregunta[tipo];
-      const results = await fetchWithRetry(
-        `/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`,
-        { credentials: "include" }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#555555");
+      doc.text(
+        `Este reporte muestra los resultados de las evaluaciones aplicadas a ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}.`,
+        105,
+        y,
+        { align: "center", maxWidth: 180 }
       );
-      if (results.generalAverage !== "N/A" && !isNaN(parseFloat(results.generalAverage))) {
-        labels.push(tipo.toUpperCase());
-        dataScores.push(parseFloat(results.generalAverage));
+      y += 18;
+
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, 195, y);
+      y += 10;
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#000000");
+      doc.text("Datos del Personal", margin, y);
+      y += 8;
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#333333");
+      doc.text(
+        `Nombre: ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}`,
+        margin,
+        y
+      );
+      y += 6;
+      doc.text(`Teléfono: ${personalData.telefono_personal || "No disponible"}`, margin, y);
+      y += 6;
+      doc.text(
+        `Fecha de Nacimiento: ${
+          personalData.fecha_nacimiento_personal
+            ? new Date(personalData.fecha_nacimiento_personal).toLocaleDateString("es-MX")
+            : "No disponible"
+        }`,
+        margin,
+        y
+      );
+      y += 6;
+      doc.text(
+        `Roles: ${personalData.roles_puesto || personalData.roles || "Sin roles"}`,
+        margin,
+        y
+      );
+      y += 12;
+
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#d9534f");
+      doc.text("Materias Impartidas:", margin, y);
+      y += 6;
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#000000");
+
+      if (personalData.materias && personalData.materias.length > 0) {
+        const groupedMaterias = personalData.materias.reduce((acc, materia) => {
+          const key = `${materia.nombre_materia}|${materia.grado_materia}`;
+          if (!acc[key]) {
+            acc[key] = {
+              nombre_materia: materia.nombre_materia,
+              grado_materia: materia.grado_materia,
+              grupos: []
+            };
+          }
+          acc[key].grupos.push(materia.grupo || "N/A");
+          return acc;
+        }, {});
+        Object.values(groupedMaterias).forEach(m => {
+          doc.text(
+            `- ${m.nombre_materia} (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(", ")})`,
+            margin + 5,
+            y
+          );
+          y += 6;
+        });
+      } else {
+        doc.text("No imparte materias", margin + 5, y);
+        y += 6;
       }
-    }
+      y += 6;
 
-    if (labels.length === 0) {
-      doc.text("No hay resultados de evaluaciones calificadas disponibles.", margin, y);
-      doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
-      return;
-    }
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#d9534f");
+      doc.text("Talleres Asignados:", margin, y);
+      y += 6;
 
-    // ====== GRÁFICA DE BARRAS ======
-    const canvas = document.getElementById("chart-canvas");
-    const ctx = canvas.getContext("2d");
-    const chart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: "Porcentaje obtenido",
-            data: dataScores,
-            backgroundColor: ["#d9534f", "#0275d8", "#5cb85c", "#f0ad4e"]
-          }
-        ]
-      },
-      options: {
-        indexAxis: "y",
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          title: {
-            display: true,
-            text: "Resultados por Evaluación",
-            font: { size: 16 }
-          },
-          datalabels: {
-            anchor: "end",
-            align: "right",
-            color: "#000",
-            font: { size: 14, weight: "bold" },
-            formatter: value => value + "%"
-          }
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor("#000000");
+
+      if (personalData.talleres && personalData.talleres.length > 0) {
+        personalData.talleres.forEach(t => {
+          doc.text(`- ${t.nombre_taller}`, margin + 5, y);
+          y += 6;
+        });
+      } else {
+        doc.text("No asignado a talleres", margin + 5, y);
+        y += 6;
+      }
+      y += 12;
+
+      const tipos = await fetchWithRetry(`/personal-evaluaciones-types/${id_personal}`, {
+        credentials: "include"
+      });
+      if (tipos.length === 0) {
+        doc.text("No hay evaluaciones calificadas disponibles.", margin, y);
+        doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+        return;
+      }
+
+      const labels = [];
+      const dataScores = [];
+      for (const tipo of tipos) {
+        const idTipoPregunta = tipoToIdPregunta[tipo];
+        const results = await fetchWithRetry(
+          `/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`,
+          { credentials: "include" }
+        );
+        if (results.generalAverage !== "N/A" && !isNaN(parseFloat(results.generalAverage))) {
+          labels.push(tipo.toUpperCase());
+          dataScores.push(parseFloat(results.generalAverage));
+        }
+      }
+
+      if (labels.length === 0) {
+        doc.text("No hay resultados de evaluaciones calificadas disponibles.", margin, y);
+        doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+        return;
+      }
+
+      const canvas = document.getElementById("chart-canvas");
+      const ctx = canvas.getContext("2d");
+      const chart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Porcentaje obtenido",
+              data: dataScores,
+              backgroundColor: ["#d9534f", "#0275d8", "#5cb85c", "#f0ad4e"]
+            }
+          ]
         },
-        scales: {
-          x: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              callback: value => value + "%",
-              font: { size: 14 }
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: "Resultados por Evaluación",
+              font: { size: 16 }
+            },
+            datalabels: {
+              anchor: "end",
+              align: "right",
+              color: "#000",
+              font: { size: 14, weight: "bold" },
+              formatter: value => value + "%"
             }
           },
-          y: {
-            ticks: { font: { size: 14 } }
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: value => value + "%",
+                font: { size: 14 }
+              }
+            },
+            y: {
+              ticks: { font: { size: 14 } }
+            }
           }
-        }
-      },
-      plugins: [ChartDataLabels]
-    });
+        },
+        plugins: [ChartDataLabels]
+      });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const chartImage = canvas.toDataURL("assets/img/profesor.png");
-    doc.addImage(chartImage, "PNG", margin, y, 180, 80);
-    y += 90;
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const chartImage = canvas.toDataURL("image/png");
+      doc.addImage(chartImage, "PNG", margin, y, 180, 80);
+      y += 90;
 
-    chart.destroy();
+      chart.destroy();
 
-    // ====== PIE DE PÁGINA ======
-    const fecha = new Date().toLocaleDateString("es-MX");
-    doc.setFontSize(10);
-    doc.setTextColor("#555555");
-    doc.text(`Generado el ${fecha}`, 105, 290, { align: "center" });
+      const fecha = new Date().toLocaleDateString("es-MX");
+      doc.setFontSize(10);
+      doc.setTextColor("#555555");
+      doc.text(`Generado el ${fecha}`, 105, 290, { align: "center" });
 
-    // ====== GUARDAR ======
-    doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
-  } catch (error) {
-    console.error("Error generando PDF:", error);
-    Swal.fire({
-      title: "Error",
-      text: "No se pudo generar el PDF. Intenta nuevamente.",
-      icon: "error",
-      confirmButtonText: "Aceptar"
-    });
+      doc.save(`Resultados_${personalData.nombre_personal}.pdf`);
+    } catch (error) {
+      console.error("Error generando PDF:", error);
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo generar el PDF. Intenta nuevamente.",
+        icon: "error",
+        confirmButtonText: "Aceptar"
+      });
+    }
   }
-}
-
-
 
   async function mostrarKPIs(id_personal) {
     try {
       const modalElement = document.getElementById('kpisModal');
-      console.log('KPIs modal element:', modalElement);
       if (!modalElement) throw new Error('No se encontró el elemento #kpisModal');
 
       const personalData = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
@@ -667,11 +820,8 @@ async function generarPDFResultados(id_personal, personalData) {
       modalBody.innerHTML = '';
       modalBody.appendChild(fragment);
       const modal = new bootstrap.Modal(modalElement);
-      console.log('KPIs modal inicializado:', modal);
 
-      // Agregar manejador para limpiar el backdrop al cerrar el modal
       modalElement.addEventListener('hidden.bs.modal', () => {
-        console.log('KPIs modal cerrado, limpiando backdrop');
         const backdrops = document.querySelectorAll('.modal-backdrop');
         backdrops.forEach(backdrop => backdrop.remove());
         document.body.classList.remove('modal-open');
@@ -693,15 +843,12 @@ async function generarPDFResultados(id_personal, personalData) {
   async function mostrarEvaluaciones(id_personal) {
     try {
       const modalElement = document.getElementById('evaluacionesModal');
-      console.log('Evaluaciones modal element:', modalElement);
       if (!modalElement) throw new Error('No se encontró el elemento #evaluacionesModal');
 
       const modalBody = document.querySelector('#evaluacionesModal .modal-body');
-      console.log('Evaluaciones modal body:', modalBody);
       if (!modalBody) throw new Error('No se encontró el elemento #evaluacionesModal .modal-body');
 
       const tipos = await fetchWithRetry(`/personal-evaluaciones-types/${id_personal}`, { credentials: 'include' });
-      console.log('Tipos de evaluaciones:', tipos);
 
       const fragment = document.createDocumentFragment();
       const tempDiv = document.createElement('div');
@@ -715,22 +862,17 @@ async function generarPDFResultados(id_personal, personalData) {
       modalBody.appendChild(fragment);
 
       const modal = new bootstrap.Modal(modalElement);
-      console.log('Evaluaciones modal inicializado:', modal);
 
-      // Limpieza de backdrop
       modalElement.addEventListener('hidden.bs.modal', () => {
-        console.log('Evaluaciones modal cerrado, limpiando backdrop');
         const backdrops = document.querySelectorAll('.modal-backdrop');
         backdrops.forEach(backdrop => backdrop.remove());
         document.body.classList.remove('modal-open');
         document.body.style.paddingRight = '';
       }, { once: true });
 
-      // Agregar eventos a los botones de tipos
       modalBody.querySelectorAll('.btn-evaluacion').forEach(button => {
         button.addEventListener('click', async () => {
           const tipo = button.textContent;
-          console.log(`Clic en botón de evaluación: ${tipo}, id_personal: ${id_personal}`);
           modal.hide();
           await mostrarEvaluacionResults(id_personal, tipo);
         });
@@ -748,137 +890,389 @@ async function generarPDFResultados(id_personal, personalData) {
     }
   }
 
-async function mostrarEvaluacionResults(id_personal, tipo) {
+  async function mostrarEvaluacionResults(id_personal, tipo) {
   try {
     const modalElement = document.getElementById('evaluacionResultsModal');
-    console.log('EvaluacionResults modal element:', modalElement);
     if (!modalElement) throw new Error('No se encontró el elemento #evaluacionResultsModal');
 
     const modalBody = document.querySelector('#evaluacionResultsModal .modal-body');
-    console.log('EvaluacionResults modal body:', modalBody);
     if (!modalBody) throw new Error('No se encontró el elemento #evaluacionResultsModal .modal-body');
 
     const idTipoPregunta = tipoToIdPregunta[tipo];
     if (!idTipoPregunta) throw new Error('Tipo de evaluación no soportado');
 
+    // Obtener resultados de la evaluación
     const data = await fetchWithRetry(`/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
-    console.log('Datos de evaluación:', data);
 
-      let html = `
-        <div class="results-header">
-          <h4>PREPA BALMORAL ESCOCÉS</h4>
-          <h5>CONCENTRADO EVALUACIÓN DOCENTE</h5>
-          <p>NOMBRE DEL DOCENTE: ${data.teacherName}</p>
-        </div>
+    // Obtener comentarios positivos y negativos
+    const positiveComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=positive`, { credentials: 'include' });
+    const negativeComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=negative`, { credentials: 'include' });
+
+    let html = `
+      <div class="results-header">
+        <h4>PREPA BALMORAL ESCOCÉS</h4>
+        <h5>CONCENTRADO EVALUACIÓN DOCENTE</h5>
+        <p>NOMBRE DEL DOCENTE: ${data.teacherName}</p>
+      </div>
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>CRITERIO DE EVALUACIÓN</th>
+    `;
+
+    if (data.isMultiple) {
+      data.subjects.forEach(subject => {
+        html += `<th colspan="2">${subject.name}</th>`;
+      });
+      html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
+      data.subjects.forEach(() => {
+        html += `<th>% de Sí</th><th>% de No</th>`;
+      });
+      html += `<th></th></tr>`;
+    } else {
+      html += `
+        <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
+        <th>PROMEDIO</th>
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        <th>% de Sí</th>
+        <th>% de No</th>
+        <th></th>
+      </tr>
+      `;
+    }
+
+    html += `</thead><tbody>`;
+
+    html += `<tr><td></td><td>Total de alumnos</td>`;
+    data.subjects.forEach(subject => {
+      html += `<td colspan="2">${subject.totalAlumnos}</td>`;
+    });
+    html += `<td></td></tr>`;
+
+    for (let i = 0; i < data.criteria.length; i++) {
+      const crit = data.criteria[i];
+      html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
+      data.subjects.forEach(subject => {
+        const c = subject.criteria[i] || { pctSi: 0, pctNo: 0 };
+        html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+      });
+      html += `<td>${crit.promedio}%</td></tr>`;
+    }
+
+    html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
+    data.subjects.forEach(subject => {
+      html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
+    });
+    html += `<td>${data.generalAverage}%</td></tr>`;
+
+    html += `</tbody></table>`;
+
+    // Sección de comentarios dividida en dos tablas
+    html += `
+      <div class="comments-section">
+        <h3>Comentarios de Admiración</h3>
         <table class="results-table">
           <thead>
             <tr>
-              <th>No.</th>
-              <th>CRITERIO DE EVALUACIÓN</th>
-      `;
+              <th style="width: 10%;">No.</th>
+              <th style="width: 30%;">Comentarista</th>
+              <th style="width: 60%;">Comentario</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              positiveComments.comments && positiveComments.comments.length > 0
+                ? positiveComments.comments
+                    .map(
+                      (comment, index) => `
+                        <tr>
+                          <td>${index + 1}</td>
+                          <td>${comment.commenter}</td>
+                          <td>${comment.comment}</td>
+                        </tr>
+                      `
+                    )
+                    .join('')
+                : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="comments-section">
+        <h3>Áreas de Mejora</h3>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th style="width: 10%;">No.</th>
+              <th style="width: 30%;">Comentarista</th>
+              <th style="width: 60%;">Comentario</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              negativeComments.comments && negativeComments.comments.length > 0
+                ? negativeComments.comments
+                    .map(
+                      (comment, index) => `
+                        <tr>
+                          <td>${index + 1}</td>
+                          <td>${comment.commenter}</td>
+                          <td>${comment.comment}</td>
+                        </tr>
+                      `
+                    )
+                    .join('')
+                : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
+            }
+          </tbody>
+        </table>
+      </div>
+    `;
 
-      if (data.isMultiple) {
-        data.subjects.forEach(subject => {
-          html += `<th colspan="2">${subject.name}</th>`;
-        });
-        html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
-        data.subjects.forEach(() => {
-          html += `<th>% de Sí</th><th>% de No</th>`;
-        });
-        html += `<th></th></tr>`;
-      } else {
-        html += `
-          <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
-          <th>PROMEDIO</th>
-        </tr>
-        <tr>
-          <th></th>
-          <th></th>
-          <th>% de Sí</th>
-          <th>% de No</th>
-          <th></th>
-        </tr>
-        `;
-      }
+    modalBody.innerHTML = html;
 
-      html += `</thead><tbody>`;
+    const modal = new bootstrap.Modal(modalElement);
 
-      // Fila de total alumnos
-      html += `<tr><td></td><td>Total de alumnos</td>`;
-      data.subjects.forEach(subject => {
-        html += `<td colspan="2">${subject.totalAlumnos}</td>`;
-      });
-      html += `<td></td></tr>`;
+    modalElement.addEventListener('hidden.bs.modal', () => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.paddingRight = '';
+    }, { once: true });
 
-      // Criterios
-      for (let i = 0; i < data.criteria.length; i++) {
-        const crit = data.criteria[i];
-        html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
-        data.subjects.forEach(subject => {
-          const c = subject.criteria[i] || { pctSi: 0, pctNo: 0 };
-          html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
-        });
-        html += `<td>${crit.promedio}%</td></tr>`;
-      }
-
-      // Promedio general
-      html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
-      data.subjects.forEach(subject => {
-        html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
-      });
-      html += `<td>${data.generalAverage}%</td></tr>`;
-
-      html += `</tbody></table>`;
-
-      // Comentarios
-      html += `
-        <div class="comments-section">
-          <h3>Comentarios</h3>
-          <ul>
-            ${data.comments.length > 0 ? data.comments.map(comment => `<li>"${comment}"</li>`).join('') : '<li>No hay comentarios disponibles</li>'}
-          </ul>
-        </div>
-      `;
-
-      modalBody.innerHTML = html;
-
-      const modal = new bootstrap.Modal(modalElement);
-      console.log('EvaluacionResults modal inicializado:', modal);
-
-      // Limpieza de backdrop
-      modalElement.addEventListener('hidden.bs.modal', () => {
-        console.log('EvaluacionResults modal cerrado, limpiando backdrop');
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
-        document.body.classList.remove('modal-open');
-        document.body.style.paddingRight = '';
-      }, { once: true });
-
-      modal.show();
-    } catch (error) {
-      console.error('Error en mostrarEvaluacionResults:', error);
-      Swal.fire({
-        title: 'Error',
-        text: error.message || 'No se pudieron cargar los resultados de la evaluación.',
-        icon: 'error',
-        confirmButtonText: 'Aceptar'
-      });
-    }
+    modal.show();
+  } catch (error) {
+    console.error('Error en mostrarEvaluacionResults:', error);
+    Swal.fire({
+      title: 'Error',
+      text: error.message || 'No se pudieron cargar los resultados de la evaluación.',
+      icon: 'error',
+      confirmButtonText: 'Aceptar'
+    });
   }
+}
+
+async function mostrarServiciosResultados(id, type) {
+  try {
+    const modalElement = document.getElementById('serviciosResultadosModal');
+    if (!modalElement) throw new Error('No se encontró el elemento #serviciosResultadosModal');
+
+    const modalBody = document.querySelector('#serviciosResultadosModal .modal-body');
+    if (!modalBody) throw new Error('No se encontró el elemento #serviciosResultadosModal .modal-body');
+
+    let endpoint, nombreCampo, tipoNombre, commentsEndpoint;
+    if (type === 'servicio') {
+      endpoint = `/servicios-resultados/${id}`;
+      nombreCampo = 'teacherName'; // Usamos teacherName para consistencia con el backend
+      tipoNombre = 'SERVICIOS';
+      commentsEndpoint = `/comments-servicio?id=${id}`;
+    } else if (type === 'disciplina') {
+      endpoint = `/disciplinas-la-loma-resultados/${id}`;
+      nombreCampo = 'nombre_disciplina';
+      tipoNombre = 'DISCIPLINAS DEPORTIVAS';
+      commentsEndpoint = `/comments-disciplina-deportiva?id=${id}`;
+    } else if (type === 'liga') {
+      endpoint = `/ligas-deportivas-resultados/${id}`;
+      nombreCampo = 'nombre_liga';
+      tipoNombre = 'LIGAS DEPORTIVAS';
+      commentsEndpoint = `/comments-liga-deportiva?id=${id}`;
+    } else {
+      throw new Error('Tipo no soportado');
+    }
+
+    // Obtener resultados
+    const data = await fetchWithRetry(`${endpoint}?id_tipo_pregunta=${tipoToIdPregunta['servicios']}`, { credentials: 'include' });
+
+    // Obtener comentarios positivos y negativos
+    const positiveComments = await fetchWithRetry(`${commentsEndpoint}&type=positive`, { credentials: 'include' });
+    const negativeComments = await fetchWithRetry(`${commentsEndpoint}&type=negative`, { credentials: 'include' });
+
+    let html = `
+      <div class="results-header">
+        <h4>PREPA BALMORAL ESCOCÉS</h4>
+        <h5>CONCENTRADO EVALUACIÓN DE ${tipoNombre}</h5>
+        <p>${type.toUpperCase()}: ${data[nombreCampo]}</p>
+      </div>
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>CRITERIO DE EVALUACIÓN</th>
+    `;
+
+    if (data.isMultiple) {
+      data.subjects.forEach(subject => {
+        html += `<th colspan="2">${subject.name}</th>`;
+      });
+      html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
+      data.subjects.forEach(() => {
+        html += `<th>% de Sí</th><th>% de No</th>`;
+      });
+      html += `<th></th></tr>`;
+    } else {
+      html += `
+        <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
+        <th>PROMEDIO</th>
+      </tr>
+      <tr>
+        <th></th>
+        <th></th>
+        <th>% de Sí</th>
+        <th>% de No</th>
+        <th></th>
+      </tr>
+      `;
+    }
+
+    html += `</thead><tbody>`;
+
+    html += `<tr><td></td><td>Total de alumnos</td>`;
+    data.subjects.forEach(subject => {
+      html += `<td colspan="2">${subject.totalAlumnos}</td>`;
+    });
+    html += `<td></td></tr>`;
+
+    for (let i = 0; i < data.criteria.length; i++) {
+      const crit = data.criteria[i];
+      html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
+      data.subjects.forEach(subject => {
+        const c = subject.criteria[i] || { pctSi: 'N/A', pctNo: 'N/A' };
+        html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+      });
+      html += `<td>${crit.promedio}%</td></tr>`;
+    }
+
+    html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
+    data.subjects.forEach(subject => {
+      html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
+    });
+    html += `<td>${data.generalAverage}%</td></tr>`;
+
+    html += `</tbody></table>`;
+
+    // Sección de comentarios dividida en dos tablas
+    html += `
+      <div class="comments-section">
+        <h3>Comentarios de Admiración</h3>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th style="width: 10%;">No.</th>
+              <th style="width: 30%;">Comentarista</th>
+              <th style="width: 60%;">Comentario</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              positiveComments.comments && positiveComments.comments.length > 0
+                ? positiveComments.comments
+                    .map(
+                      (comment, index) => `
+                        <tr>
+                          <td>${index + 1}</td>
+                          <td>${comment.commenter}</td>
+                          <td>${comment.comment}</td>
+                        </tr>
+                      `
+                    )
+                    .join('')
+                : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="comments-section">
+        <h3>Áreas de Mejora</h3>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th style="width: 10%;">No.</th>
+              <th style="width: 30%;">Comentarista</th>
+              <th style="width: 60%;">Comentario</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              negativeComments.comments && negativeComments.comments.length > 0
+                ? negativeComments.comments
+                    .map(
+                      (comment, index) => `
+                        <tr>
+                          <td>${index + 1}</td>
+                          <td>${comment.commenter}</td>
+                          <td>${comment.comment}</td>
+                        </tr>
+                      `
+                    )
+                    .join('')
+                : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
+            }
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    modalBody.innerHTML = html;
+
+    const modal = new bootstrap.Modal(modalElement);
+
+    modalElement.addEventListener('hidden.bs.modal', () => {
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      backdrops.forEach(backdrop => backdrop.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.paddingRight = '';
+    }, { once: true });
+
+    modal.show();
+  } catch (error) {
+    console.error(`Error en mostrarServiciosResultados (${type}):`, error);
+    Swal.fire({
+      title: 'Error',
+      text: error.message || `No se pudieron cargar los resultados de ${type}.`,
+      icon: 'error',
+      confirmButtonText: 'Aceptar'
+    });
+  }
+}
 
   sidebar.addEventListener('click', async (e) => {
     const roleItem = e.target.closest('.role-item');
+    const accordionItem = e.target.closest('.accordion-item');
     if (roleItem && !roleItem.classList.contains('disabled')) {
       const idRol = roleItem.dataset.idRol;
       document.querySelectorAll('.role-item').forEach(item => item.classList.remove('active'));
       roleItem.classList.add('active');
       buscadorPersonal.value = '';
       await cargarPersonalPorRol(idRol);
+    } else if (accordionItem) {
+      document.querySelectorAll('.role-item').forEach(item => item.classList.remove('active'));
+      buscadorPersonal.value = '';
+      if (accordionItem.dataset.type === 'services') {
+        await cargarServicios();
+      } else if (accordionItem.dataset.type === 'la-loma') {
+        await cargarDisciplinasLaLoma();
+      } else if (accordionItem.dataset.type === 'ligas-deportivas') {
+        await cargarLigasDeportivas();
+      }
     }
   });
 
   buscadorPersonal.addEventListener('input', () => {
-    mostrarPersonal(personal);
+    if (serviciosContainer.style.display === 'flex') {
+      if (mainTitle.textContent.includes('Servicios')) {
+        mostrarServicios(servicios);
+      } else if (mainTitle.textContent.includes('Disciplinas')) {
+        mostrarDisciplinasLaLoma(disciplinas);
+      } else if (mainTitle.textContent.includes('Ligas')) {
+        mostrarLigasDeportivas(ligas);
+      }
+    } else {
+      mostrarPersonal(personal);
+    }
   });
 
   await Promise.all([cargarRoles(), cargarPersonalCompleto()]);

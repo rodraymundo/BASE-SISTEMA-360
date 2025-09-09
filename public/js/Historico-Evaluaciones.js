@@ -1,19 +1,19 @@
 import { renderHeader } from '../assets/js/header.js';
 
 const tipoToIdPregunta = {
-  'materias': 1,
-  'counselors': 2,
-  'coordinadores': 3,
-  'subordinados': 4,
+  materias: 1,
+  counselors: 2,
+  coordinadores: 3,
+  subordinados: 4,
   '360': 5,
-  'pares': 6,
-  'jefes': 7,
-  'servicios': 8,
-  'talleres': 9,
-  'instalaciones': 10,
-  'ingles': 1,
-  'artes': 1,
-  'psicopedagogico': 1
+  pares: 6,
+  jefes: 7,
+  servicios: 8,
+  talleres: 9,
+  instalaciones: 10,
+  ingles: 1,
+  artes: 1,
+  psicopedagogico: 1
 };
 
 async function fetchWithRetry(url, options, retries = 3) {
@@ -41,9 +41,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentCiclo = '';
 
   try {
-    const response = await fetch('/auth-check', { credentials: 'include' });
-    if (!response.ok) throw new Error(`Error al verificar autenticación: ${response.status}`);
-    const data = await response.json();
+    const response = await fetchWithRetry('/auth-check', { credentials: 'include' });
+    const data = await response;
     if (!data.authenticated) {
       Swal.fire({
         title: 'Sesión Expirada',
@@ -68,17 +67,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function cargarCiclos() {
     try {
       const ciclosData = await fetchWithRetry('/historico-ciclos', { credentials: 'include' });
-      console.log('Ciclos received:', ciclosData);
-      ciclos = ciclosData;
+      console.log('Ciclos recibidos:', ciclosData);
+      ciclos = Array.isArray(ciclosData) ? ciclosData : [];
       ciclosList.innerHTML = ciclos.length > 0 ? ciclos.map(c => `
         <li class="list-group-item ciclo-item" data-ciclo="${c.ciclo}">${c.ciclo}</li>
       `).join('') : '<li class="list-group-item text-muted">No hay ciclos disponibles</li>';
 
       if (ciclos.length > 0) {
-        const firstCiclo = ciclos[0].ciclo;
-        currentCiclo = firstCiclo;
-        ciclosList.querySelector(`.ciclo-item[data-ciclo="${firstCiclo}"]`).classList.add('active');
-        await cargarPersonalPorCiclo(firstCiclo);
+        currentCiclo = ciclos[0].ciclo;
+        ciclosList.querySelector(`.ciclo-item[data-ciclo="${currentCiclo}"]`).classList.add('active');
+        await cargarPersonalPorCiclo(currentCiclo);
+      } else {
+        personalContainer.innerHTML = '<div class="col-12 text-muted text-center">No hay ciclos disponibles.</div>';
       }
     } catch (error) {
       console.error('Error al cargar ciclos:', error);
@@ -93,10 +93,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function cargarPersonalPorCiclo(ciclo) {
     try {
-      console.log(`Loading personal for ciclo: ${ciclo}`);
+      console.log(`Cargando personal para ciclo: ${ciclo}`);
       personalContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando personal...</div>';
       personal = await fetchWithRetry(`/historico-personal-resultados/${ciclo}`, { credentials: 'include' });
-      personalCompleto = personal;
+      personalCompleto = Array.isArray(personal) ? personal : [];
       mostrarPersonal(personal);
     } catch (error) {
       console.error('Error al cargar personal por ciclo:', error);
@@ -117,14 +117,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function mostrarPersonal(personalList) {
-    console.log('Personal to display:', personalList);
+    console.log('Personal a mostrar:', personalList);
     const textoBusqueda = buscadorPersonal.value.trim().toLowerCase();
     const filtrados = textoBusqueda ? personalCompleto.filter(item =>
       `${item.nombre_personal} ${item.apaterno_personal} ${item.amaterno_personal}`.toLowerCase().includes(textoBusqueda)
     ) : personalList;
 
     if (filtrados.length === 0) {
-      console.log('No personnel to display after filtering');
+      console.log('No hay personal para mostrar después de filtrar');
       personalContainer.innerHTML = '<div class="col-12 text-muted text-center">No se encontraron resultados.</div>';
       return;
     }
@@ -138,11 +138,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div>
             <button class="btn btn-perfil" data-id="${item.id_personal}" data-ciclo="${currentCiclo}">Perfil</button>
             <button class="btn btn-resultados" data-id="${item.id_personal}" data-ciclo="${currentCiclo}">Resultados</button>
+            <button class="btn btn-historico" data-id="${item.id_personal}">Histórico</button>
           </div>
         </div>
       </div>
     `).join('');
-    console.log('Personnel cards rendered:', filtrados.length);
+    console.log('Tarjetas de personal renderizadas:', filtrados.length);
 
     personalContainer.querySelectorAll('.btn-perfil').forEach(button => {
       button.addEventListener('click', () => {
@@ -179,6 +180,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
       });
     });
+
+    personalContainer.querySelectorAll('.btn-historico').forEach(button => {
+      button.addEventListener('click', async () => {
+        const id_personal = button.getAttribute('data-id');
+        console.log('Clic en botón Histórico, id_personal:', id_personal);
+        await mostrarHistoricoModal(id_personal);
+      });
+    });
   }
 
   async function mostrarFichaCompleta(id_personal, ciclo) {
@@ -188,14 +197,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
 
       const data = await fetchWithRetry(`/historico-personal-resultados/${id_personal}/${ciclo}`, { credentials: 'include' });
-      const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
+      if (!data) throw new Error('No se encontraron datos del personal');
+      const { nombre_personal = '', apaterno_personal = '', amaterno_personal = '', telefono_personal = '', fecha_nacimiento_personal = '', img_personal = '', roles_puesto = '', roles = '', materias = [], talleres = [] } = data;
       const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
       const groupedMaterias = materias.reduce((acc, materia) => {
-        const key = `${materia.nombre_materia}|${materia.grado_materia}`;
+        const key = `${materia.nombre_materia}|${materia.grado}`;
         if (!acc[key]) {
-          acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
+          acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado, grupos: [] };
         }
-        acc[key].grupos.push(materia.grupo);
+        acc[key].grupos = materia.grupos.split(', '); // Use pre-grouped grupos
         return acc;
       }, {});
       const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
@@ -253,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const personalData = await fetchWithRetry(`/historico-personal-resultados/${id_personal}/${ciclo}`, { credentials: 'include' });
       if (!personalData) throw new Error('No se encontraron datos del personal');
-      const { nombre_personal = '', apaterno_personal = '', amaterno_personal = '', nombre_puesto = 'No disponible' } = personalData;
+      const { nombre_personal = '', apaterno_personal = '', amaterno_personal = '', roles = 'No disponible' } = personalData;
       const data = await fetchWithRetry(`/historico-personal-kpis/${id_personal}/${ciclo}`, { credentials: 'include' });
       if (!data || !Array.isArray(data)) throw new Error('No se encontraron datos de KPIs o formato inválido');
       const modalBody = document.querySelector('#kpisModal .modal-body');
@@ -263,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tempDiv.innerHTML = `
         <h4 class="kpi-title">TABLERO DE INDICADORES CLAVE DE RENDIMIENTO Y PERMANENCIA POR PUESTO</h4>
         <table class="kpi-header-table">
-          <tr><th>PUESTO:</th><td>${nombre_puesto}</td></tr>
+          <tr><th>PUESTO:</th><td>${roles}</td></tr>
           <tr><th>Período de evaluación:</th><td>${ciclo}</td></tr>
           <tr><th>NOMBRE COLABORADOR:</th><td>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</td></tr>
         </table>
@@ -329,7 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                       <td class="indicador">${kpi.sigla_indicador_kpi === 'O' ? 'X' : ''}</td>
                       <td class="nombre-kpi">${kpi.nombre_kpi || 'Sin nombre'}</td>
                       <td class="meta">${kpi.meta_kpi}${kpi.tipo_kpi === 'Porcentaje' ? '%' : ''}</td>
-                      <td class="responsable">${kpi.responsable_medicion || 'No asignado'}</td>
+                      <td class="responsable">${kpi.id_rol ? 'Rol ID ' + kpi.id_rol : 'No asignado'}</td>
                       <td class="resultado">${kpi.resultado_kpi || 'No evaluado'}${kpi.tipo_kpi === 'Porcentaje' && kpi.resultado_kpi && kpi.resultado_kpi !== 'No evaluado' ? '%' : ''}</td>
                     </tr>
                   `).join('') || '<tr><td colspan="12">No hay KPIs disponibles</td></tr>'}
@@ -384,7 +394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = tipos.length === 0 
         ? '<p class="text-muted text-center">No hay evaluaciones disponibles para este personal.</p>' 
-        : tipos.map(tipo => `<button class="btn btn-evaluacion">${tipo}</button>`).join('');
+        : tipos.map(tipo => `<button class="btn btn-evaluacion">${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</button>`).join('');
       while (tempDiv.firstChild) {
         fragment.appendChild(tempDiv.firstChild);
       }
@@ -404,7 +414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       modalBody.querySelectorAll('.btn-evaluacion').forEach(button => {
         button.addEventListener('click', async () => {
-          const tipo = button.textContent;
+          const tipo = button.textContent.toLowerCase();
           console.log(`Clic en botón de evaluación: ${tipo}, id_personal: ${id_personal}, ciclo: ${ciclo}`);
           modal.hide();
           await mostrarEvaluacionResults(id_personal, tipo, ciclo);
@@ -433,17 +443,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('EvaluacionResults modal body:', modalBody);
       if (!modalBody) throw new Error('No se encontró el elemento #evaluacionResultsModal .modal-body');
 
-      const idTipoPregunta = tipoToIdPregunta[tipo];
-      if (!idTipoPregunta) throw new Error('Tipo de evaluación no soportado');
+      const idTipoPregunta = tipoToIdPregunta[tipo.toLowerCase()];
+      if (!idTipoPregunta) throw new Error(`Tipo de evaluación no soportado: ${tipo}`);
 
-      const data = await fetchWithRetry(`/historico-personal-evaluaciones-results/${id_personal}/${tipo}/${ciclo}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
+      const data = await fetchWithRetry(`/historico-personal-evaluaciones-results/${id_personal}/${tipo}/${ciclo}`, { credentials: 'include' });
       console.log('Datos de evaluación:', data);
+      if (!data.success) throw new Error(data.message || 'Error al obtener resultados de evaluación');
 
       let html = `
         <div class="results-header">
           <h4>PREPA BALMORAL ESCOCÉS</h4>
           <h5>CONCENTRADO EVALUACIÓN - CICLO ${ciclo}</h5>
-          <p>NOMBRE: ${data.teacherName}</p>
+          <p>NOMBRE: ${data.teacherName || 'No disponible'}</p>
         </div>
         <table class="results-table">
           <thead>
@@ -463,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         html += `<th></th></tr>`;
       } else {
         html += `
-          <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
+          <th colspan="2">${data.subjects[0]?.name || tipo.charAt(0).toUpperCase() + tipo.slice(1)}</th>
           <th>PROMEDIO</th>
         </tr>
         <tr>
@@ -480,7 +491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       html += `<tr><td></td><td>Total de alumnos</td>`;
       data.subjects.forEach(subject => {
-        html += `<td colspan="2">${subject.totalAlumnos}</td>`;
+        html += `<td colspan="2">${subject.totalAlumnos || 0}</td>`;
       });
       html += `<td></td></tr>`;
 
@@ -488,17 +499,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const crit = data.criteria[i];
         html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
         data.subjects.forEach(subject => {
-          const c = subject.criteria[i] || { pctSi: 0, pctNo: 0 };
-          html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+          const c = subject.criteria[i] || { pctSi: 'N/A', pctNo: 'N/A' };
+          html += `<td>${c.pctSi === 'N/A' ? 'N/A' : c.pctSi + '%'}</td><td>${c.pctNo === 'N/A' ? 'N/A' : c.pctNo + '%'}</td>`;
         });
-        html += `<td>${crit.promedio}%</td></tr>`;
+        html += `<td>${crit.promedio === 'N/A' ? 'N/A' : crit.promedio + '%'}</td></tr>`;
       }
 
       html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
       data.subjects.forEach(subject => {
-        html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
+        html += `<td>${subject.avgSi === 'N/A' ? 'N/A' : subject.avgSi + '%'}</td><td>${subject.avgNo === 'N/A' ? 'N/A' : subject.avgNo + '%'}</td>`;
       });
-      html += `<td>${data.generalAverage}%</td></tr>`;
+      html += `<td>${data.generalAverage === 'N/A' ? 'N/A' : data.generalAverage + '%'}</td></tr>`;
 
       html += `</tbody></table>`;
 
@@ -506,7 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="comments-section">
           <h3>Comentarios</h3>
           <ul>
-            ${data.comments.length > 0 ? data.comments.map(comment => `<li>"${comment}"</li>`).join('') : '<li>No hay comentarios disponibles</li>'}
+            ${data.comments && data.comments.length > 0 ? data.comments.map(comment => `<li>"${comment}"</li>`).join('') : '<li>No hay comentarios disponibles</li>'}
           </ul>
         </div>
       `;
@@ -529,9 +540,354 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error en mostrarEvaluacionResults:', error);
       Swal.fire({
         title: 'Error',
-        text: 'No se pudieron cargar los resultados de la evaluación.',
+        text: error.message.includes('404') ? 'Resultados no encontrados.' : 'No se pudieron cargar los resultados de la evaluación.',
         icon: 'error',
         confirmButtonText: 'Aceptar'
+      });
+    }
+  }
+
+  async function mostrarHistoricoModal(id_personal) {
+    try {
+      const modalElement = document.getElementById('historicoModal');
+      if (!modalElement) throw new Error('No se encontró el elemento #historicoModal');
+
+      const ciclosPersonal = await fetchWithRetry(`/historico-ciclos-personal/${id_personal}`, { credentials: 'include' });
+      const checkboxesContainer = document.getElementById('ciclosCheckboxes');
+      checkboxesContainer.innerHTML = ciclosPersonal.map(ciclo => `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${ciclo.ciclo}" id="ciclo_${ciclo.ciclo}">
+          <label class="form-check-label" for="ciclo_${ciclo.ciclo}">
+            ${ciclo.ciclo}
+          </label>
+        </div>
+      `).join('');
+
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
+
+      document.getElementById('ciclosForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const selectedCiclos = Array.from(document.querySelectorAll('#ciclosCheckboxes .form-check-input:checked')).map(checkbox => checkbox.value);
+        if (selectedCiclos.length === 0) {
+          Swal.fire({
+            title: 'Error',
+            text: 'Seleccione al menos un ciclo.',
+            icon: 'error',
+            confirmButtonText: 'Aceptar'
+          });
+          return;
+        }
+        modal.hide();
+        await generarPDFHistorico(id_personal, selectedCiclos);
+      }, { once: true });
+    } catch (error) {
+      console.error('Error en mostrarHistoricoModal:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'No se pudieron cargar los ciclos para este personal.',
+        icon: 'error',
+        confirmButtonText: 'Aceptar'
+      });
+    }
+  }
+
+  async function generarPDFHistorico(id_personal, selectedCiclos) {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const canvas = document.getElementById('chart-canvas');
+      const ctx = canvas.getContext('2d');
+
+      let personalData;
+      for (let i = 0; i < selectedCiclos.length; i++) {
+        const ciclo = selectedCiclos[i];
+        personalData = await fetchWithRetry(`/historico-personal-resultados/${id_personal}/${ciclo}`, { credentials: 'include' });
+        if (!personalData) throw new Error(`No se encontraron datos para el ciclo ${ciclo}`);
+
+        if (i > 0) doc.addPage();
+        let y = 10; // Start position for each page
+
+        // Header image and text
+        doc.addImage("/assets/img/logo_balmoral.png", "PNG", 15, y, 25, 12);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(120, 120, 120);
+        doc.text("Preparatoria Balmoral Escocés", 105, y + 6, { align: "center" });
+        doc.setFontSize(9);
+        doc.setFont("times", "italic");
+        doc.setTextColor(150, 150, 150);
+        doc.text('"Construir conciencias y potenciar talentos"', 105, y + 12, { align: "center" });
+        y += 20;
+
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#000000");
+        doc.text(`Resultados del Personal - Ciclo ${ciclo}`, 105, y, { align: "center" });
+        y += 12;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#555555");
+        doc.text(
+          `Este reporte muestra los resultados de las evaluaciones aplicadas a ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}.`,
+          105,
+          y,
+          { align: "center", maxWidth: 180 }
+        );
+        y += 18;
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(15, y, 195, y);
+        y += 10;
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#000000");
+        doc.text("Datos del Personal", 15, y);
+        y += 8;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#333333");
+        doc.text(
+          `Nombre: ${personalData.nombre_personal} ${personalData.apaterno_personal} ${personalData.amaterno_personal}`,
+          15,
+          y
+        );
+        y += 6;
+        doc.text(`Teléfono: ${personalData.telefono_personal || "No disponible"}`, 15, y);
+        y += 6;
+        doc.text(
+          `Fecha de Nacimiento: ${
+            personalData.fecha_nacimiento_personal
+              ? new Date(personalData.fecha_nacimiento_personal).toLocaleDateString("es-MX")
+              : "No disponible"
+          }`,
+          15,
+          y
+        );
+        y += 6;
+        doc.text(
+          `Roles: ${personalData.roles_puesto || personalData.roles || "Sin roles"}`,
+          15,
+          y
+        );
+        y += 12;
+
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#d9534f");
+        doc.text("Materias Impartidas:", 15, y);
+        y += 6;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#000000");
+
+        if (personalData.materias && personalData.materias.length > 0) {
+          const groupedMaterias = personalData.materias.reduce((acc, materia) => {
+            const key = `${materia.nombre_materia}|${materia.grado_materia}`;
+            if (!acc[key]) {
+              acc[key] = {
+                nombre_materia: materia.nombre_materia,
+                grado_materia: materia.grado_materia,
+                grupos: []
+              };
+            }
+            acc[key].grupos = materia.grupos.split(', '); // Use pre-grouped grupos
+            return acc;
+          }, {});
+          Object.values(groupedMaterias).forEach(m => {
+            doc.text(
+              `- ${m.nombre_materia} (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(", ")})`,
+              20,
+              y
+            );
+            y += 6;
+          });
+        } else {
+          doc.text("No imparte materias", 20, y);
+          y += 6;
+        }
+        y += 6;
+
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#d9534f");
+        doc.text("Talleres Asignados:", 15, y);
+        y += 6;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#000000");
+
+        if (personalData.talleres && personalData.talleres.length > 0) {
+          personalData.talleres.forEach(t => {
+            doc.text(`- ${t.nombre_taller}`, 20, y);
+            y += 6;
+          });
+        } else {
+          doc.text("No asignado a talleres", 20, y);
+          y += 6;
+        }
+        y += 12;
+
+        const tipos = await fetchWithRetry(`/historico-personal-evaluaciones-types/${id_personal}/${ciclo}`, { credentials: 'include' });
+        if (tipos.length === 0) {
+          doc.text("No hay evaluaciones calificadas disponibles.", 15, y);
+          y += 10;
+        } else {
+          const labels = [];
+          const dataScores = [];
+          for (const tipo of tipos) {
+            const idTipoPregunta = tipoToIdPregunta[tipo.toLowerCase()];
+            const results = await fetchWithRetry(
+              `/historico-personal-evaluaciones-results/${id_personal}/${tipo}/${ciclo}`,
+              { credentials: "include" }
+            );
+            if (results.generalAverage !== "N/A" && !isNaN(parseFloat(results.generalAverage))) {
+              labels.push(tipo.toUpperCase());
+              dataScores.push(parseFloat(results.generalAverage));
+            }
+          }
+
+          if (labels.length > 0) {
+            // Generate chart
+            const chart = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    label: "Porcentaje obtenido",
+                    data: dataScores,
+                    backgroundColor: ["#d9534f", "#0275d8", "#5cb85c", "#f0ad4e"]
+                  }
+                ]
+              },
+              options: {
+                indexAxis: "y",
+                responsive: true,
+                plugins: {
+                  legend: { display: false },
+                  title: {
+                    display: true,
+                    text: "Resultados por Evaluación",
+                    font: { size: 16 }
+                  },
+                  datalabels: {
+                    anchor: "end",
+                    align: "right",
+                    color: "#000",
+                    font: { size: 14, weight: "bold" },
+                    formatter: value => value + "%"
+                  }
+                },
+                scales: {
+                  x: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                      callback: value => value + "%",
+                      font: { size: 14 }
+                    }
+                  },
+                  y: {
+                    ticks: { font: { size: 14 } }
+                  }
+                }
+              },
+              plugins: [ChartDataLabels]
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const chartImage = canvas.toDataURL("image/png");
+            doc.addImage(chartImage, "PNG", 15, y, 180, 80);
+            y += 90;
+
+            chart.destroy();
+          } else {
+            doc.text("No hay resultados de evaluaciones calificadas disponibles.", 15, y);
+            y += 10;
+          }
+        }
+
+        // Fetch and add comments
+        const positiveComments = await fetchWithRetry(`/historico-comments-director/${id_personal}/${ciclo}?type=positive`, { credentials: 'include' });
+        const negativeComments = await fetchWithRetry(`/historico-comments-director/${id_personal}/${ciclo}?type=negative`, { credentials: 'include' });
+
+        if (y > 220) {
+          doc.addPage();
+          y = 10;
+        }
+
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#d9534f");
+        doc.text("Comentarios de Admiración:", 15, y);
+        y += 6;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#000000");
+
+        if (positiveComments.comments && positiveComments.comments.length > 0) {
+          positiveComments.comments.forEach((comment, index) => {
+            if (y > 260) {
+              doc.addPage();
+              y = 10;
+            }
+            doc.text(`${index + 1}. ${comment.commenter}: ${comment.comment}`, 20, y, { maxWidth: 170 });
+            y += 10;
+          });
+        } else {
+          doc.text("No hay comentarios de admiración disponibles.", 20, y);
+          y += 6;
+        }
+        y += 6;
+
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor("#d9534f");
+        doc.text("Áreas de Mejora:", 15, y);
+        y += 6;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor("#000000");
+
+        if (negativeComments.comments && negativeComments.comments.length > 0) {
+          negativeComments.comments.forEach((comment, index) => {
+            if (y > 260) {
+              doc.addPage();
+              y = 10;
+            }
+            doc.text(`${index + 1}. ${comment.commenter}: ${comment.comment}`, 20, y, { maxWidth: 170 });
+            y += 10;
+          });
+        } else {
+          doc.text("No hay áreas de mejora disponibles.", 20, y);
+          y += 6;
+        }
+        y += 6;
+
+        if (y > 280) doc.addPage();
+      }
+
+      const fecha = new Date().toLocaleDateString("es-MX");
+      doc.setFontSize(10);
+      doc.setTextColor("#555555");
+      doc.text(`Generado el ${fecha}`, 105, 290, { align: "center" });
+
+      doc.save(`Historico_Resultados_${personalData.nombre_personal}.pdf`);
+    } catch (error) {
+      console.error("Error generando PDF histórico:", error);
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo generar el PDF histórico. Intenta nuevamente.",
+        icon: "error",
+        confirmButtonText: "Aceptar"
       });
     }
   }
