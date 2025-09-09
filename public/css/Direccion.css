@@ -296,7 +296,6 @@
 .card-img-top.profile-img {
     width: 84px;
     height: 84px;
-    border-radius: 50%;
     object-fit: cover;
     background: none; /* quitar gradiente amarillo/azul */
     border: 2px solid rgba(0,0,0,0.04);
@@ -637,7 +636,6 @@
   width: 76px !important;
   height: 76px !important;
   margin: 60px auto 8px !important; /* subimos margen superior a 16px */
-  border-radius: 50% !important;
   object-fit: cover !important;
 }
 

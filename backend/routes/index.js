@@ -3937,141 +3937,126 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 router.get('/personnel-director', authMiddleware, async (req, res) => {
-  const { role, sort } = req.query;
-  let query = `
-    SELECT 
-      p.id_personal,
-      p.nombre_personal,
-      p.apaterno_personal,
-      p.amaterno_personal,
-      p.telefono_personal,
-      p.fecha_nacimiento_personal,
-      p.img_personal,
-      pu.nombre_puesto
-    FROM Personal p
-    JOIN Puesto pu ON p.id_puesto = pu.id_puesto
-  `;
-  const queryParams = [];
-
-  const rolesFilter = role ? role.split(',') : null;
-  if (rolesFilter && rolesFilter.length > 0) {
-    query += `
-      JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-      JOIN Rol r ON pr.id_rol = r.id_rol
-      WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
+    const { role, sort } = req.query;
+    let query = `
+        SELECT 
+            p.id_personal,
+            p.nombre_personal,
+            p.apaterno_personal,
+            p.amaterno_personal,
+            p.telefono_personal,
+            p.fecha_nacimiento_personal,
+            p.img_personal,
+            pu.nombre_puesto
+        FROM Personal p
+        JOIN Puesto pu ON p.id_puesto = pu.id_puesto
     `;
-    queryParams.push(rolesFilter);
-  } else {
-    query += ' WHERE p.estado_personal = 1';
-  }
-
-  const query2 = `
-    SELECT r.nombre_rol
-    FROM Puesto_Rol pr
-    JOIN Rol r ON pr.id_rol = r.id_rol
-    WHERE pr.id_puesto = ?
-  `;
-  const query3 = `
-    SELECT DISTINCT m.nombre_materia
-    FROM Grupo_Materia gm
-    JOIN Materia m ON gm.id_materia = m.id_materia
-    WHERE gm.id_personal = ?
-  `;
-
-  const evalQueries = [
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-  ];
-  const positiveResponses = [1, 5, 6, 9, 10];
-
-  try {
-    const [personnel] = await db.query(query, queryParams);
-
-    // Si no hay personal, respondemos ya (evita IN () en las queries de evaluación)
-    if (!personnel || personnel.length === 0) {
-      return res.json({ success: true, personnel: [] });
-    }
-
-    // Cargamos roles y materias por persona
-    const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
-      const [puestoRoles] = await db.query(query2, [p.id_puesto]); // renombrado para evitar shadowing
-      const [subjects] = await db.query(query3, [p.id_personal]);
-      return {
-        ...p,
-        roles: puestoRoles.map(r => r.nombre_rol),
-        subjects: subjects.map(s => s.nombre_materia),
-        goalAchievement: Math.floor(Math.random() * 20 + 80) // mock
-      };
-    }));
-
-    // IDs a usar en evaluaciones
-    const personnelIds = personnelWithDetails.map(p => p.id_personal);
-    // DEBUG opcional
-    // console.log('personnelIds for evaluations:', personnelIds);
-
-    // Si por seguridad quieres saltarte las evaluaciones cuando no hay ids:
-    if (personnelIds.length === 0) {
-      return res.json({ success: true, personnel: personnelWithDetails });
-    }
-
-    // Ejecutar las consultas de evaluaciones
-    let allEvaluations = [];
-    for (let i = 0; i < evalQueries.length; i += 2) {
-      // Nota: mysql2 soporta pasar array para IN (?), pero solo si array no está vacío
-      const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
-      const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
-      allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-    }
-
-    // Agregar resultados
-    const aggregatedEvaluations = {};
-    allEvaluations.forEach(row => {
-      if (!aggregatedEvaluations[row.id_personal]) aggregatedEvaluations[row.id_personal] = { positive_count: 0, total_count: 0 };
-      if (row.positive_count !== undefined) aggregatedEvaluations[row.id_personal].positive_count += row.positive_count || 0;
-      if (row.total_count !== undefined) aggregatedEvaluations[row.id_personal].total_count += row.total_count || 0;
-    });
-
-    const personnelWithEval = personnelWithDetails.map(p => {
-      const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
-      const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
-      return { ...p, evaluationPercentage: percentage };
-    });
-
-    // Orden y límite
-    let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
-    if (sort === 'top') {
-      sortedPersonnel = sortedPersonnel.slice(0, 3);
-    } else if (sort === 'bottom') {
-      sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
-    } else if (sort === 'all') {
-      // keep all
+    const queryParams = [];
+    
+    const roles = role ? role.split(',') : null;
+    if (roles && roles.length > 0) {
+        query += `
+            JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+            JOIN Rol r ON pr.id_rol = r.id_rol
+            WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
+        `;
+        queryParams.push(roles);
     } else {
-      sortedPersonnel = sortedPersonnel.slice(0, 3); // default
+        query += ' WHERE p.estado_personal = 1';
     }
 
-    res.json({ success: true, personnel: sortedPersonnel });
+    const query2 = `
+        SELECT r.nombre_rol
+        FROM Puesto_Rol pr
+        JOIN Rol r ON pr.id_rol = r.id_rol
+        WHERE pr.id_puesto = ?
+    `;
+    const query3 = `
+        SELECT DISTINCT m.nombre_materia
+        FROM Grupo_Materia gm
+        JOIN Materia m ON gm.id_materia = m.id_materia
+        WHERE gm.id_personal = ?
+    `;
+    const evalQueries = [
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+    ];
+    const positiveResponses = [1, 5, 6, 9, 10];
 
-  } catch (error) {
-    console.error('Error al obtener personal:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      sqlMessage: error.sqlMessage || 'N/A'
-    });
-    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-  }
+    try {
+        const [personnel] = await db.query(query, queryParams);
+        const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
+            const [roles] = await db.query(query2, [p.id_puesto]);
+            const [subjects] = await db.query(query3, [p.id_personal]);
+            return {
+                ...p,
+                roles: roles.map(r => r.nombre_rol),
+                subjects: subjects.map(s => s.nombre_materia),
+                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
+            };
+        }));
+
+        // Fetch and aggregate evaluation data
+        const personnelIds = personnelWithDetails.map(p => p.id_personal);
+        let allEvaluations = [];
+        for (let i = 0; i < evalQueries.length; i += 2) {
+            const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
+            const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
+        }
+
+        const aggregatedEvaluations = {};
+        allEvaluations.forEach(eval => {
+            if (!aggregatedEvaluations[eval.id_personal]) {
+                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+            }
+            if (eval.positive_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
+            }
+            if (eval.total_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
+            }
+        });
+
+        const personnelWithEval = personnelWithDetails.map(p => {
+            const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
+            const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
+            return { ...p, evaluationPercentage: percentage };
+        });
+
+        // Sort and limit based on sortOrder
+        let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
+        if (sort === 'top') {
+            sortedPersonnel = sortedPersonnel.slice(0, 3);
+        } else if (sort === 'bottom') {
+            sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
+        } else if (sort === 'all') {
+            // Already sorted descending, return all
+        } else {
+            sortedPersonnel = sortedPersonnel.slice(0, 3); // Default to top 3
+        }
+
+        res.json({ success: true, personnel: sortedPersonnel });
+    } catch (error) {
+        console.error('Error al obtener personal:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
 });
-
 
   // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
   router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
@@ -4147,31 +4132,31 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
           FROM Comentario_Docente cd 
           JOIN Alumno a ON cd.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
           // Comentario_Docente_Ingles
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
           FROM Comentario_Docente_Ingles cdi 
           JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
           // Comentario_Docente_Arte
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
           FROM Comentario_Docente_Arte cda 
           JOIN Alumno a ON cda.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
           // Comentario_Taller
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
           FROM Comentario_Taller ct 
           JOIN Alumno a ON ct.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
           // Comentario_Counselor
           `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
           FROM Comentario_Counselor cc 
           JOIN Alumno a ON cc.id_alumno = a.id_alumno 
-          JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
           WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
           // Comentario_Personal (staff comments)
           `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
@@ -4213,7 +4198,7 @@ router.get('/comments-servicio', authMiddleware, async (req, res) => {
     SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cs.comentario_servicio as comment
     FROM Comentario_Servicio cs
     JOIN Alumno a ON cs.id_alumno = a.id_alumno
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
     WHERE cs.id_servicio = ? AND cs.tipo_comentario = ?
   `;
 
@@ -4245,7 +4230,7 @@ router.get('/comments-liga-deportiva', authMiddleware, async (req, res) => {
     SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cld.comentario_servicio as comment
     FROM Comentario_Liga_Deportiva cld
     JOIN Alumno a ON cld.id_alumno = a.id_alumno
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
     WHERE cld.id_liga_deportiva = ? AND cld.tipo_comentario = ?
   `;
 
@@ -4277,7 +4262,7 @@ router.get('/comments-disciplina-deportiva', authMiddleware, async (req, res) =>
     SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdd.comentario_servicio as comment
     FROM Comentario_Disciplina_Deportiva cdd
     JOIN Alumno a ON cdd.id_alumno = a.id_alumno
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
     WHERE cdd.id_disciplina_deportiva = ? AND cdd.tipo_comentario = ?
   `;
 
@@ -5763,7 +5748,7 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
       WHERE gm.id_personal = ?
       ORDER BY m.grado_materia, m.nombre_materia
     `, [id_personal]);
@@ -7329,31 +7314,31 @@ router.get('/historico-comments-director/:id_personal/:ciclo', async (req, res) 
     `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cd.comentario_docente as comment 
     FROM Comentario_Docente_Historico cd 
     JOIN Alumno_Historico a ON cd.id_alumno = a.id_alumno AND cd.ciclo = a.ciclo
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
     WHERE cd.id_personal = ? AND cd.tipo_comentario = ? AND cd.ciclo = ?`,
     // Comentario_Docente_Ingles_Historico
     `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cdi.comentario_docente_ingles as comment 
     FROM Comentario_Docente_Ingles_Historico cdi 
     JOIN Alumno_Historico a ON cdi.id_alumno = a.id_alumno AND cdi.ciclo = a.ciclo
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
     WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ? AND cdi.ciclo = ?`,
     // Comentario_Docente_Arte_Historico
     `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cda.comentario_docente_arte as comment 
     FROM Comentario_Docente_Arte_Historico cda 
     JOIN Alumno_Historico a ON cda.id_alumno = a.id_alumno AND cda.ciclo = a.ciclo
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
     WHERE cda.id_personal = ? AND cda.tipo_comentario = ? AND cda.ciclo = ?`,
     // Comentario_Taller_Historico
     `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, ct.comentario_taller as comment 
     FROM Comentario_Taller_Historico ct 
     JOIN Alumno_Historico a ON ct.id_alumno = a.id_alumno AND ct.ciclo = a.ciclo
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
     WHERE ct.id_personal = ? AND ct.tipo_comentario = ? AND ct.ciclo = ?`,
     // Comentario_Counselor_Historico
     `SELECT CONCAT(a.nombre_alumno, ' ', a.apaterno_alumno, ' ', a.amaterno_alumno, ' (Grupo ', gg.grupo, ')') AS commenter, cc.comentario_counselor as comment 
     FROM Comentario_Counselor_Historico cc 
     JOIN Alumno_Historico a ON cc.id_alumno = a.id_alumno AND cc.ciclo = a.ciclo
-    JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
     WHERE cc.id_personal = ? AND cc.tipo_comentario = ? AND cc.ciclo = ?`,
     // Comentario_Personal_Historico (staff comments)
     `SELECT CONCAT(p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal) AS commenter, cp.comentario_personal as comment 
