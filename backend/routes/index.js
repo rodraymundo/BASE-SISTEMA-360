@@ -3937,126 +3937,141 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 router.get('/personnel-director', authMiddleware, async (req, res) => {
-    const { role, sort } = req.query;
-    let query = `
-        SELECT 
-            p.id_personal,
-            p.nombre_personal,
-            p.apaterno_personal,
-            p.amaterno_personal,
-            p.telefono_personal,
-            p.fecha_nacimiento_personal,
-            p.img_personal,
-            pu.nombre_puesto
-        FROM Personal p
-        JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+  const { role, sort } = req.query;
+  let query = `
+    SELECT 
+      p.id_personal,
+      p.nombre_personal,
+      p.apaterno_personal,
+      p.amaterno_personal,
+      p.telefono_personal,
+      p.fecha_nacimiento_personal,
+      p.img_personal,
+      pu.nombre_puesto
+    FROM Personal p
+    JOIN Puesto pu ON p.id_puesto = pu.id_puesto
+  `;
+  const queryParams = [];
+
+  const rolesFilter = role ? role.split(',') : null;
+  if (rolesFilter && rolesFilter.length > 0) {
+    query += `
+      JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+      JOIN Rol r ON pr.id_rol = r.id_rol
+      WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
     `;
-    const queryParams = [];
-    
-    const roles = role ? role.split(',') : null;
-    if (roles && roles.length > 0) {
-        query += `
-            JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-            JOIN Rol r ON pr.id_rol = r.id_rol
-            WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
-        `;
-        queryParams.push(roles);
+    queryParams.push(rolesFilter);
+  } else {
+    query += ' WHERE p.estado_personal = 1';
+  }
+
+  const query2 = `
+    SELECT r.nombre_rol
+    FROM Puesto_Rol pr
+    JOIN Rol r ON pr.id_rol = r.id_rol
+    WHERE pr.id_puesto = ?
+  `;
+  const query3 = `
+    SELECT DISTINCT m.nombre_materia
+    FROM Grupo_Materia gm
+    JOIN Materia m ON gm.id_materia = m.id_materia
+    WHERE gm.id_personal = ?
+  `;
+
+  const evalQueries = [
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+    `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+  ];
+  const positiveResponses = [1, 5, 6, 9, 10];
+
+  try {
+    const [personnel] = await db.query(query, queryParams);
+
+    // Si no hay personal, respondemos ya (evita IN () en las queries de evaluación)
+    if (!personnel || personnel.length === 0) {
+      return res.json({ success: true, personnel: [] });
+    }
+
+    // Cargamos roles y materias por persona
+    const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
+      const [puestoRoles] = await db.query(query2, [p.id_puesto]); // renombrado para evitar shadowing
+      const [subjects] = await db.query(query3, [p.id_personal]);
+      return {
+        ...p,
+        roles: puestoRoles.map(r => r.nombre_rol),
+        subjects: subjects.map(s => s.nombre_materia),
+        goalAchievement: Math.floor(Math.random() * 20 + 80) // mock
+      };
+    }));
+
+    // IDs a usar en evaluaciones
+    const personnelIds = personnelWithDetails.map(p => p.id_personal);
+    // DEBUG opcional
+    // console.log('personnelIds for evaluations:', personnelIds);
+
+    // Si por seguridad quieres saltarte las evaluaciones cuando no hay ids:
+    if (personnelIds.length === 0) {
+      return res.json({ success: true, personnel: personnelWithDetails });
+    }
+
+    // Ejecutar las consultas de evaluaciones
+    let allEvaluations = [];
+    for (let i = 0; i < evalQueries.length; i += 2) {
+      // Nota: mysql2 soporta pasar array para IN (?), pero solo si array no está vacío
+      const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
+      const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+      allEvaluations = allEvaluations.concat(positiveResults, totalResults);
+    }
+
+    // Agregar resultados
+    const aggregatedEvaluations = {};
+    allEvaluations.forEach(row => {
+      if (!aggregatedEvaluations[row.id_personal]) aggregatedEvaluations[row.id_personal] = { positive_count: 0, total_count: 0 };
+      if (row.positive_count !== undefined) aggregatedEvaluations[row.id_personal].positive_count += row.positive_count || 0;
+      if (row.total_count !== undefined) aggregatedEvaluations[row.id_personal].total_count += row.total_count || 0;
+    });
+
+    const personnelWithEval = personnelWithDetails.map(p => {
+      const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
+      const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
+      return { ...p, evaluationPercentage: percentage };
+    });
+
+    // Orden y límite
+    let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
+    if (sort === 'top') {
+      sortedPersonnel = sortedPersonnel.slice(0, 3);
+    } else if (sort === 'bottom') {
+      sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
+    } else if (sort === 'all') {
+      // keep all
     } else {
-        query += ' WHERE p.estado_personal = 1';
+      sortedPersonnel = sortedPersonnel.slice(0, 3); // default
     }
 
-    const query2 = `
-        SELECT r.nombre_rol
-        FROM Puesto_Rol pr
-        JOIN Rol r ON pr.id_rol = r.id_rol
-        WHERE pr.id_puesto = ?
-    `;
-    const query3 = `
-        SELECT DISTINCT m.nombre_materia
-        FROM Grupo_Materia gm
-        JOIN Materia m ON gm.id_materia = m.id_materia
-        WHERE gm.id_personal = ?
-    `;
-    const evalQueries = [
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-    ];
-    const positiveResponses = [1, 5, 6, 9, 10];
+    res.json({ success: true, personnel: sortedPersonnel });
 
-    try {
-        const [personnel] = await db.query(query, queryParams);
-        const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
-            const [roles] = await db.query(query2, [p.id_puesto]);
-            const [subjects] = await db.query(query3, [p.id_personal]);
-            return {
-                ...p,
-                roles: roles.map(r => r.nombre_rol),
-                subjects: subjects.map(s => s.nombre_materia),
-                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
-            };
-        }));
-
-        // Fetch and aggregate evaluation data
-        const personnelIds = personnelWithDetails.map(p => p.id_personal);
-        let allEvaluations = [];
-        for (let i = 0; i < evalQueries.length; i += 2) {
-            const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
-            const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
-            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-        }
-
-        const aggregatedEvaluations = {};
-        allEvaluations.forEach(eval => {
-            if (!aggregatedEvaluations[eval.id_personal]) {
-                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
-            }
-            if (eval.positive_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
-            }
-            if (eval.total_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
-            }
-        });
-
-        const personnelWithEval = personnelWithDetails.map(p => {
-            const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
-            const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
-            return { ...p, evaluationPercentage: percentage };
-        });
-
-        // Sort and limit based on sortOrder
-        let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
-        if (sort === 'top') {
-            sortedPersonnel = sortedPersonnel.slice(0, 3);
-        } else if (sort === 'bottom') {
-            sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
-        } else if (sort === 'all') {
-            // Already sorted descending, return all
-        } else {
-            sortedPersonnel = sortedPersonnel.slice(0, 3); // Default to top 3
-        }
-
-        res.json({ success: true, personnel: sortedPersonnel });
-    } catch (error) {
-        console.error('Error al obtener personal:', {
-            message: error.message,
-            stack: error.stack,
-            code: error.code,
-            sqlMessage: error.sqlMessage || 'N/A'
-        });
-        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-    }
+  } catch (error) {
+    console.error('Error al obtener personal:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      sqlMessage: error.sqlMessage || 'N/A'
+    });
+    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+  }
 });
+
 
   // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
   router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
