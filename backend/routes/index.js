@@ -3952,9 +3952,11 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
         JOIN Puesto pu ON p.id_puesto = pu.id_puesto
     `;
     const queryParams = [];
-    
-    const roles = role ? role.split(',') : null;
-    if (roles && roles.length > 0) {
+
+    // SANEAR roles: si role viene vacío ("") no convertirlo en ['']
+    const roles = role ? role.split(',').map(r => r.trim()).filter(r => r.length > 0) : [];
+
+    if (roles.length > 0) {
         query += `
             JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
             JOIN Rol r ON pr.id_rol = r.id_rol
@@ -4006,27 +4008,37 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
             };
         }));
 
-        // Fetch and aggregate evaluation data
-        const personnelIds = personnelWithDetails.map(p => p.id_personal);
-        let allEvaluations = [];
-        for (let i = 0; i < evalQueries.length; i += 2) {
-            const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
-            const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
-            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-        }
+        // Si no hay personal, evitamos ejecutar las consultas con IN ()
+        const personnelIds = personnelWithDetails.map(p => p.id_personal).filter(id => id != null);
 
-        const aggregatedEvaluations = {};
-        allEvaluations.forEach(eval => {
-            if (!aggregatedEvaluations[eval.id_personal]) {
-                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+        let aggregatedEvaluations = {};
+
+        if (personnelIds.length > 0) {
+            // Fetch and aggregate evaluation data
+            let allEvaluations = [];
+            for (let i = 0; i < evalQueries.length; i += 2) {
+                // cada consulta recibe [personnelIds, positiveResponses] o [personnelIds] según el caso
+                const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
+                const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+                allEvaluations = allEvaluations.concat(positiveResults, totalResults);
             }
-            if (eval.positive_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
-            }
-            if (eval.total_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
-            }
-        });
+
+            aggregatedEvaluations = {};
+            allEvaluations.forEach(evalRow => {
+                if (!aggregatedEvaluations[evalRow.id_personal]) {
+                    aggregatedEvaluations[evalRow.id_personal] = { positive_count: 0, total_count: 0 };
+                }
+                if (evalRow.positive_count !== undefined) {
+                    aggregatedEvaluations[evalRow.id_personal].positive_count += evalRow.positive_count || 0;
+                }
+                if (evalRow.total_count !== undefined) {
+                    aggregatedEvaluations[evalRow.id_personal].total_count += evalRow.total_count || 0;
+                }
+            });
+        } else {
+            // No hay ids para consultar -> agregados vacíos (todos 0)
+            aggregatedEvaluations = {};
+        }
 
         const personnelWithEval = personnelWithDetails.map(p => {
             const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
@@ -4057,6 +4069,7 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
     }
 });
+
 
   // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
   router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
