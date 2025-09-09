@@ -190,7 +190,7 @@ const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_coun
 
 // nueva estructura con content-block y rating-wrapper
 card.innerHTML = `
-  <img src="./assets/img/${person.img_personal || 'iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
+  <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
   <div class="card-body text-center p-3">
     <div class="content-block">
       <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
