@@ -5755,7 +5755,7 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
-      FROM Personal_taller pt
+      FROM Personal_Taller pt
       JOIN Taller t ON pt.id_taller = t.id_taller
       WHERE pt.id_personal = ?
       ORDER BY t.nombre_taller
@@ -5867,7 +5867,7 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
 
     // Check for talleres
     const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
+      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
     `, [id_personal]);
     if (talleresCount[0].count > 0) {
       console.log(`Talleres encontrados para id_personal: ${id_personal}`);
@@ -6086,7 +6086,7 @@ const responseTables = {
   'ingles': { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
   'artes': { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
   'servicios': { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
+  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
   'counselors': { table: 'Respuesta_Alumno_Counselor', single: true },
   'psicopedagogico': { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
   'coordinadores': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
