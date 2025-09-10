@@ -3938,6 +3938,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
 // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 router.get('/personnel-director', authMiddleware, async (req, res) => {
     const { role, sort } = req.query;
+
     let query = `
         SELECT 
             p.id_personal,
@@ -3953,16 +3954,18 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
     `;
     const queryParams = [];
 
-    // SANEAR roles: si role viene vacío ("") no convertirlo en ['']
+    // Normalizar roles: dividir, trim y filtrar vacíos
     const roles = role ? role.split(',').map(r => r.trim()).filter(r => r.length > 0) : [];
 
     if (roles.length > 0) {
+        // Crear placeholders para IN (...)
+        const rolePlaceholders = roles.map(() => '?').join(',');
         query += `
             JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
             JOIN Rol r ON pr.id_rol = r.id_rol
-            WHERE p.estado_personal = 1 AND r.nombre_rol IN (?)
+            WHERE p.estado_personal = 1 AND r.nombre_rol IN (${rolePlaceholders})
         `;
-        queryParams.push(roles);
+        queryParams.push(...roles); // expandir
     } else {
         query += ' WHERE p.estado_personal = 1';
     }
@@ -3995,50 +3998,81 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
     ];
     const positiveResponses = [1, 5, 6, 9, 10];
 
+    // Helper para expandir "IN (?)" con los placeholders correctos y construir params
+    function buildQueryWithInPlaceholders(baseQuery, arraysInOrder = []) {
+        let q = baseQuery;
+        const params = [];
+        for (const arr of arraysInOrder) {
+            if (!q.includes('IN (?)')) {
+                // Si no hay más 'IN (?)' dejamos de intentar reemplazar
+                break;
+            }
+            if (!Array.isArray(arr) || arr.length === 0) {
+                // Si el array está vacío, reemplazamos por IN (NULL) para que no devuelva filas
+                q = q.replace('IN (?)', 'IN (NULL)');
+            } else {
+                const placeholders = arr.map(() => '?').join(',');
+                q = q.replace('IN (?)', `IN (${placeholders})`);
+                params.push(...arr);
+            }
+        }
+        return { q, params };
+    }
+
     try {
+        // Ejecutar consulta principal
+        console.log('Query personnel:', query, queryParams);
         const [personnel] = await db.query(query, queryParams);
+
+        // Obtener detalles (roles y materias) por cada personal
         const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
-            const [roles] = await db.query(query2, [p.id_puesto]);
+            const [rolesRows] = await db.query(query2, [p.id_puesto]);
             const [subjects] = await db.query(query3, [p.id_personal]);
             return {
                 ...p,
-                roles: roles.map(r => r.nombre_rol),
+                roles: rolesRows.map(r => r.nombre_rol),
                 subjects: subjects.map(s => s.nombre_materia),
-                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
+                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock
             };
         }));
 
-        // Si no hay personal, evitamos ejecutar las consultas con IN ()
+        // Si no hay personal, devolvemos respuesta vacía (evitar IN () en las queries)
         const personnelIds = personnelWithDetails.map(p => p.id_personal).filter(id => id != null);
 
-        let aggregatedEvaluations = {};
-
+        let allEvaluations = [];
         if (personnelIds.length > 0) {
-            // Fetch and aggregate evaluation data
-            let allEvaluations = [];
             for (let i = 0; i < evalQueries.length; i += 2) {
-                // cada consulta recibe [personnelIds, positiveResponses] o [personnelIds] según el caso
-                const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
-                const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+                // primera query: recibe [personnelIds, positiveResponses]
+                const firstArrays = [personnelIds, positiveResponses];
+                const { q: qPos, params: paramsPos } = buildQueryWithInPlaceholders(evalQueries[i], firstArrays);
+                console.log('Eval positive query:', qPos, paramsPos);
+                const [positiveResults] = await db.query(qPos, paramsPos);
+
+                // segunda query: recibe [personnelIds]
+                const { q: qTot, params: paramsTot } = buildQueryWithInPlaceholders(evalQueries[i + 1], [personnelIds]);
+                console.log('Eval total query:', qTot, paramsTot);
+                const [totalResults] = await db.query(qTot, paramsTot);
+
                 allEvaluations = allEvaluations.concat(positiveResults, totalResults);
             }
-
-            aggregatedEvaluations = {};
-            allEvaluations.forEach(evalRow => {
-                if (!aggregatedEvaluations[evalRow.id_personal]) {
-                    aggregatedEvaluations[evalRow.id_personal] = { positive_count: 0, total_count: 0 };
-                }
-                if (evalRow.positive_count !== undefined) {
-                    aggregatedEvaluations[evalRow.id_personal].positive_count += evalRow.positive_count || 0;
-                }
-                if (evalRow.total_count !== undefined) {
-                    aggregatedEvaluations[evalRow.id_personal].total_count += evalRow.total_count || 0;
-                }
-            });
         } else {
-            // No hay ids para consultar -> agregados vacíos (todos 0)
-            aggregatedEvaluations = {};
+            // Nada que consultar -> allEvaluations queda vacío
+            allEvaluations = [];
         }
+
+        // Agregar/combinar resultados
+        const aggregatedEvaluations = {};
+        allEvaluations.forEach(row => {
+            if (!aggregatedEvaluations[row.id_personal]) {
+                aggregatedEvaluations[row.id_personal] = { positive_count: 0, total_count: 0 };
+            }
+            if (row.positive_count !== undefined) {
+                aggregatedEvaluations[row.id_personal].positive_count += row.positive_count || 0;
+            }
+            if (row.total_count !== undefined) {
+                aggregatedEvaluations[row.id_personal].total_count += row.total_count || 0;
+            }
+        });
 
         const personnelWithEval = personnelWithDetails.map(p => {
             const evalInfo = aggregatedEvaluations[p.id_personal] || { positive_count: 0, total_count: 0 };
@@ -4046,16 +4080,16 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
             return { ...p, evaluationPercentage: percentage };
         });
 
-        // Sort and limit based on sortOrder
+        // Ordenar y recortar según sort
         let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
         if (sort === 'top') {
             sortedPersonnel = sortedPersonnel.slice(0, 3);
         } else if (sort === 'bottom') {
             sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
         } else if (sort === 'all') {
-            // Already sorted descending, return all
+            // devolver todo (ya ordenado)
         } else {
-            sortedPersonnel = sortedPersonnel.slice(0, 3); // Default to top 3
+            sortedPersonnel = sortedPersonnel.slice(0, 3); // por defecto top 3
         }
 
         res.json({ success: true, personnel: sortedPersonnel });
@@ -4069,6 +4103,7 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
         res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
     }
 });
+
 
 
   // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
