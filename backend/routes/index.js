@@ -3955,76 +3955,61 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
     const queryParams = [];
 
     // Normalizar roles: dividir, trim y filtrar vacíos
-    const roles = role ? role.split(',').map(r => r.trim()).filter(r => r.length > 0) : [];
+    const roles = role
+        ? role.split(',').map(r => r.trim()).filter(r => r.length > 0)
+        : [];
 
-    if (roles.length > 0) {
-        // Crear placeholders para IN (...)
-        const rolePlaceholders = roles.map(() => '?').join(',');
-        query += `
-            JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-            JOIN Rol r ON pr.id_rol = r.id_rol
-            WHERE p.estado_personal = 1 AND r.nombre_rol IN (${rolePlaceholders})
-        `;
-        queryParams.push(...roles); // expandir
-    } else {
-        query += ' WHERE p.estado_personal = 1';
-    }
-
-    const query2 = `
-        SELECT r.nombre_rol
-        FROM Puesto_Rol pr
-        JOIN Rol r ON pr.id_rol = r.id_rol
-        WHERE pr.id_puesto = ?
-    `;
-    const query3 = `
-        SELECT DISTINCT m.nombre_materia
-        FROM Grupo_Materia gm
-        JOIN Materia m ON gm.id_materia = m.id_materia
-        WHERE gm.id_personal = ?
-    `;
-    const evalQueries = [
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-    ];
-    const positiveResponses = [1, 5, 6, 9, 10];
-
-    // Helper para expandir "IN (?)" con los placeholders correctos y construir params
-    function buildQueryWithInPlaceholders(baseQuery, arraysInOrder = []) {
-        let q = baseQuery;
-        const params = [];
-        for (const arr of arraysInOrder) {
-            if (!q.includes('IN (?)')) {
-                // Si no hay más 'IN (?)' dejamos de intentar reemplazar
-                break;
-            }
-            if (!Array.isArray(arr) || arr.length === 0) {
-                // Si el array está vacío, reemplazamos por IN (NULL) para que no devuelva filas
-                q = q.replace('IN (?)', 'IN (NULL)');
-            } else {
-                const placeholders = arr.map(() => '?').join(',');
-                q = q.replace('IN (?)', `IN (${placeholders})`);
-                params.push(...arr);
-            }
-        }
-        return { q, params };
-    }
+    // Normalizamos a minúsculas para comparar
+    const rolesLower = roles.map(r => r.toLowerCase());
 
     try {
-        // Ejecutar consulta principal
+        if (rolesLower.length > 0) {
+            // Primero: comprobar qué roles existen realmente en la tabla Rol
+            const placeholdersCheck = rolesLower.map(() => '?').join(',');
+            const checkSql = `SELECT DISTINCT nombre_rol FROM Rol WHERE LOWER(TRIM(nombre_rol)) COLLATE utf8mb4_general_ci IN (${placeholdersCheck})`;
+            console.log('Checking roles existence:', checkSql, rolesLower);
+            const [matchedRows] = await db.query(checkSql, rolesLower);
+
+            const matchedRoles = matchedRows.map(r => r.nombre_rol);
+            console.log('Matched roles in DB:', matchedRoles);
+
+            if (matchedRoles.length === 0) {
+                // No hay coincidencias en la tabla Rol -> devolvemos vacío (pero con información para debug)
+                console.warn('No matched roles found in DB for requested roles:', roles);
+                return res.json({ success: true, personnel: [], debug: { requestedRoles: roles, matchedRoles: [] } });
+            }
+
+            // Use placeholders based on rolesLower (los parámetros que pasaremos serán rolesLower)
+            const rolePlaceholders = rolesLower.map(() => '?').join(',');
+            query += `
+                JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+                JOIN Rol r ON pr.id_rol = r.id_rol
+                WHERE p.estado_personal = 1 
+                  AND LOWER(TRIM(r.nombre_rol)) COLLATE utf8mb4_general_ci IN (${rolePlaceholders})
+            `;
+            queryParams.push(...rolesLower);
+        } else {
+            query += ' WHERE p.estado_personal = 1';
+        }
+
         console.log('Query personnel:', query, queryParams);
         const [personnel] = await db.query(query, queryParams);
+        console.log('Personnel found:', Array.isArray(personnel) ? personnel.length : 0);
 
         // Obtener detalles (roles y materias) por cada personal
+        const query2 = `
+            SELECT r.nombre_rol
+            FROM Puesto_Rol pr
+            JOIN Rol r ON pr.id_rol = r.id_rol
+            WHERE pr.id_puesto = ?
+        `;
+        const query3 = `
+            SELECT DISTINCT m.nombre_materia
+            FROM Grupo_Materia gm
+            JOIN Materia m ON gm.id_materia = m.id_materia
+            WHERE gm.id_personal = ?
+        `;
+
         const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
             const [rolesRows] = await db.query(query2, [p.id_puesto]);
             const [subjects] = await db.query(query3, [p.id_personal]);
@@ -4032,32 +4017,60 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
                 ...p,
                 roles: rolesRows.map(r => r.nombre_rol),
                 subjects: subjects.map(s => s.nombre_materia),
-                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock
+                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: reemplazar por tabla Metas si la tienes
             };
         }));
 
         // Si no hay personal, devolvemos respuesta vacía (evitar IN () en las queries)
         const personnelIds = personnelWithDetails.map(p => p.id_personal).filter(id => id != null);
 
+        // Evaluaciones (mismo patrón de expansion de IN)
+        const evalQueries = [
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+        ];
+        const positiveResponses = [1, 5, 6, 9, 10];
+
+        // Helper simple: reemplaza cada 'IN (?)' por los placeholders apropiados y construye params
+        function expandInPlaceholders(baseQuery, arraysInOrder = []) {
+            let q = baseQuery;
+            const params = [];
+            for (const arr of arraysInOrder) {
+                if (!q.includes('IN (?)')) break;
+                if (!Array.isArray(arr) || arr.length === 0) {
+                    q = q.replace('IN (?)', 'IN (NULL)');
+                } else {
+                    const placeholders = arr.map(() => '?').join(',');
+                    q = q.replace('IN (?)', `IN (${placeholders})`);
+                    params.push(...arr);
+                }
+            }
+            return { q, params };
+        }
+
         let allEvaluations = [];
         if (personnelIds.length > 0) {
             for (let i = 0; i < evalQueries.length; i += 2) {
-                // primera query: recibe [personnelIds, positiveResponses]
-                const firstArrays = [personnelIds, positiveResponses];
-                const { q: qPos, params: paramsPos } = buildQueryWithInPlaceholders(evalQueries[i], firstArrays);
+                const { q: qPos, params: paramsPos } = expandInPlaceholders(evalQueries[i], [personnelIds, positiveResponses]);
                 console.log('Eval positive query:', qPos, paramsPos);
                 const [positiveResults] = await db.query(qPos, paramsPos);
 
-                // segunda query: recibe [personnelIds]
-                const { q: qTot, params: paramsTot } = buildQueryWithInPlaceholders(evalQueries[i + 1], [personnelIds]);
+                const { q: qTot, params: paramsTot } = expandInPlaceholders(evalQueries[i + 1], [personnelIds]);
                 console.log('Eval total query:', qTot, paramsTot);
                 const [totalResults] = await db.query(qTot, paramsTot);
 
                 allEvaluations = allEvaluations.concat(positiveResults, totalResults);
             }
-        } else {
-            // Nada que consultar -> allEvaluations queda vacío
-            allEvaluations = [];
         }
 
         // Agregar/combinar resultados
@@ -4092,7 +4105,9 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
             sortedPersonnel = sortedPersonnel.slice(0, 3); // por defecto top 3
         }
 
-        res.json({ success: true, personnel: sortedPersonnel });
+        // Devuelvo también matchedRoles en el debug para que puedas ver qué coincidió
+        res.json({ success: true, personnel: sortedPersonnel, debug: { requestedRoles: roles, matchedRoles: matchedRoles || [] } });
+
     } catch (error) {
         console.error('Error al obtener personal:', {
             message: error.message,
