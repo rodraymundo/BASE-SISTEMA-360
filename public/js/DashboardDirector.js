@@ -24,6 +24,18 @@ const tipoToIdPregunta = {
     'subordinado': 4 
 };
 
+// Función para escapar caracteres HTML peligrosos
+function escapeHtml(string) {
+    if (!string) return '';
+    return string
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
 let evaluationChartInstance = null;
 let goalChartInstance = null;
 let roleEvaluationChartInstance = null;
@@ -93,17 +105,15 @@ async function loadRoles() {
 async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = 'top') {
     try {
         let url = `/personnel-director?sort=${sortOrder}`;
-        if (filterType && filterValue) {
-            url += `&${filterType}=${encodeURIComponent(filterValue)}`;
-        }
+        if (filterType && filterValue) url += `&${filterType}=${encodeURIComponent(filterValue)}`;
+
         console.log('Fetching personnel from:', url);
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
         const data = await res.json();
-        console.log('Personnel data:', data);
         if (!data.success) throw new Error('No se pudieron obtener los datos del personal');
 
-        let personnel = Array.isArray(data.personnel) ? data.personnel : [];
+        const personnel = Array.isArray(data.personnel) ? data.personnel : [];
         personnelCards.innerHTML = '';
         personalCount.textContent = personnel.length;
 
@@ -112,14 +122,16 @@ async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = '
             return;
         }
 
-        const personnelIds = personnel.map(p => p.id_personal).join(',');
+        // --- 1) Fetch evaluations for all personnel (same as before) ---
+        const personnelIds = personnel.map(p => p.id_personal);
+        const personnelIdsCsv = personnelIds.join(',');
+
         let evalData = { evaluations: [] };
         try {
-            console.log('Fetching evaluations for IDs:', personnelIds);
-            const evalRes = await fetch(`/evaluations-director-full?ids=${personnelIds}`, { credentials: 'include' });
+            console.log('Fetching evaluations for IDs:', personnelIdsCsv);
+            const evalRes = await fetch(`/evaluations-director-full?ids=${personnelIdsCsv}`, { credentials: 'include' });
             if (!evalRes.ok) throw new Error(`HTTP error ${evalRes.status}`);
             evalData = await evalRes.json();
-            console.log('Evaluations data:', evalData);
             if (!evalData.success) {
                 console.warn('Evaluación no exitosa, usando datos por defecto:', evalData.message);
                 evalData = { evaluations: [] };
@@ -127,22 +139,28 @@ async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = '
         } catch (fetchError) {
             console.error('Error fetching evaluations:', fetchError);
             Swal.fire('Advertencia', 'No se pudieron cargar las evaluaciones, usando valores por defecto', 'warning');
+            evalData = { evaluations: [] };
         }
 
+        // Convert evaluations to a Map for O(1) lookup
+        const evalMap = new Map((evalData.evaluations || []).map(e => [e.id_personal, e]));
+
+        // --- 2) Render cards quickly using DocumentFragment (one DOM insertion) ---
+        const fragment = document.createDocumentFragment();
         personnel.forEach((person, index) => {
             const cardSizeClass = index === 1 ? 'card-middle' : 'card-side';
             const card = document.createElement('div');
             card.className = `card person-card ${cardSizeClass}`;
-            const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
+            const evalInfo = evalMap.get(person.id_personal) || { positive_count: 0, total_count: 0 };
             const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
 
             card.innerHTML = `
-                <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
+                <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
                 <div class="card-body text-center p-3">
                     <div class="content-block">
-                        <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
-                        <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto || ''}</p>
-                        ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
+                        <h5 class="card-title fs-6">${escapeHtml(person.nombre_personal)} ${escapeHtml(person.apaterno_personal)} ${escapeHtml(person.amaterno_personal)}</h5>
+                        <p class="card-text small"><strong>Puesto:</strong> ${escapeHtml(person.nombre_puesto || '')}</p>
+                        ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${escapeHtml(person.subjects.join(', '))}</p>` : ''}
                         <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
                     </div>
                     <div class="rating-wrapper">
@@ -154,33 +172,41 @@ async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = '
             `;
 
             card.addEventListener('click', () => showPersonnelModal(person));
-            personnelCards.appendChild(card);
+            fragment.appendChild(card);
         });
+        personnelCards.appendChild(fragment);
 
-        let kpiData = [];
-        try {
-            console.log('Fetching KPIs for personnel IDs:', personnelIds);
-            const kpiPromises = personnel.map(person =>
-                fetch(`/personal-kpis/${person.id_personal}`, { credentials: 'include' })
-                    .then(res => {
-                        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-                        return res.json();
-                    })
-                    .then(data => ({ id_personal: person.id_personal, kpis: data }))
-                    .catch(err => {
-                        console.error(`Error fetching KPIs for id_personal ${person.id_personal}:`, err);
-                        return { id_personal: person.id_personal, kpis: [] };
-                    })
-            );
-            kpiData = await Promise.all(kpiPromises);
-            console.log('KPI data:', kpiData);
-        } catch (fetchError) {
-            console.error('Error fetching KPIs:', fetchError);
-            Swal.fire('Advertencia', 'No se pudieron cargar los datos de KPIs, usando valores por defecto', 'warning');
-            kpiData = personnel.map(p => ({ id_personal: p.id_personal, kpis: [] }));
-        }
+        // --- 3) Render charts quickly with evaluation data (KPIs may arrive later) ---
+        // For kpiData initially pass empty arrays to render some charts fast
+        const initialKpiData = personnel.map(p => ({ id_personal: p.id_personal, kpis: [] }));
+        renderCharts(personnel, evalData.evaluations || [], initialKpiData);
 
-        renderCharts(personnel, evalData.evaluations || [], kpiData);
+        // --- 4) Fetch KPIs in background (parallel). When done, update charts. ---
+        // If you expect many personnel, consider implementing a batch endpoint /personal-kpis-batch?ids=1,2,3
+        (async () => {
+            try {
+                console.log('Fetching KPIs for personnel IDs (background):', personnelIdsCsv);
+                const kpiPromises = personnel.map(person =>
+                    fetch(`/personal-kpis/${person.id_personal}`, { credentials: 'include' })
+                        .then(res => res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)))
+                        .then(data => ({ id_personal: person.id_personal, kpis: Array.isArray(data) ? data : (data.data || []) }))
+                        .catch(err => {
+                            console.error(`Error fetching KPIs for id_personal ${person.id_personal}:`, err);
+                            return { id_personal: person.id_personal, kpis: [] };
+                        })
+                );
+                // Use Promise.allSettled to be resilient to failures
+                const settled = await Promise.allSettled(kpiPromises);
+                const kpiData = settled.map(s => s.status === 'fulfilled' ? s.value : { id_personal: null, kpis: [] })
+                                      .filter(x => x.id_personal != null);
+                console.log('KPI data (background):', kpiData);
+                // Update charts now with real KPI data
+                renderCharts(personnel, evalData.evaluations || [], kpiData);
+            } catch (err) {
+                console.error('Error fetching KPIs in background:', err);
+            }
+        })();
+
     } catch (error) {
         console.error('Error al cargar personal:', error);
         personnelCards.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar personal.</div>';
@@ -217,7 +243,6 @@ async function renderRoleEvaluationChart(idPersonal) {
     const chartContainer = document.getElementById('roleEvaluationChart');
     if (!chartContainer) {
         console.error(`[idPersonal=${idPersonal}] Chart container 'roleEvaluationChart' not found in DOM`);
-        Swal.fire('Error', 'No se encontró el contenedor del gráfico', 'error');
         return;
     }
 
@@ -225,73 +250,52 @@ async function renderRoleEvaluationChart(idPersonal) {
     chartContainer.width = 400;
     chartContainer.height = 300;
 
-    const existingError = chartContainer.nextElementSibling;
-    if (existingError && existingError.tagName === 'P') {
-        existingError.remove();
-    }
-
     if (roleEvaluationChartInstance) {
         roleEvaluationChartInstance.destroy();
-        console.log(`[idPersonal=${idPersonal}] Previous chart instance destroyed`);
+        roleEvaluationChartInstance = null;
     }
 
     try {
-        console.log(`[idPersonal=${idPersonal}] Fetching evaluation types from /personal-evaluaciones-types/${idPersonal}`);
-        const typesRes = await fetch(`/personal-evaluaciones-types/${idPersonal}`, { 
+        const typesRes = await fetch(`/personal-evaluaciones-types/${idPersonal}`, {
             credentials: 'include',
             headers: { 'Cache-Control': 'no-cache' }
         });
-        if (!typesRes.ok) {
-            throw new Error(`HTTP error ${typesRes.status}: ${typesRes.statusText}`);
-        }
+        if (!typesRes.ok) throw new Error(`HTTP error ${typesRes.status}`);
         const typesData = await typesRes.json();
-        console.log(`[idPersonal=${idPersonal}] Evaluation types response:`, JSON.stringify(typesData, null, 2));
-
         if (!Array.isArray(typesData) || typesData.length === 0) {
-            console.warn(`[idPersonal=${idPersonal}] No evaluation types returned`);
             chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay tipos de evaluaciones disponibles.</p>');
             return;
         }
 
-        const evaluations = [];
-        for (const type of typesData) {
+        // Create parallel fetches
+        const fetches = typesData.map(type => {
             const normalizedType = type.toLowerCase();
             const idPregunta = tipoToIdPregunta[normalizedType] || 1;
-            console.log(`[idPersonal=${idPersonal}] Fetching results for type=${type}, id_pregunta=${idPregunta}`);
-            const resultsRes = await fetch(`/personal-dashboard/${idPersonal}/${type}?id_tipo_pregunta=${idPregunta}`, { 
-                credentials: 'include',
-                headers: { 'Cache-Control': 'no-cache' }
-            });
-            let resultsData;
-            if (!resultsRes.ok) {
-                console.warn(`[idPersonal=${idPersonal}] Failed to fetch results for type ${type}: HTTP ${resultsRes.status} ${resultsRes.statusText}`);
-                evaluations.push({ label: type.charAt(0).toUpperCase() + type.slice(1), value: 0 });
-                continue;
-            }
+            const url = `/personal-dashboard/${idPersonal}/${type}?id_tipo_pregunta=${idPregunta}`;
+            console.log(`[idPersonal=${idPersonal}] queued fetch ${url}`);
+            return fetch(url, { credentials: 'include', headers: { 'Cache-Control': 'no-cache' } })
+                .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+                .then(json => ({ type, json }))
+                .catch(err => {
+                    console.warn(`[idPersonal=${idPersonal}] Fetch failed for ${type}:`, err);
+                    return { type, json: null };
+                });
+        });
 
-            try {
-                resultsData = await resultsRes.json();
-                console.log(`[idPersonal=${idPersonal}] Results for ${type}:`, JSON.stringify(resultsData, null, 2));
-            } catch (jsonError) {
-                console.error(`[idPersonal=${idPersonal}] JSON parse error for type ${type}:`, jsonError);
-                evaluations.push({ label: type.charAt(0).toUpperCase() + type.slice(1), value: 0 });
-                continue;
-            }
+        // Run all in parallel
+        const results = await Promise.all(fetches);
 
-            const value = parseFloat(resultsData.generalAverage);
-            evaluations.push({
-                label: type.charAt(0).toUpperCase() + type.slice(1),
-                value: isNaN(value) || resultsData.generalAverage == null ? 0 : Math.min(Math.max(value, 0), 100)
-            });
-        }
+        const evaluations = results.map(r => {
+            const label = r.type ? (r.type.charAt(0).toUpperCase() + r.type.slice(1)) : 'Desconocido';
+            if (!r.json || !r.json.generalAverage) return { label, value: 0 };
+            const value = parseFloat(r.json.generalAverage);
+            return { label, value: isNaN(value) ? 0 : Math.min(Math.max(value, 0), 100) };
+        });
 
         if (evaluations.length === 0 || evaluations.every(e => e.value === 0)) {
-            console.log(`[idPersonal=${idPersonal}] No valid evaluations:`, JSON.stringify(evaluations, null, 2));
             chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay datos de evaluaciones disponibles para este personal.</p>');
             return;
         }
-
-        console.log(`[idPersonal=${idPersonal}] Rendering chart with evaluations:`, JSON.stringify(evaluations, null, 2));
 
         roleEvaluationChartInstance = new Chart(chartContainer, {
             type: 'bar',
@@ -308,36 +312,19 @@ async function renderRoleEvaluationChart(idPersonal) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        title: { display: true, text: 'Porcentaje (%)' }
-                    },
-                    x: {
-                        title: { display: true, text: 'Tipo de Evaluación' }
-                    }
-                },
+                scales: { y: { beginAtZero: true, max: 100 } },
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.parsed.y}%`;
-                            }
-                        }
-                    }
+                    tooltip: { callbacks: { label: ctx => `${ctx.parsed.y}%` } }
                 }
             }
         });
-        console.log(`[idPersonal=${idPersonal}] Chart rendered with ${evaluations.length} evaluation types`);
+
     } catch (error) {
         console.error(`[idPersonal=${idPersonal}] Error rendering chart:`, error);
         chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">Error al cargar el gráfico de evaluaciones.</p>');
-        Swal.fire('Error', 'No se pudo cargar el gráfico de evaluaciones', 'error');
     }
 }
-
 async function handlePositiveComments(idPersonal) {
     try {
         const res = await fetch(`/comments-director?id_personal=${idPersonal}&type=positive`, { credentials: 'include' });
