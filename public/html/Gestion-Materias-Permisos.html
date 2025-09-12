@@ -24,12 +24,12 @@
           type="search"
           class="form-control flex-grow-1"
           placeholder="Buscar materias..."
-          style="min-width: 200px; max-width: 300px;"
+          style="min-width: 200px; max-width: 300px; display: none;"
         />
-        <button id="addMateriaBtn" class="btn btn-danger flex-shrink-0">
+        <button id="addMateriaBtn" class="btn btn-danger flex-shrink-0"  style="display: none;">
           <i class="fas fa-plus me-2"></i>Agregar Materia
         </button>
-        <button id="addArteEspecialidadBtn" class="btn btn-secondary flex-shrink-0">
+        <button id="addArteEspecialidadBtn" class="btn btn-secondary flex-shrink-0" style="display: none;">
           <i class="fas fa-palette me-2"></i>Agregar Especialidad de Arte
         </button>
       </div>
@@ -99,61 +99,39 @@
           <h5 class="modal-title" id="asignarModalTitle">Asignar Profesores y Grupos</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-<div class="modal-body p-4">
-  <form id="asignarForm" class="row g-3">
-    <!-- buscador/lista de profesores (tiempo completo / asimilado) -->
-    <div class="col-12">
-      <label class="form-label">Buscar profesor (tiempo completo / asimilado)</label>
-      <input id="personalSearch" class="form-control form-control-sm" placeholder="Buscar por nombre...">
-      <div id="personalListContainer" class="list-group mt-2" style="max-height:220px; overflow:auto;"></div>
-    </div>
+        <div class="modal-body p-4">
+          <form id="asignarForm" class="row g-3">
+          <div class="col-12 col-md-6">
+            <select id="id_grado_grupo" name="id_grado_grupo" class="form-select" disabled style="display: none;"></select>
+          </div>
+            <!-- Nivel de inglés (aparece solo para materias de inglés) -->
+            <div class="col-12 col-md-3" id="nivel_ingles_container" style="display:none;">
+              <label class="form-label">Nivel de inglés</label>
+              <select id="id_nivel_ingles" name="id_nivel_ingles" class="form-select">
+                <option value="">Seleccione un nivel de inglés</option>
+              </select>
+            </div>
 
-    <!-- Grupo (bloqueado) -->
-    <div class="col-12 col-md-6">
-      <label class="form-label">Grupo</label>
-      <select id="id_grado_grupo" name="id_grado_grupo" class="form-select" disabled></select>
-    </div>
+            <!-- Campos ocultos que el JS usa -->
+            <input type="hidden" id="id_materia_asignar" name="id_materia_asignar" value="">
+            <input type="hidden" id="id_personal" name="id_personal" value="">
 
-    <!-- Horas por semana -->
-    <div class="col-12 col-md-3">
-      <label class="form-label">Horas por semana</label>
-      <input id="horas_materia" name="horas_materia"  disabled type="number" min="0" class="form-control">
-    </div>
-
-    <!-- Nivel de inglés (aparece solo para materias de inglés) -->
-    <div class="col-12 col-md-3" id="nivel_ingles_container" style="display:none;">
-      <label class="form-label">Nivel de inglés</label>
-      <select id="id_nivel_ingles" name="id_nivel_ingles" class="form-select">
-        <option value="">Seleccione un nivel de inglés</option>
-      </select>
-    </div>
-
-    <!-- Campos ocultos que el JS usa -->
-    <input type="hidden" id="id_materia_asignar" name="id_materia_asignar" value="">
-    <input type="hidden" id="id_personal" name="id_personal" value="">
-
-    <!-- Asignación actual (solo muestra 1; permite reemplazar) -->
-    <div class="col-12">
-      <label class="form-label">Asignación actual</label>
-      <div id="asignacionesContainer" class="border rounded p-2">Cargando...</div>
-    </div>
-  </form>
-</div>
-<!-- Visible solo si es arte -->
-<select id="id_arte_especialidad" name="id_arte_especialidad" class="form-select" style="display:none;">
-  <option value="">Seleccione especialidad de arte</option>
-</select>
-
-<!-- Visible solo si es inglés -->
-<select id="id_nivel_ingles" name="id_nivel_ingles" class="form-select" style="display:none;">
-  <option value="">Seleccione nivel</option>
-</select>
-
-
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-          <button type="submit" form="asignarForm" class="btn btn-danger">Asignar</button>
+            <!-- Asignación actual (solo muestra 1; permite reemplazar) -->
+            <div class="col-12">
+              <label class="form-label">Asignación actual</label>
+              <div id="asignacionesContainer" class="border rounded p-2">Cargando...</div>
+            </div>
+          </form>
         </div>
+        <!-- Visible solo si es arte -->
+        <select id="id_arte_especialidad" name="id_arte_especialidad" class="form-select" style="display:none;">
+          <option value="">Seleccione especialidad de arte</option>
+        </select>
+
+        <!-- Visible solo si es inglés -->
+        <select id="id_nivel_ingles" name="id_nivel_ingles" class="form-select" style="display:none;">
+          <option value="">Seleccione nivel</option>
+        </select>
       </div>
     </div>
   </div>
@@ -176,7 +154,6 @@
           </div>
         </div>
         <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
         </div>
       </div>
     </div>
@@ -213,7 +190,6 @@
           </form>
         </div>
         <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="submit" form="arteEspecialidadForm" class="btn btn-danger">Guardar</button>
         </div>
       </div>

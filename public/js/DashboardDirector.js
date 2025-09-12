@@ -9,7 +9,6 @@ const positiveCommentsBtn = document.getElementById('positiveCommentsBtn');
 const improvementAreasBtn = document.getElementById('improvementAreasBtn');
 let commentsModalInstance = null;
 
-
 const tipoToIdPregunta = {
     'materias': 1,
     'ingles': 1,
@@ -25,58 +24,6 @@ const tipoToIdPregunta = {
     'subordinado': 4 
 };
 
-// Definir grupos de roles para comparación
-const groups = {
-    'Profesores': ['PROFESOR DE TIEMPO COMPLETO', 'PROFESOR DE ASIMILADOS', 'PROFESOR DE TIEMPO COMPLETO PEDAGOGICO'],
-    'Subdirectores': [
-        'SUBDIRECTOR DE GESTIÓN ACADÉMICA',
-        'SUBDIRECTOR DE EVENTOS ACADÉMICOS',
-        'SUBDIRECTOR DE PROYECTOS ACADÉMICOS',
-        'SUBDIRECTOR DE PEDAGOGÍA',
-        'SUBDIRECTOR DE PLANEACIÓN ACADÉMICA',
-        'SUBDIRECTOR DE EVALUACIÓN ACADÉMICA',
-        'SUBDIRECTOR DE CONTROL ESCOLAR',
-        'SUBDIRECTOR ADMINISTRATIVO',
-        'SUBDIRECTOR DE GESTIÓN ESCOLAR'
-    ],
-    'Coordinadores': [
-        'COORDINADOR DE CAPTACIÓN',
-        'CORDINADOR DE ACADEMIA',
-        'COORDINADOR DE ACADEMIA DE IDIOMAS',
-        'COORDINADOR DE ACADEMIA',
-        'COORDINADOR DE INGRESOS',
-        'COORDINADOR DE EGRESOS'
-    ],
-    'Counselors': ['COUNSELOR'],
-    'Encargados': [
-        'ENCARGADO DE DISCIPLINA Y DEPORTES',
-        'ENCARGADO DE MANTENIMIENTO',
-        'ENCARGADO DE LIMPIEZA',
-        'ENCARGADO AMBIENTE ESTUDIANTIL'
-    ],
-    'Otros': [
-        'DIRECTOR GENERAL',
-        'PEDAGÓGICO',
-        'AYUDANTE DE LIMPIEZA',
-        'GUARDIA DE SEGURIDAD',
-        'FUNDADOR',
-        'AUXILIAR ADMINISTRATIVO',
-        'ENLACE ADMINISTRATIVO DE CAPTACIÓN',
-        'TALLER EXTRAESCOLAR',
-        'MARKETING',
-        'PARAMÉDICO',
-        'NEGOCIOS',
-        'DISCIPLINA DE TALLERES',
-        'ADMINISTRADOR',
-        'NECESIDADES TECNOLÓGICAS',
-        'COMITE TECNICO',
-        'DISCIPLINA',
-        'EQUIPO EDUCADOR',
-        'TODOS'
-    ]
-};
-
-// Store Chart.js instances to destroy them before re-rendering
 let evaluationChartInstance = null;
 let goalChartInstance = null;
 let roleEvaluationChartInstance = null;
@@ -90,26 +37,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         await loadRoles();
-        await loadTopPersonnel();
+        await loadTopPersonnel('', '', 'top');
         applyFilterBtn.addEventListener('click', async () => {
-            let role = roleFilter.value;
             const group = groupFilter.value;
-            if (group && groups[group]) {
-                role = groups[group].join(',');
+            const role = roleFilter.value;
+            let filterType = '', filterValue = '';
+            if (group) {
+                filterType = 'group';
+                filterValue = group;
+            } else if (role) {
+                filterType = 'role';
+                filterValue = role;
             }
             const sortOrder = document.querySelector('input[name="sortOrder"]:checked')?.value || 'top';
-            await loadTopPersonnel(role, sortOrder);
+            await loadTopPersonnel(filterType, filterValue, sortOrder);
             bootstrap.Modal.getInstance(document.getElementById('filterModal'))?.hide();
         });
 
-        // Reset groupFilter when roleFilter is changed
         roleFilter.addEventListener('change', () => {
             if (roleFilter.value !== '') {
                 groupFilter.value = '';
             }
         });
 
-        // Reset roleFilter when groupFilter is changed
         groupFilter.addEventListener('change', () => {
             if (groupFilter.value !== '') {
                 roleFilter.value = '';
@@ -140,9 +90,12 @@ async function loadRoles() {
     }
 }
 
-async function loadTopPersonnel(role = '', sortOrder = 'top') {
+async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = 'top') {
     try {
-        const url = `/personnel-director?role=${encodeURIComponent(role)}&sort=${sortOrder}`;
+        let url = `/personnel-director?sort=${sortOrder}`;
+        if (filterType && filterValue) {
+            url += `&${filterType}=${encodeURIComponent(filterValue)}`;
+        }
         console.log('Fetching personnel from:', url);
         const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
@@ -179,38 +132,31 @@ async function loadTopPersonnel(role = '', sortOrder = 'top') {
         personnel.forEach((person, index) => {
             const cardSizeClass = index === 1 ? 'card-middle' : 'card-side';
             const card = document.createElement('div');
-// usa person-card para estilos y opcional cardSizeClass (card-middle)
-card.className = `card person-card ${cardSizeClass}`;
+            card.className = `card person-card ${cardSizeClass}`;
+            const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
+            const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
 
-// quitamos cualquier estilo inline de width/height (no usar card.style.width)
-
-// calcular porcentaje como antes
-const evalInfo = (evalData.evaluations || []).find(e => e.id_personal === person.id_personal) || { positive_count: 0, total_count: 0 };
-const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
-
-// nueva estructura con content-block y rating-wrapper
-card.innerHTML = `
-  <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
-  <div class="card-body text-center p-3">
-    <div class="content-block">
-      <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
-      <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto || ''}</p>
-      ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
-      <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
-    </div>
-    <div class="rating-wrapper">
-      <div class="rating-bar">
-        <div class="rating-fill" style="width: ${percentage}%;"></div>
-      </div>
-    </div>
-  </div>
-`;
+            card.innerHTML = `
+                <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
+                <div class="card-body text-center p-3">
+                    <div class="content-block">
+                        <h5 class="card-title fs-6">${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}</h5>
+                        <p class="card-text small"><strong>Puesto:</strong> ${person.nombre_puesto || ''}</p>
+                        ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${person.subjects.join(', ')}</p>` : ''}
+                        <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
+                    </div>
+                    <div class="rating-wrapper">
+                        <div class="rating-bar">
+                            <div class="rating-fill" style="width: ${percentage}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
 
             card.addEventListener('click', () => showPersonnelModal(person));
             personnelCards.appendChild(card);
         });
 
-        // Fetch KPI data for goal chart
         let kpiData = [];
         try {
             console.log('Fetching KPIs for personnel IDs:', personnelIds);
@@ -259,7 +205,6 @@ async function showPersonnelModal(person) {
     const modalElement = document.getElementById('personnelModal');
     const modal = new bootstrap.Modal(modalElement);
 
-    // Render chart after modal is fully shown
     const renderChart = async () => {
         await renderRoleEvaluationChart(person.id_personal);
     };
@@ -311,7 +256,7 @@ async function renderRoleEvaluationChart(idPersonal) {
         const evaluations = [];
         for (const type of typesData) {
             const normalizedType = type.toLowerCase();
-            const idPregunta = tipoToIdPregunta[normalizedType] || 1; // Fallback to 1
+            const idPregunta = tipoToIdPregunta[normalizedType] || 1;
             console.log(`[idPersonal=${idPersonal}] Fetching results for type=${type}, id_pregunta=${idPregunta}`);
             const resultsRes = await fetch(`/personal-dashboard/${idPersonal}/${type}?id_tipo_pregunta=${idPregunta}`, { 
                 credentials: 'include',
@@ -480,7 +425,6 @@ function renderCharts(personnel, evaluations, kpiData) {
         goalChartInstance.destroy();
     }
 
-    // Evaluation Chart
     const evalLabels = personnel.map(p => `${p.nombre_personal} ${p.apaterno_personal}`);
     const evalData = personnel.map(p => {
         const evalInfo = (evaluations || []).find(e => e.id_personal === p.id_personal) || { positive_count: 0, total_count: 0 };
@@ -533,7 +477,6 @@ function renderCharts(personnel, evaluations, kpiData) {
         }
     });
 
-    // Goal Chart (KPI Results)
     const goalLabels = personnel.map(p => `${p.nombre_personal} ${p.apaterno_personal}`);
     const goalData = personnel.map(p => {
         const kpiInfo = kpiData.find(k => k.id_personal === p.id_personal) || { kpis: [] };

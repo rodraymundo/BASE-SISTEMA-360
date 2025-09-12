@@ -3597,7 +3597,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/materias-personal-alumnos', authMiddleware, async (req, res) => {
       try {
           const [materias] = await db.query(`
-              SELECT m.*, a.nombre_academia, gg.grado, gg.grupo, p.nombre_personal, p.apaterno_personal AS profesor, gm.horas_materia, gm.id_grado_grupo, gm.id_personal
+              SELECT m.*, a.nombre_academia, gg.grado, gg.grupo, p.nombre_personal, p.apaterno_personal AS profesor, gm.id_grado_grupo, gm.id_personal
               FROM Materia m
               LEFT JOIN Academia a ON m.id_academia = a.id_academia
               LEFT JOIN Grupo_Materia gm ON m.id_materia = gm.id_materia
@@ -3613,8 +3613,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
                       grado: m.grado,
                       grupo: m.grupo,
                       id_personal: m.id_personal,
-                      profesor: `${m.nombre_personal} ${m.profesor || ''}`,
-                      horas_materia: m.horas_materia
+                      profesor: `${m.nombre_personal} ${m.profesor || ''}`
                   });
               }
           });
@@ -3628,7 +3627,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/materias-personal-alumnos/:id_materia', authMiddleware, async (req, res) => {
       try {
           const [materias] = await db.query(`
-              SELECT m.*, a.nombre_academia, gg.grado, gg.grupo, p.nombre_personal, p.apaterno_personal AS profesor, gm.horas_materia, gm.id_grado_grupo, gm.id_personal
+              SELECT m.*, a.nombre_academia, gg.grado, gg.grupo, p.nombre_personal, p.apaterno_personal AS profesor, gm.id_grado_grupo, gm.id_personal
               FROM Materia m
               LEFT JOIN Academia a ON m.id_academia = a.id_academia
               LEFT JOIN Grupo_Materia gm ON m.id_materia = gm.id_materia
@@ -3645,8 +3644,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
                       grado: m.grado,
                       grupo: m.grupo,
                       id_personal: m.id_personal,
-                      profesor: `${m.nombre_personal} ${m.profesor || ''}`,
-                      horas_materia: m.horas_materia
+                      profesor: `${m.nombre_personal} ${m.profesor || ''}`
                   });
               }
           });
@@ -3697,8 +3695,8 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   // ASIGNAR UNA MATERIA A UN GRUPO Y PROFESOR
   router.post('/grupo-materia', authMiddleware, async (req, res) => {
       try {
-          const { id_materia, id_grado_grupo, id_personal, horas_materia } = req.body;
-          await db.query('INSERT INTO Grupo_Materia (id_grado_grupo, id_materia, id_personal, horas_materia) VALUES (?, ?, ?, ?)', [id_grado_grupo, id_materia, id_personal, horas_materia]);
+          const { id_materia, id_grado_grupo, id_personal} = req.body;
+          await db.query('INSERT INTO Grupo_Materia (id_grado_grupo, id_materia, id_personal) VALUES (?, ?, ?)', [id_grado_grupo, id_materia, id_personal]);
           res.json({ success: true });
       } catch (error) {
           res.status(500).json({ success: false, message: error.message });
@@ -3839,23 +3837,6 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       }
   });
 
-  // Ruta para asignar una especialidad a un profesor y grupo
-  router.post('/personal-arte-especialidad', async (req, res) => {
-      try {
-          const { id_materia, id_arte_especialidad, id_personal, id_grado_grupo } = req.body;
-          if (!id_personal || !id_grado_grupo || !id_arte_especialidad) {
-              return res.status(400).json({ success: false, message: 'Faltan datos requeridos' });
-          }
-          await db.query(
-              'INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo) VALUES (?, ?, ?)',
-              [id_personal, id_arte_especialidad, id_grado_grupo]
-          );
-          res.json({ success: true });
-      } catch (error) {
-          res.status(500).json({ success: false, message: error.message });
-      }
-  });
-
   router.get('/materias-modelo-viejo', async (req, res) => {
       try {
           const [materias] = await db.query('SELECT m.id_materia, m.nombre_materia AS materia, g.grado, g.grupo, p.nombre_personal AS profesor FROM Materias m LEFT JOIN Asignaciones a ON m.id_materia = a.id_materia LEFT JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo LEFT JOIN Personal p ON a.id_personal = p.id_personal WHERE m.modelo_materia = "VIEJO"');
@@ -3867,11 +3848,11 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
 
   router.post('/asignar-materia', async (req, res) => {
       try {
-          const { id_materia, id_grado_grupo, id_personal, horas } = req.body;
-          if (!id_materia || !id_grado_grupo || !id_personal || !horas) {
+          const { id_materia, id_grado_grupo, id_personal} = req.body;
+          if (!id_materia || !id_grado_grupo || !id_personal) {
               return res.status(400).json({ success: false, message: 'Faltan datos requeridos' });
           }
-          await db.query('INSERT INTO Asignaciones (id_materia, id_grado_grupo, id_personal, horas) VALUES (?, ?, ?, ?)', [id_materia, id_grado_grupo, id_personal, horas]);
+          await db.query('INSERT INTO Asignaciones (id_materia, id_grado_grupo, id_personal) VALUES (?, ?, ?)', [id_materia, id_grado_grupo, id_personal]);
           res.json({ success: true });
       } catch (error) {
           res.status(500).json({ success: false, message: error.message });
@@ -3893,7 +3874,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/asignaciones-materia/:id_materia', authMiddleware, async (req, res) => {
       try {
           const [asignaciones] = await db.query(`
-              SELECT gm.id_grado_grupo, gg.grado, gg.grupo, p.nombre_personal AS profesor, p.apaterno_personal, gm.horas_materia, gm.id_personal
+              SELECT gm.id_grado_grupo, gg.grado, gg.grupo, p.nombre_personal AS profesor, p.apaterno_personal, gm.id_personal
               FROM Grupo_Materia gm
               LEFT JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
               LEFT JOIN Personal p ON gm.id_personal = p.id_personal
@@ -3915,30 +3896,26 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       }
   });
 
-//INICIO RUTAS DASHBOARD DIRECTOR
+// INICIO RUTAS DASHBOARD DIRECTOR
 
-  // OBTIENE TODOS LOS ROLES DISPONIBLES
-  router.get('/roles-director', authMiddleware, async (req, res) => {
-      const query = 'SELECT * FROM Rol';
-      try {
-          const [roles] = await db.query(query);
-          res.json({ success: true, roles });
-      } catch (error) {
-          console.error('Error al obtener roles:', {
-              message: error.message,
-              stack: error.stack,
-              code: error.code,
-              sqlMessage: error.sqlMessage || 'N/A'
-          });
-          res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-      }
-  });
+router.get('/roles-director', authMiddleware, async (req, res) => {
+    const query = 'SELECT * FROM Rol';
+    try {
+        const [roles] = await db.query(query);
+        res.json({ success: true, roles });
+    } catch (error) {
+        console.error('Error al obtener roles:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
+});
 
-  // OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
-// OBTIENE LA INFORMACIÓN DEL PERSONAL CON SUS ROLES, MATERIAS Y EVALUACIÓN, ORDENADO POR EVALUACIÓN
 router.get('/personnel-director', authMiddleware, async (req, res) => {
-    const { role, sort } = req.query;
-
+    const { role, group, sort } = req.query;
     let query = `
         SELECT 
             p.id_personal,
@@ -3952,138 +3929,113 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
         FROM Personal p
         JOIN Puesto pu ON p.id_puesto = pu.id_puesto
     `;
-    const queryParams = [];
+    let whereClause = ' WHERE p.estado_personal = 1';
+    let queryParams = [];
 
-    // Normalizar roles: dividir, trim y filtrar vacíos
-    const roles = role
-        ? role.split(',').map(r => r.trim()).filter(r => r.length > 0)
-        : [];
+    if (group) {
+        let keyword;
+        switch (group.toLowerCase()) {
+            case 'profesores':
+                keyword = '%PROF%';
+                break;
+            case 'subdirectores':
+                keyword = '%SUB%';
+                break;
+            case 'coordinadores':
+                keyword = '%COOR%';
+                break;
+            case 'counselors':
+                keyword = '%COUNSELOR%';
+                break;
+            case 'encargados':
+                keyword = '%ENCARGADO%';
+                break;
+            case 'otros':
+                keyword = '%'; // Para "Otros", incluir todos los roles no capturados por los anteriores
+                whereClause += ` AND pu.nombre_puesto NOT LIKE '%PROF%' 
+                                AND pu.nombre_puesto NOT LIKE '%SUB%' 
+                                AND pu.nombre_puesto NOT LIKE '%COOR%' 
+                                AND pu.nombre_puesto NOT LIKE '%COUNSELOR%' 
+                                AND pu.nombre_puesto NOT LIKE '%ENCARGADO%'`;
+                break;
+            default:
+                return res.status(400).json({ success: false, message: 'Grupo no válido' });
+        }
+        if (keyword) {
+            whereClause += ` AND pu.nombre_puesto LIKE ?`;
+            queryParams.push(keyword);
+        }
+    } else if (role) {
+        const roles = role.split(',');
+        query += `
+            JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
+            JOIN Rol r ON pr.id_rol = r.id_rol
+        `;
+        whereClause += ` AND r.nombre_rol IN (${roles.map(() => '?').join(',')})`;
+        queryParams.push(...roles);
+    }
 
-    // Normalizamos a minúsculas para comparar
-    const rolesLower = roles.map(r => r.toLowerCase());
+    query += whereClause;
+
+    const query2 = `
+        SELECT r.nombre_rol
+        FROM Puesto_Rol pr
+        JOIN Rol r ON pr.id_rol = r.id_rol
+        WHERE pr.id_puesto = ?
+    `;
+    const query3 = `
+        SELECT DISTINCT m.nombre_materia
+        FROM Grupo_Materia gm
+        JOIN Materia m ON gm.id_materia = m.id_materia
+        WHERE gm.id_personal = ?
+    `;
+    const evalQueries = [
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+    ];
+    const positiveResponses = [1, 5, 6, 9, 10];
 
     try {
-        if (rolesLower.length > 0) {
-            // Primero: comprobar qué roles existen realmente en la tabla Rol
-            const placeholdersCheck = rolesLower.map(() => '?').join(',');
-            const checkSql = `SELECT DISTINCT nombre_rol FROM Rol WHERE LOWER(TRIM(nombre_rol)) COLLATE utf8mb4_general_ci IN (${placeholdersCheck})`;
-            console.log('Checking roles existence:', checkSql, rolesLower);
-            const [matchedRows] = await db.query(checkSql, rolesLower);
-
-            const matchedRoles = matchedRows.map(r => r.nombre_rol);
-            console.log('Matched roles in DB:', matchedRoles);
-
-            if (matchedRoles.length === 0) {
-                // No hay coincidencias en la tabla Rol -> devolvemos vacío (pero con información para debug)
-                console.warn('No matched roles found in DB for requested roles:', roles);
-                return res.json({ success: true, personnel: [], debug: { requestedRoles: roles, matchedRoles: [] } });
-            }
-
-            // Use placeholders based on rolesLower (los parámetros que pasaremos serán rolesLower)
-            const rolePlaceholders = rolesLower.map(() => '?').join(',');
-            query += `
-                JOIN Puesto_Rol pr ON pu.id_puesto = pr.id_puesto
-                JOIN Rol r ON pr.id_rol = r.id_rol
-                WHERE p.estado_personal = 1 
-                  AND LOWER(TRIM(r.nombre_rol)) COLLATE utf8mb4_general_ci IN (${rolePlaceholders})
-            `;
-            queryParams.push(...rolesLower);
-        } else {
-            query += ' WHERE p.estado_personal = 1';
-        }
-
-        console.log('Query personnel:', query, queryParams);
         const [personnel] = await db.query(query, queryParams);
-        console.log('Personnel found:', Array.isArray(personnel) ? personnel.length : 0);
-
-        // Obtener detalles (roles y materias) por cada personal
-        const query2 = `
-            SELECT r.nombre_rol
-            FROM Puesto_Rol pr
-            JOIN Rol r ON pr.id_rol = r.id_rol
-            WHERE pr.id_puesto = ?
-        `;
-        const query3 = `
-            SELECT DISTINCT m.nombre_materia
-            FROM Grupo_Materia gm
-            JOIN Materia m ON gm.id_materia = m.id_materia
-            WHERE gm.id_personal = ?
-        `;
-
         const personnelWithDetails = await Promise.all(personnel.map(async (p) => {
-            const [rolesRows] = await db.query(query2, [p.id_puesto]);
+            const [roles] = await db.query(query2, [p.id_puesto]);
             const [subjects] = await db.query(query3, [p.id_personal]);
             return {
                 ...p,
-                roles: rolesRows.map(r => r.nombre_rol),
+                roles: roles.map(r => r.nombre_rol),
                 subjects: subjects.map(s => s.nombre_materia),
-                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: reemplazar por tabla Metas si la tienes
+                goalAchievement: Math.floor(Math.random() * 20 + 80) // Mock: Replace with Metas table
             };
         }));
 
-        // Si no hay personal, devolvemos respuesta vacía (evitar IN () en las queries)
-        const personnelIds = personnelWithDetails.map(p => p.id_personal).filter(id => id != null);
-
-        // Evaluaciones (mismo patrón de expansion de IN)
-        const evalQueries = [
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-            `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-        ];
-        const positiveResponses = [1, 5, 6, 9, 10];
-
-        // Helper simple: reemplaza cada 'IN (?)' por los placeholders apropiados y construye params
-        function expandInPlaceholders(baseQuery, arraysInOrder = []) {
-            let q = baseQuery;
-            const params = [];
-            for (const arr of arraysInOrder) {
-                if (!q.includes('IN (?)')) break;
-                if (!Array.isArray(arr) || arr.length === 0) {
-                    q = q.replace('IN (?)', 'IN (NULL)');
-                } else {
-                    const placeholders = arr.map(() => '?').join(',');
-                    q = q.replace('IN (?)', `IN (${placeholders})`);
-                    params.push(...arr);
-                }
-            }
-            return { q, params };
-        }
-
+        const personnelIds = personnelWithDetails.map(p => p.id_personal);
         let allEvaluations = [];
-        if (personnelIds.length > 0) {
-            for (let i = 0; i < evalQueries.length; i += 2) {
-                const { q: qPos, params: paramsPos } = expandInPlaceholders(evalQueries[i], [personnelIds, positiveResponses]);
-                console.log('Eval positive query:', qPos, paramsPos);
-                const [positiveResults] = await db.query(qPos, paramsPos);
-
-                const { q: qTot, params: paramsTot } = expandInPlaceholders(evalQueries[i + 1], [personnelIds]);
-                console.log('Eval total query:', qTot, paramsTot);
-                const [totalResults] = await db.query(qTot, paramsTot);
-
-                allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-            }
+        for (let i = 0; i < evalQueries.length; i += 2) {
+            const [positiveResults] = await db.query(evalQueries[i], [personnelIds, positiveResponses]);
+            const [totalResults] = await db.query(evalQueries[i + 1], [personnelIds]);
+            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
         }
 
-        // Agregar/combinar resultados
         const aggregatedEvaluations = {};
-        allEvaluations.forEach(row => {
-            if (!aggregatedEvaluations[row.id_personal]) {
-                aggregatedEvaluations[row.id_personal] = { positive_count: 0, total_count: 0 };
+        allEvaluations.forEach(eval => {
+            if (!aggregatedEvaluations[eval.id_personal]) {
+                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
             }
-            if (row.positive_count !== undefined) {
-                aggregatedEvaluations[row.id_personal].positive_count += row.positive_count || 0;
+            if (eval.positive_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
             }
-            if (row.total_count !== undefined) {
-                aggregatedEvaluations[row.id_personal].total_count += row.total_count || 0;
+            if (eval.total_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
             }
         });
 
@@ -4093,21 +4045,18 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
             return { ...p, evaluationPercentage: percentage };
         });
 
-        // Ordenar y recortar según sort
         let sortedPersonnel = personnelWithEval.sort((a, b) => b.evaluationPercentage - a.evaluationPercentage);
         if (sort === 'top') {
             sortedPersonnel = sortedPersonnel.slice(0, 3);
         } else if (sort === 'bottom') {
             sortedPersonnel = personnelWithEval.sort((a, b) => a.evaluationPercentage - b.evaluationPercentage).slice(0, 3);
         } else if (sort === 'all') {
-            // devolver todo (ya ordenado)
+            // Already sorted descending, return all
         } else {
-            sortedPersonnel = sortedPersonnel.slice(0, 3); // por defecto top 3
+            sortedPersonnel = sortedPersonnel.slice(0, 3); // Default to top 3
         }
 
-        // Devuelvo también matchedRoles en el debug para que puedas ver qué coincidió
-        res.json({ success: true, personnel: sortedPersonnel, debug: { requestedRoles: roles, matchedRoles: matchedRoles || [] } });
-
+        res.json({ success: true, personnel: sortedPersonnel });
     } catch (error) {
         console.error('Error al obtener personal:', {
             message: error.message,
@@ -4119,241 +4068,225 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
     }
 });
 
+router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
+    const { ids } = req.query;
+    if (!ids) return res.status(400).json({ success: false, message: 'IDs de personal requeridos' });
 
+    const idArray = ids.split(',').map(id => parseInt(id));
+    const positiveResponses = [1, 5, 6, 9, 10];
 
-  // OBTIENE EL RECUENTO DE RESPUESTAS POSITIVAS Y TOTALES POR ID_PERSONAL
-  router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
-      const { ids } = req.query; // Comma-separated list of id_personal
-      if (!ids) return res.status(400).json({ success: false, message: 'IDs de personal requeridos' });
+    const queries = [
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
+        `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
+    ];
 
-      const idArray = ids.split(',').map(id => parseInt(id));
-      const positiveResponses = [1, 5, 6, 9, 10];
+    try {
+        let allEvaluations = [];
+        for (let i = 0; i < queries.length; i += 2) {
+            const [positiveResults] = await db.query(queries[i], [idArray, positiveResponses]);
+            const [totalResults] = await db.query(queries[i + 1], [idArray]);
+            allEvaluations = allEvaluations.concat(positiveResults, totalResults);
+        }
 
-      const queries = [
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Ingles WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Docente_Arte WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Taller WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Alumno_Counselor WHERE id_personal IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as positive_count FROM Respuesta_Personal WHERE id_personal IN (?) AND id_respuesta IN (?) GROUP BY id_personal`,
-          `SELECT id_personal, COUNT(*) as total_count FROM Respuesta_Personal WHERE id_personal IN (?) GROUP BY id_personal`
-      ];
+        const aggregatedEvaluations = {};
+        allEvaluations.forEach(eval => {
+            if (!aggregatedEvaluations[eval.id_personal]) {
+                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+            }
+            if (eval.positive_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
+            }
+            if (eval.total_count !== undefined) {
+                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
+            }
+        });
 
-      try {
-          let allEvaluations = [];
-          for (let i = 0; i < queries.length; i += 2) {
-              const [positiveResults] = await db.query(queries[i], [idArray, positiveResponses]);
-              const [totalResults] = await db.query(queries[i + 1], [idArray]);
-              allEvaluations = allEvaluations.concat(positiveResults, totalResults);
-          }
+        const evaluations = idArray.map(id => ({
+            id_personal: id,
+            positive_count: aggregatedEvaluations[id]?.positive_count || 0,
+            total_count: Math.max(aggregatedEvaluations[id]?.total_count || 1, 1)
+        }));
 
-          // Aggregate counts per id_personal
-          const aggregatedEvaluations = {};
-          allEvaluations.forEach(eval => {
-              if (!aggregatedEvaluations[eval.id_personal]) {
-                  aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
-              }
-              if (eval.positive_count !== undefined) {
-                  aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
-              }
-              if (eval.total_count !== undefined) {
-                  aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
-              }
-          });
+        res.json({ success: true, evaluations });
+    } catch (error) {
+        console.error('Error al obtener evaluaciones:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
+});
 
-          const evaluations = idArray.map(id => ({
-              id_personal: id,
-              positive_count: aggregatedEvaluations[id]?.positive_count || 0,
-              total_count: Math.max(aggregatedEvaluations[id]?.total_count || 1, 1) // Ensure at least 1 to avoid division by zero
-          }));
+router.get('/comments-director', authMiddleware, async (req, res) => {
+    const { id_personal, type } = req.query;
+    if (!id_personal || !type) return res.status(400).json({ success: false, message: 'id_personal y type son requeridos' });
 
-          res.json({ success: true, evaluations });
-      } catch (error) {
-          console.error('Error al obtener evaluaciones:', {
-              message: error.message,
-              stack: error.stack,
-              code: error.code,
-              sqlMessage: error.sqlMessage || 'N/A'
-          });
-          res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-      }
-  });
+    const isPositive = type === 'positive' ? 1 : 0;
+    const queries = [
+        `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
+         FROM Comentario_Docente cd 
+         JOIN Alumno a ON cd.id_alumno = a.id_alumno 
+         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
+        `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
+         FROM Comentario_Docente_Ingles cdi 
+         JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
+         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
+        `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
+         FROM Comentario_Docente_Arte cda 
+         JOIN Alumno a ON cda.id_alumno = a.id_alumno 
+         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
+        `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
+         FROM Comentario_Taller ct 
+         JOIN Alumno a ON ct.id_alumno = a.id_alumno 
+         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
+        `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
+         FROM Comentario_Counselor cc 
+         JOIN Alumno a ON cc.id_alumno = a.id_alumno 
+         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
+        `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
+         FROM Comentario_Personal cp 
+         JOIN Evaluador e ON cp.id_evaluador = e.id_evaluador 
+         JOIN Personal p ON e.id_personal = p.id_personal 
+         WHERE cp.id_personal = ? AND cp.tipo_comentario = ?`
+    ];
 
-  // OBTIENE COMENTARIOS POR ID_PERSONAL Y TIPO
-  router.get('/comments-director', authMiddleware, async (req, res) => {
-      const { id_personal, type } = req.query;
-      if (!id_personal || !type) return res.status(400).json({ success: false, message: 'id_personal y type son requeridos' });
+    try {
+        let allComments = [];
+        for (const query of queries) {
+            const [results] = await db.query(query, [id_personal, isPositive]);
+            allComments = allComments.concat(results.map(row => ({
+                commenter: row.id_alumno ? `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})` : `${row.nombre_personal} ${row.apaterno_personal} ${row.amaterno_personal}`,
+                comment: row.comment
+            })));
+        }
 
-      const isPositive = type === 'positive' ? 1 : 0;
-      const queries = [
-          // Comentario_Docente
-          `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
-          FROM Comentario_Docente cd 
-          JOIN Alumno a ON cd.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
-          WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
-          // Comentario_Docente_Ingles
-          `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
-          FROM Comentario_Docente_Ingles cdi 
-          JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
-          WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
-          // Comentario_Docente_Arte
-          `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
-          FROM Comentario_Docente_Arte cda 
-          JOIN Alumno a ON cda.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
-          WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
-          // Comentario_Taller
-          `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
-          FROM Comentario_Taller ct 
-          JOIN Alumno a ON ct.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
-          WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
-          // Comentario_Counselor
-          `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
-          FROM Comentario_Counselor cc 
-          JOIN Alumno a ON cc.id_alumno = a.id_alumno 
-          JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
-          WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
-          // Comentario_Personal (staff comments)
-          `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
-          FROM Comentario_Personal cp 
-          JOIN Evaluador e ON cp.id_evaluador = e.id_evaluador 
-          JOIN Personal p ON e.id_personal = p.id_personal 
-          WHERE cp.id_personal = ? AND cp.tipo_comentario = ?`
-      ];
+        res.json({ success: true, comments: allComments });
+    } catch (error) {
+        console.error('Error al obtener comentarios:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
+});
 
-      try {
-          let allComments = [];
-          for (const query of queries) {
-              const [results] = await db.query(query, [id_personal, isPositive]);
-              allComments = allComments.concat(results.map(row => ({
-                  commenter: row.id_alumno ? `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})` : `${row.nombre_personal} ${row.apaterno_personal} ${row.amaterno_personal}`,
-                  comment: row.comment
-              })));
-          }
-
-          res.json({ success: true, comments: allComments });
-      } catch (error) {
-          console.error('Error al obtener comentarios:', {
-              message: error.message,
-              stack: error.stack,
-              code: error.code,
-              sqlMessage: error.sqlMessage || 'N/A'
-          });
-          res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-      }
-  });
-
-  // Obtener comentarios de Servicios
 router.get('/comments-servicio', authMiddleware, async (req, res) => {
-  const { id, type } = req.query;
-  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+    const { id, type } = req.query;
+    if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
 
-  const isPositive = type === 'positive' ? 1 : 0;
-  const query = `
-    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cs.comentario_servicio as comment
-    FROM Comentario_Servicio cs
-    JOIN Alumno a ON cs.id_alumno = a.id_alumno
-    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
-    WHERE cs.id_servicio = ? AND cs.tipo_comentario = ?
-  `;
+    const isPositive = type === 'positive' ? 1 : 0;
+    const query = `
+        SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cs.comentario_servicio as comment
+        FROM Comentario_Servicio cs
+        JOIN Alumno a ON cs.id_alumno = a.id_alumno
+        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        WHERE cs.id_servicio = ? AND cs.tipo_comentario = ?
+    `;
 
-  try {
-    const [results] = await db.query(query, [id, isPositive]);
-    const comments = results.map(row => ({
-      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
-      comment: row.comment
-    }));
-    res.json({ success: true, comments });
-  } catch (error) {
-    console.error('Error al obtener comentarios de servicio:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      sqlMessage: error.sqlMessage || 'N/A'
-    });
-    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-  }
+    try {
+        const [results] = await db.query(query, [id, isPositive]);
+        const comments = results.map(row => ({
+            commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+            comment: row.comment
+        }));
+        res.json({ success: true, comments });
+    } catch (error) {
+        console.error('Error al obtener comentarios de servicio:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
 });
 
-// Obtener comentarios de Ligas Deportivas
 router.get('/comments-liga-deportiva', authMiddleware, async (req, res) => {
-  const { id, type } = req.query;
-  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+    const { id, type } = req.query;
+    if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
 
-  const isPositive = type === 'positive' ? 1 : 0;
-  const query = `
-    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cld.comentario_servicio as comment
-    FROM Comentario_Liga_Deportiva cld
-    JOIN Alumno a ON cld.id_alumno = a.id_alumno
-    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
-    WHERE cld.id_liga_deportiva = ? AND cld.tipo_comentario = ?
-  `;
+    const isPositive = type === 'positive' ? 1 : 0;
+    const query = `
+        SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cld.comentario_servicio as comment
+        FROM Comentario_Liga_Deportiva cld
+        JOIN Alumno a ON cld.id_alumno = a.id_alumno
+        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        WHERE cld.id_liga_deportiva = ? AND cld.tipo_comentario = ?
+    `;
 
-  try {
-    const [results] = await db.query(query, [id, isPositive]);
-    const comments = results.map(row => ({
-      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
-      comment: row.comment
-    }));
-    res.json({ success: true, comments });
-  } catch (error) {
-    console.error('Error al obtener comentarios de liga deportiva:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      sqlMessage: error.sqlMessage || 'N/A'
-    });
-    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-  }
+    try {
+        const [results] = await db.query(query, [id, isPositive]);
+        const comments = results.map(row => ({
+            commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+            comment: row.comment
+        }));
+        res.json({ success: true, comments });
+    } catch (error) {
+        console.error('Error al obtener comentarios de liga deportiva:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
 });
 
-// Obtener comentarios de Disciplinas Deportivas de La Loma
 router.get('/comments-disciplina-deportiva', authMiddleware, async (req, res) => {
-  const { id, type } = req.query;
-  if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
+    const { id, type } = req.query;
+    if (!id || !type) return res.status(400).json({ success: false, message: 'id y type son requeridos' });
 
-  const isPositive = type === 'positive' ? 1 : 0;
-  const query = `
-    SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdd.comentario_servicio as comment
-    FROM Comentario_Disciplina_Deportiva cdd
-    JOIN Alumno a ON cdd.id_alumno = a.id_alumno
-    JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
-    WHERE cdd.id_disciplina_deportiva = ? AND cdd.tipo_comentario = ?
-  `;
+    const isPositive = type === 'positive' ? 1 : 0;
+    const query = `
+        SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdd.comentario_servicio as comment
+        FROM Comentario_Disciplina_Deportiva cdd
+        JOIN Alumno a ON cdd.id_alumno = a.id_alumno
+        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        WHERE cdd.id_disciplina_deportiva = ? AND cdd.tipo_comentario = ?
+    `;
 
-  try {
-    const [results] = await db.query(query, [id, isPositive]);
-    const comments = results.map(row => ({
-      commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
-      comment: row.comment
-    }));
-    res.json({ success: true, comments });
-  } catch (error) {
-    console.error('Error al obtener comentarios de disciplina deportiva:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      sqlMessage: error.sqlMessage || 'N/A'
-    });
-    res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
-  }
+    try {
+        const [results] = await db.query(query, [id, isPositive]);
+        const comments = results.map(row => ({
+            commenter: `${row.nombre_alumno} ${row.apaterno_alumno} ${row.amaterno_alumno} (Grupo ${row.grupo})`,
+            comment: row.comment
+        }));
+        res.json({ success: true, comments });
+    } catch (error) {
+        console.error('Error al obtener comentarios de disciplina deportiva:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            sqlMessage: error.sqlMessage || 'N/A'
+        });
+        res.status(500).json({ success: false, message: 'Error en el servidor.', error: error.message });
+    }
 });
 
-
-// Backend: routes/index.js or similar
 router.get('/personal-dashboard/:id/:type', authMiddleware, async (req, res) => {
     const { id, type } = req.params;
-    const idPregunta = req.query.id_tipo_pregunta; // Treated as id_pregunta for most tables
+    const idPregunta = req.query.id_tipo_pregunta;
     try {
-        const tipoToId = { '360': 5, 'pares': 6, 'jefes': 7, 'subordinado': 4 }; // Defined here to avoid ReferenceError
+        const tipoToId = { '360': 5, 'pares': 6, 'jefes': 7, 'subordinado': 4 };
         let query;
         let queryParams;
         switch (type.toLowerCase()) {
@@ -4424,7 +4357,7 @@ router.get('/personal-dashboard/:id/:type', authMiddleware, async (req, res) => 
     }
 });
 
-//FIN RUTAS DASHBOARD DIRECTOR
+// FIN RUTAS DASHBOARD DIRECTOR
 
   //GESTION DE PERMISOS
 
@@ -5127,65 +5060,77 @@ router.delete('/puesto-kpi', async (req, res) => {
   router.get('/materias', authMiddleware, async (req, res) => {
     try {
       const [materias] = await db.query(`
-      SELECT m.id_materia, m.nombre_materia, m.modelo_materia, m.grado_materia, a.nombre_academia,
-        CASE 
-          WHEN LOWER(m.nombre_materia) LIKE '%arte%' THEN
-            (SELECT GROUP_CONCAT(
-              DISTINCT CONCAT(
-                p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' (', ae.nombre_arte_especialidad, ') - ',
-                (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
-                FROM Personal_Arte_Especialidad pae2
-                JOIN Grado_Grupo gg2 ON pae2.id_grado_grupo = gg2.id_grado_grupo
-                WHERE pae2.id_personal = pae.id_personal 
-                  AND pae2.id_arte_especialidad = pae.id_arte_especialidad
-                  AND gg2.grado = m.grado_materia)
-              ) SEPARATOR '; '
-            )
+        SELECT 
+          m.id_materia,
+          m.nombre_materia,
+          m.modelo_materia,
+          m.grado_materia,
+          a.nombre_academia,
+
+          -- concatenamos 3 sub-listas: asignaciones "normales", english (Personal_Nivel_Ingles), arte (Personal_Arte_Especialidad)
+          TRIM(BOTH '; ' FROM CONCAT_WS('; ',
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(
+              p.nombre_personal, ' ', p.apaterno_personal, ' ', IFNULL(p.amaterno_personal,''),
+              ' - ',
+              (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
+                FROM Grupo_Materia gm2
+                JOIN Grado_Grupo gg2 ON gm2.id_grado_grupo = gg2.id_grado_grupo
+                WHERE gm2.id_personal = gm.id_personal AND gm2.id_materia = gm.id_materia
+              ),
+              IFNULL(CONCAT(' · ', ni.nombre_nivel_ingles), '')
+            ) SEPARATOR '; ')
+            FROM Grupo_Materia gm
+            JOIN Personal p ON gm.id_personal = p.id_personal
+            LEFT JOIN Personal_Nivel_Ingles pni ON pni.id_personal = gm.id_personal AND pni.id_grado_grupo = gm.id_grado_grupo AND pni.id_materia = gm.id_materia
+            LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
+            WHERE gm.id_materia = m.id_materia),
+
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(
+              p.nombre_personal, ' ', p.apaterno_personal, ' ', IFNULL(p.amaterno_personal,''),
+              ' (', IFNULL(ni.nombre_nivel_ingles,'NIVEL'), ') - ',
+              (SELECT GROUP_CONCAT(gg3.grupo ORDER BY gg3.grupo SEPARATOR ', ')
+                FROM Grado_Grupo gg3
+                WHERE gg3.id_grado_grupo = pni.id_grado_grupo
+              )
+            ) SEPARATOR '; ')
+            FROM Personal_Nivel_Ingles pni
+            JOIN Personal p ON pni.id_personal = p.id_personal
+            LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
+            WHERE pni.id_materia = m.id_materia),
+
+            (SELECT GROUP_CONCAT(DISTINCT CONCAT(
+              p.nombre_personal, ' ', p.apaterno_personal, ' ', IFNULL(p.amaterno_personal,''),
+              ' (', ae.nombre_arte_especialidad, ') - ',
+              (SELECT GROUP_CONCAT(gg4.grupo ORDER BY gg4.grupo SEPARATOR ', ')
+                FROM Grado_Grupo gg4
+                WHERE gg4.id_grado_grupo = pae.id_grado_grupo
+              )
+            ) SEPARATOR '; ')
             FROM Personal_Arte_Especialidad pae
             JOIN Personal p ON pae.id_personal = p.id_personal
             JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
-            JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
-            WHERE gg.grado = m.grado_materia)
-          ELSE
-            (SELECT GROUP_CONCAT(
-              DISTINCT CONCAT(
-                p.nombre_personal, ' ', p.apaterno_personal, ' ', p.amaterno_personal, ' - ',
-                (SELECT GROUP_CONCAT(gg2.grupo ORDER BY gg2.grupo SEPARATOR ', ')
-                FROM Grupo_Materia gm2
-                JOIN Grado_Grupo gg2 ON gm2.id_grado_grupo = gg2.id_grado_grupo
-                WHERE gm2.id_personal = gm.id_personal 
-                  AND gm2.id_materia = m.id_materia),
-                ' (', gm.horas_materia, ' horas)',
-                IFNULL(CONCAT(' - ', ni.nombre_nivel_ingles), '')
-              ) SEPARATOR '; '
-            )
-            FROM Grupo_Materia gm
-            JOIN Personal p ON gm.id_personal = p.id_personal
-            JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
-            LEFT JOIN Personal_Nivel_Ingles pni ON gm.id_personal = pni.id_personal AND gm.id_grado_grupo = pni.id_grado_grupo
-            LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
-            WHERE gm.id_materia = m.id_materia)
-        END AS profesores_grupos,
-        -- Nuevo: lista de ids de grupos donde está la materia (vacío si no hay)
-        CASE
-          WHEN LOWER(m.nombre_materia) LIKE '%arte%' THEN
-            (SELECT GROUP_CONCAT(DISTINCT pae.id_grado_grupo SEPARATOR ',') 
-            FROM Personal_Arte_Especialidad pae
-            JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
-            WHERE gg.grado = m.grado_materia)
-          ELSE
-            (SELECT GROUP_CONCAT(DISTINCT gm.id_grado_grupo SEPARATOR ',') FROM Grupo_Materia gm WHERE gm.id_materia = m.id_materia)
-        END AS grupos_ids
-      FROM Materia m
-      LEFT JOIN Academia a ON m.id_academia = a.id_academia
-      GROUP BY m.id_materia
-    `);
+            WHERE pae.id_materia = m.id_materia)
+          )) AS profesores_grupos,
+
+          -- ids de grupos (concatena los ids que aparezcan en las 3 tablas)
+          TRIM(BOTH ',' FROM CONCAT_WS(',',
+            (SELECT GROUP_CONCAT(DISTINCT gm.id_grado_grupo SEPARATOR ',') FROM Grupo_Materia gm WHERE gm.id_materia = m.id_materia),
+            (SELECT GROUP_CONCAT(DISTINCT pni.id_grado_grupo SEPARATOR ',') FROM Personal_Nivel_Ingles pni WHERE pni.id_materia = m.id_materia),
+            (SELECT GROUP_CONCAT(DISTINCT pae.id_grado_grupo SEPARATOR ',') FROM Personal_Arte_Especialidad pae WHERE pae.id_materia = m.id_materia)
+          )) AS grupos_ids
+
+        FROM Materia m
+        LEFT JOIN Academia a ON m.id_academia = a.id_academia
+        GROUP BY m.id_materia, m.nombre_materia, m.modelo_materia, m.grado_materia, a.nombre_academia
+      `);
+
       res.json({ success: true, materias });
     } catch (error) {
       console.error('Error al obtener materias:', error);
       res.status(500).json({ success: false, message: 'Error interno al obtener materias' });
     }
   });
+
 
   // Obtener una materia específica
   router.get('/materias/:id', authMiddleware, async (req, res) => {
@@ -5208,45 +5153,96 @@ router.delete('/puesto-kpi', async (req, res) => {
   });
 
   // Obtener asignaciones de una materia
-  router.get('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
-    const { id } = req.params;
-    try {
-      const [materia] = await db.query('SELECT nombre_materia, grado_materia FROM Materia WHERE id_materia = ?', [id]);
-      if (!materia.length) {
-        return res.status(404).json({ success: false, message: 'Materia no encontrada' });
-      }
-      const isArte = materia[0].nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-      let asignaciones;
-      if (isArte) {
-        [asignaciones] = await db.query(`
-          SELECT pae.id_personal, pae.id_grado_grupo, p.nombre_personal, p.apaterno_personal, p.amaterno_personal,
-            gg.grado, gg.grupo, ae.id_arte_especialidad, ae.nombre_arte_especialidad
-          FROM Personal_Arte_Especialidad pae
-          JOIN Personal p ON pae.id_personal = p.id_personal
-          JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
-          JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
-          WHERE gg.grado = ?
-        `, [materia[0].grado_materia]);
-      } else {
-        [asignaciones] = await db.query(`
-          SELECT gm.id_personal, gm.id_grado_grupo, gm.horas_materia, 
-            p.nombre_personal, p.apaterno_personal, p.amaterno_personal,
-            gg.grado, gg.grupo,
-            pni.id_nivel_ingles, ni.nombre_nivel_ingles
-          FROM Grupo_Materia gm
-          JOIN Personal p ON gm.id_personal = p.id_personal
-          JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
-          LEFT JOIN Personal_Nivel_Ingles pni ON gm.id_personal = pni.id_personal AND gm.id_grado_grupo = pni.id_grado_grupo
-          LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
-          WHERE gm.id_materia = ?
-        `, [id]);
-      }
-      res.json(asignaciones);
-    } catch (error) {
-      console.error('Error al obtener asignaciones:', error);
-      res.status(500).json({ success: false, message: 'Error interno al obtener asignaciones' });
+router.get('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const id_grado_grupo = req.query.grupo || null;
+
+  try {
+    const [materia] = await db.query('SELECT nombre_materia, grado_materia FROM Materia WHERE id_materia = ?', [id]);
+    if (!materia.length) {
+      return res.status(404).json({ success: false, message: 'Materia no encontrada' });
     }
-  });
+
+    const query = `
+      -- Asignaciones normales (Grupo_Materia)
+      SELECT 
+        gm.id_personal,
+        gm.id_grado_grupo,
+        p.nombre_personal,
+        p.apaterno_personal,
+        p.amaterno_personal,
+        gg.grado,
+        gg.grupo,
+        NULL AS id_nivel_ingles,
+        NULL AS nombre_nivel_ingles,
+        NULL AS id_arte_especialidad,
+        NULL AS nombre_arte_especialidad
+      FROM Grupo_Materia gm
+      JOIN Personal p ON gm.id_personal = p.id_personal
+      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      WHERE gm.id_materia = ? ${id_grado_grupo ? 'AND gm.id_grado_grupo = ?' : ''}
+
+      UNION
+
+      -- Asignaciones de inglés (Personal_Nivel_Ingles)
+      SELECT 
+        pni.id_personal,
+        pni.id_grado_grupo,
+        p.nombre_personal,
+        p.apaterno_personal,
+        p.amaterno_personal,
+        gg.grado,
+        gg.grupo,
+        pni.id_nivel_ingles,
+        ni.nombre_nivel_ingles,
+        NULL AS id_arte_especialidad,
+        NULL AS nombre_arte_especialidad
+      FROM Personal_Nivel_Ingles pni
+      JOIN Personal p ON pni.id_personal = p.id_personal
+      JOIN Grado_Grupo gg ON pni.id_grado_grupo = gg.id_grado_grupo
+      LEFT JOIN Nivel_Ingles ni ON pni.id_nivel_ingles = ni.id_nivel_ingles
+      LEFT JOIN Grupo_Materia gm ON gm.id_materia = pni.id_materia 
+        AND gm.id_grado_grupo = pni.id_grado_grupo 
+        AND gm.id_personal = pni.id_personal
+      WHERE pni.id_materia = ? ${id_grado_grupo ? 'AND pni.id_grado_grupo = ?' : ''}
+
+      UNION
+
+      -- Asignaciones de arte (Personal_Arte_Especialidad)
+      SELECT 
+        pae.id_personal,
+        pae.id_grado_grupo,
+        p.nombre_personal,
+        p.apaterno_personal,
+        p.amaterno_personal,
+        gg.grado,
+        gg.grupo,
+        NULL AS id_nivel_ingles,
+        NULL AS nombre_nivel_ingles,
+        pae.id_arte_especialidad,
+        ae.nombre_arte_especialidad
+      FROM Personal_Arte_Especialidad pae
+      JOIN Personal p ON pae.id_personal = p.id_personal
+      JOIN Grado_Grupo gg ON pae.id_grado_grupo = gg.id_grado_grupo
+      JOIN Arte_Especialidad ae ON pae.id_arte_especialidad = ae.id_arte_especialidad
+      LEFT JOIN Grupo_Materia gm ON gm.id_materia = pae.id_materia 
+        AND gm.id_grado_grupo = pae.id_grado_grupo 
+        AND gm.id_personal = pae.id_personal
+      WHERE pae.id_materia = ? ${id_grado_grupo ? 'AND pae.id_grado_grupo = ?' : ''}
+    `;
+
+    const params = id_grado_grupo 
+      ? [id, id_grado_grupo, id, id_grado_grupo, id, id_grado_grupo]
+      : [id, id, id];
+
+    const [asignaciones] = await db.query(query, params);
+
+    res.json(asignaciones);
+  } catch (error) {
+    console.error('Error al obtener asignaciones:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener asignaciones' });
+  }
+});
 
   // Obtener todas las academias
   router.get('/academias', authMiddleware, async (req, res) => {
@@ -5440,105 +5436,155 @@ router.delete('/puesto-kpi', async (req, res) => {
   });
 
   // Asignar un profesor a una materia
-  router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
-    const { id } = req.params;
-    const { id_personal, id_grado_grupo, horas_materia, id_nivel_ingles, id_arte_especialidad } = req.body;
-    let connection;
-    try {
-      connection = await db.getConnection();
-      await connection.beginTransaction();
+  // POST /materias/:id/asignaciones
+router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
+  const id_materia = req.params.id;
+  const {
+    id_personal,
+    id_grado_grupo,
+    id_nivel_ingles,
+    id_arte_especialidad,
+    horas_materia // opcional: si quieres manejar horas desde el front al crear asignación
+  } = req.body;
 
-      // Validar materia
-      const [materia] = await db.query('SELECT id_materia, nombre_materia, grado_materia FROM Materia WHERE id_materia = ?', [id]);
-      if (!materia.length) {
-        await connection.rollback();
-        return res.status(404).json({ success: false, message: 'Materia no encontrada' });
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    // --- validaciones básicas ---
+    const [mRows] = await conn.query('SELECT id_materia, nombre_materia, grado_materia FROM Materia WHERE id_materia = ?', [id_materia]);
+    if (!mRows.length) {
+      await conn.rollback();
+      return res.status(404).json({ success:false, message:'Materia no encontrada' });
+    }
+    const materia = mRows[0];
+
+    const [pRows] = await conn.query('SELECT id_personal FROM Personal WHERE id_personal = ?', [id_personal]);
+    if (!pRows.length) {
+      await conn.rollback();
+      return res.status(400).json({ success:false, message:'Profesor no encontrado' });
+    }
+
+    const [gRows] = await conn.query('SELECT id_grado_grupo, grado FROM Grado_Grupo WHERE id_grado_grupo = ?', [id_grado_grupo]);
+    if (!gRows.length) {
+      await conn.rollback();
+      return res.status(400).json({ success:false, message:'Grupo no encontrado' });
+    }
+
+    // validar que el grado coincide (si tu negocio lo exige)
+    const gradoGrupoNum = Number(gRows[0].grado);
+    const gradoMateriaNum = Number(materia.grado_materia);
+    if (gradoGrupoNum !== gradoMateriaNum) {
+      await conn.rollback();
+      return res.status(400).json({
+        success:false,
+        message: `El grupo seleccionado no pertenece al grado de la materia (Grupo grado: ${gradoGrupoNum}, Materia grado: ${gradoMateriaNum})`
+      });
+    }
+
+    const isIngles = !!id_nivel_ingles;
+    const isArte = !!id_arte_especialidad;
+
+    // --- caso INGLÉS ---
+    if (isIngles) {
+      // validar nivel
+      const [nivRows] = await conn.query('SELECT id_nivel_ingles FROM Nivel_Ingles WHERE id_nivel_ingles = ?', [id_nivel_ingles]);
+      if (!nivRows.length) {
+        await conn.rollback();
+        return res.status(400).json({ success:false, message:'Nivel de inglés no encontrado' });
       }
 
-      // Validar personal
-      const [personal] = await db.query('SELECT id_personal FROM Personal WHERE id_personal = ?', [id_personal]);
-      if (!personal.length) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: 'El profesor seleccionado no existe' });
-      }
-
-      // Validar grado_grupo
-      const [gradoGrupo] = await db.query('SELECT id_grado_grupo, grado FROM Grado_Grupo WHERE id_grado_grupo = ?', [id_grado_grupo]);
-      if (!gradoGrupo.length) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: 'El grupo seleccionado no existe' });
-      }
-
-      // Validar que el grado del grupo coincide con grado_materia
-      const gradoGrupoNum = Number(gradoGrupo[0].grado);
-      const gradoMateriaNum = Number(materia[0].grado_materia);
-      console.log(`Validating: gradoGrupo=${gradoGrupoNum} (${typeof gradoGrupoNum}), gradoMateria=${gradoMateriaNum} (${typeof gradoMateriaNum}), id_grado_grupo=${id_grado_grupo}, id_materia=${id}`);
-      if (gradoGrupoNum !== gradoMateriaNum) {
-        await connection.rollback();
-        return res.status(400).json({ 
-          success: false, 
-          message: `El grupo seleccionado no pertenece al grado de la materia (Grupo grado: ${gradoGrupoNum}, Materia grado: ${gradoMateriaNum})` 
-        });
-      }
-
-      // Validar horas_materia
-      if (horas_materia && (horas_materia < 1 || !Number.isInteger(Number(horas_materia)))) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: 'Las horas deben ser un número entero positivo' });
-      }
-
-      // Validar nivel de inglés si es necesario
-      const isIngles = materia[0].nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('ingles');
-      const isArte = materia[0].nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-      if (isIngles && !id_nivel_ingles) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: 'Debe seleccionar un nivel de inglés para materias de inglés' });
-      }
-      if (id_nivel_ingles) {
-        const [nivel] = await db.query('SELECT id_nivel_ingles FROM Nivel_Ingles WHERE id_nivel_ingles = ?', [id_nivel_ingles]);
-        if (!nivel.length) {
-          await connection.rollback();
-          return res.status(400).json({ success: false, message: 'El nivel de inglés seleccionado no existe' });
-        }
-      }
-
-      // Validar arte especialidad si es necesario
-      if (isArte && id_arte_especialidad) {
-        const [arte] = await db.query('SELECT id_arte_especialidad FROM Arte_Especialidad WHERE id_arte_especialidad = ?', [id_arte_especialidad]);
-        if (!arte.length) {
-          await connection.rollback();
-          return res.status(400).json({ success: false, message: 'La especialidad de arte seleccionada no existe' });
-        }
-      }
-
-      // Insertar en Grupo_Materia
-      await connection.query(
-        'INSERT INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo, horas_materia) VALUES (?, ?, ?, ?)',
-        [id, id_personal, id_grado_grupo, horas_materia || null]
+      // borrar asignación previa para ese nivel+grupo+materia (sea quien sea el profesor)
+      await conn.query(
+        `DELETE FROM Personal_Nivel_Ingles
+         WHERE id_nivel_ingles = ? AND id_grado_grupo = ? AND id_materia = ?`,
+        [id_nivel_ingles, id_grado_grupo, id_materia]
       );
 
-      if (isArte && id_arte_especialidad) {
-        await connection.query(
-          'INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo) VALUES (?, ?, ?)',
-          [id_personal, id_arte_especialidad, id_grado_grupo]
+      // comprobar si la tabla Personal_Nivel_Ingles tiene columna horas_materia (opcional)
+      const [colCheck] = await conn.query("SHOW COLUMNS FROM Personal_Nivel_Ingles LIKE 'horas_materia'");
+      if (colCheck.length) {
+        await conn.query(
+          `INSERT INTO Personal_Nivel_Ingles (id_personal, id_nivel_ingles, id_grado_grupo, id_materia, horas_materia)
+           VALUES (?, ?, ?, ?, ?)`,
+          [id_personal, id_nivel_ingles, id_grado_grupo, id_materia, (typeof horas_materia !== 'undefined' ? horas_materia : null)]
         );
-      } else if (id_nivel_ingles) {
-        await connection.query(
-          'INSERT INTO Personal_Nivel_Ingles (id_personal, id_nivel_ingles, id_grado_grupo) VALUES (?, ?, ?)',
-          [id_personal, id_nivel_ingles, id_grado_grupo]
+      } else {
+        await conn.query(
+          `INSERT INTO Personal_Nivel_Ingles (id_personal, id_nivel_ingles, id_grado_grupo, id_materia)
+           VALUES (?, ?, ?, ?)`,
+          [id_personal, id_nivel_ingles, id_grado_grupo, id_materia]
         );
       }
 
-      await connection.commit();
-      res.json({ success: true, message: 'Profesor asignado exitosamente' });
-    } catch (error) {
-      console.error('Error al asignar profesor:', error);
-      if (connection) await connection.rollback();
-      res.status(500).json({ success: false, message: 'Error interno al asignar profesor' });
-    } finally {
-      if (connection) connection.release();
+      await conn.commit();
+      return res.json({ success:true, message:'Asignación de inglés actualizada' });
     }
-  });
+
+    // --- caso ARTE ---
+    if (isArte) {
+      // validar especialidad
+      const [artRows] = await conn.query('SELECT id_arte_especialidad FROM Arte_Especialidad WHERE id_arte_especialidad = ?', [id_arte_especialidad]);
+      if (!artRows.length) {
+        await conn.rollback();
+        return res.status(400).json({ success:false, message:'Especialidad de arte no encontrada' });
+      }
+
+      // borrar asignación previa para esa especialidad+grupo+materia
+      await conn.query(
+        `DELETE FROM Personal_Arte_Especialidad
+         WHERE id_arte_especialidad = ? AND id_grado_grupo = ? AND id_materia = ?`,
+        [id_arte_especialidad, id_grado_grupo, id_materia]
+      );
+
+      // comprobar si la tabla Personal_Arte_Especialidad tiene columna horas_materia (opcional)
+      const [colCheck] = await conn.query("SHOW COLUMNS FROM Personal_Arte_Especialidad LIKE 'horas_materia'");
+      if (colCheck.length) {
+        await conn.query(
+          `INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo, id_materia, horas_materia)
+           VALUES (?, ?, ?, ?, ?)`,
+          [id_personal, id_arte_especialidad, id_grado_grupo, id_materia, (typeof horas_materia !== 'undefined' ? horas_materia : null)]
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo, id_materia)
+           VALUES (?, ?, ?, ?)`,
+          [id_personal, id_arte_especialidad, id_grado_grupo, id_materia]
+        );
+      }
+
+      await conn.commit();
+      return res.json({ success:true, message:'Asignación de arte actualizada' });
+    }
+
+    // --- caso NORMAL (usar Grupo_Materia) ---
+    // si ya existe registro para materia+grupo => actualizar id_personal (y horas si vienen)
+    const [gmEx] = await conn.query('SELECT * FROM Grupo_Materia WHERE id_materia = ? AND id_grado_grupo = ?', [id_materia, id_grado_grupo]);
+    if (gmEx.length) {
+      if (typeof horas_materia !== 'undefined') {
+        await conn.query('UPDATE Grupo_Materia SET id_personal = ?, horas_materia = ? WHERE id_materia = ? AND id_grado_grupo = ?', [id_personal, horas_materia, id_materia, id_grado_grupo]);
+      } else {
+        await conn.query('UPDATE Grupo_Materia SET id_personal = ? WHERE id_materia = ? AND id_grado_grupo = ?', [id_personal, id_materia, id_grado_grupo]);
+      }
+    } else {
+      // insertar; si horas no viene, poner 0 para evitar errores si la columna no admite NULL/DEFAULT
+      const hm = (typeof horas_materia !== 'undefined') ? horas_materia : 0;
+      await conn.query('INSERT INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo, horas_materia) VALUES (?, ?, ?, ?)', [id_materia, id_personal, id_grado_grupo, hm]);
+    }
+
+    await conn.commit();
+    return res.json({ success:true, message:'Asignación normal actualizada' });
+
+  } catch (err) {
+    console.error('Error al asignar profesor:', err);
+    if (conn) await conn.rollback();
+    return res.status(500).json({ success:false, message:'Error interno al asignar profesor', error: err.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 
   // Eliminar una asignación
   router.delete('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
@@ -5690,7 +5736,7 @@ router.delete('/puesto-kpi', async (req, res) => {
         }
         if (gmValues.length > 0) {
           await connection.query(
-            'INSERT IGNORE INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo, horas_materia) VALUES ?',
+            'INSERT IGNORE INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo) VALUES ?',
             [gmValues]
           );
           console.log('Insertados en Grupo_Materia:', gmValues);
@@ -5714,16 +5760,6 @@ router.delete('/puesto-kpi', async (req, res) => {
   //FIN RUTAS DE MATERIAS
 
 //RUTAS DE RESULTADOS
-
-/*router.get('/roles', authMiddleware, async (req, res) => {
-  try {
-    const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
-    res.json(roles);
-  } catch (error) {
-    console.error('Error al obtener roles:', error);
-    res.status(500).json({ success: false, message: 'Error interno al obtener roles' });
-  }
-});*/
 
 router.get('/personal-por-rol-resultados/:id_rol', authMiddleware, async (req, res) => {
   const { id_rol } = req.params;
@@ -5806,8 +5842,7 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
       SELECT 
         m.nombre_materia, 
         m.modelo_materia, 
-        m.grado_materia, 
-        gm.horas_materia, 
+        m.grado_materia,
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
@@ -7567,7 +7602,6 @@ router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
         m.grado_materia,
         a.nombre_academia,
         gm.id_personal,
-        gm.horas_materia,
         p.nombre_personal,
         p.apaterno_personal,
         p.amaterno_personal,
@@ -7604,15 +7638,14 @@ router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
 
       // Si existe id_personal, añadimos la asignación
       if (r.id_personal) {
-        // Evitar duplicados exactos (mismo personal + misma horas + mismo nivel de inglés)
-        const personaKey = `${r.id_personal}::${r.horas_materia || 'null'}::${r.id_nivel_ingles || 'null'}`;
+        // Evitar duplicados exactos (mismo personal + mismo nivel de inglés)
+        const personaKey = `${r.id_personal}::${r.id_nivel_ingles || 'null'}`;
         const asignaciones = grouped[idMateria].asignaciones;
         if (!asignaciones.find(a => a.__key === personaKey)) {
           asignaciones.push({
             __key: personaKey, // sólo para deduplicar en el server; se quitará antes de enviar
             id_personal: r.id_personal,
             nombre_personal: [r.nombre_personal, r.apaterno_personal, r.amaterno_personal].filter(Boolean).join(' '),
-            horas_materia: r.horas_materia,
             id_nivel_ingles: r.id_nivel_ingles || null,
             nombre_nivel_ingles: r.nombre_nivel_ingles || null
           });
@@ -7624,7 +7657,6 @@ router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
             __key: `no_personal_${idMateria}`,
             id_personal: null,
             nombre_personal: null,
-            horas_materia: r.horas_materia || null,
             id_nivel_ingles: null,
             nombre_nivel_ingles: null
           });
@@ -7726,6 +7758,174 @@ router.post('/personal/:id/photo', upload.single('foto'), async (req, res) => {
     res.status(500).json({ success: false, message: 'Error interno' });
   }
 });
+
+// HACER CIERRE DE CICLO
+router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
+  const { ciclo } = req.body;
+  let query = '';
+
+  const tablasReinicio = [ // TABLAS QUE SE GUARDAN Y SE REINICIAN
+    'Resultado_Kpi',
+    'Respuesta_Alumno_Docente',
+    'Respuesta_Alumno_Docente_Ingles',
+    'Respuesta_Alumno_Docente_Arte',
+    'Respuesta_Alumno_Servicio',
+    'Respuesta_Alumno_Taller',
+    'Respuesta_Alumno_Counselor',
+    'Respuesta_Personal',
+    'Respuesta_Alumno_Psicopedagogico',
+    'Respuesta_Alumno_Disciplina_Deportiva',
+    'Respuesta_Alumno_Liga_Deportiva',
+    'Comentario_Docente',
+    'Comentario_Docente_Ingles',
+    'Comentario_Docente_Arte',
+    'Comentario_Servicio',
+    'Comentario_Taller',
+    'Comentario_Counselor',
+    'Comentario_Personal',
+    'Comentario_Psicopedagogico',
+    'Comentario_Disciplina_Deportiva',
+    'Comentario_Liga_Deportiva',
+    'Personal_360' // SE LLENA AL AZAR NUEVAMENTE (YA)
+  ];
+
+  const tablasGuardado = [ // TABLAS QUE SOLO SE GUARDARA PERO QUEDARAN IGUAL O CON UN PEQUEÑO CAMBIO 
+    'Personal_Taller',
+    'Alumno', // PASAR A ALUMNOS DE GRADO (YA) Y DAR DE BAJA EN CASO DE ESTAR EN 6TO Y PASAR A "7MO" (YA)
+    'Personal',
+    'Evaluador_Kpi',
+    'Personal_Par', // ESTADO DE EVALUACION A 0 (YA)
+    'Alumno_Nivel_Ingles', // NULL ID_PERSONAL (YA), ESTADO EN 0  (YA) Y PASAR ID_MATERIA (YA)
+    'Alumno_Servicio', // PONER ESTADO EVALUACION EN 0 SOLO SI NO SE DIO DE BAJA (YA)
+    'Grupo_Materia', // SE PONE NULL ID_PERSONAL Y HORAS_MATERIA (YA)
+    'Alumno_Arte_Especialidad', // NULL ID_PERSONAL (YA), ID_ARTE_ESPECIALIDAD EN (YA),ESTADO EN 0 (YA), PASAR ID_MATERIA SI ES 4TO YA NO / (CHECAR CON LOS DE PRIMERO QUE JALE BIEN)
+    'Alumno_Materia', // PONER ID_MATERIAS DE SU NUEVO GRADO, ID_PERSONAL EN NULL  Y ESTADO EN 0 (YA)
+    'Personal_Nivel_Ingles', // PONER EN NULL ID_NIVEL_INGLES (NO), NULL ID_GRADO_GRUPO (NO), NULL ID_MATERIA (YA)
+
+  ];
+
+  try {
+    for (const tabla of tablasReinicio) {
+      const historico = `${tabla}_Historico`;
+
+        // Respaldar datos
+        const insertQuery = `
+          INSERT INTO ${historico}
+          SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
+          FROM ${tabla};
+        `;
+        await db.query(insertQuery, [ciclo]);
+
+        // Vaciar tabla original
+        await db.query(`TRUNCATE TABLE ${tabla}`);
+    }
+
+    for (const tabla of tablasGuardado) {
+      const historico = `${tabla}_Historico`;
+
+      const insertQuery = `
+        INSERT INTO ${historico}
+        SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
+        FROM ${tabla};
+      `;
+      await db.query(insertQuery, [ciclo]);
+    }
+
+    // PASAR ALUMNOS DE GRADO
+    query = 'SELECT a.id_alumno, gg.grado, gg.grupo FROM Alumno a , Grado_Grupo gg WHERE a.id_grado_grupo = gg.id_grado_grupo';
+    const [gradoGrupoAlumnos] = await db.query(query); // TRAER CADA ID ALUMNO CON SU GRADO Y GRUPO 
+    gradoGrupoAlumnos.forEach(async gradoGrupoAlumno => {
+      console.log(gradoGrupoAlumno.grado);
+      console.log(gradoGrupoAlumno.grupo);
+      console.log(gradoGrupoAlumno.id_alumno);
+      if (gradoGrupoAlumno.grado < 6 ){ // EN CASO DE QUE NO SEA DE 6TO
+        query = 'SELECT gg.id_grado_grupo FROM Grado_Grupo gg WHERE gg.grado = ? AND gg.grupo = ?' // OBTENER EL ID_GRADO_GRUPO QUE SE LE PONDRA COMO NUEVO AL ALUMNO
+        const [idGradoGrupoNuevo] = await db.query(query,[Number(gradoGrupoAlumno.grado) + 1 ,gradoGrupoAlumno.grupo]);
+
+        query ='UPDATE Alumno set id_grado_grupo = ? WHERE id_alumno = ?' // AQTUALIZAR ID_GRADO_GRUPO
+        await db.query(query,[idGradoGrupoNuevo[0].id_grado_grupo,gradoGrupoAlumno.id_alumno]);
+
+        query  = 'SELECT m.modelo_materia FROM Materia m WHERE m.id_materia = (SELECT anl.id_materia FROM Alumno_Nivel_Ingles anl WHERE anl.id_alumno = ?)'; // SABER QUE MODELO EDUCATIVO ES EL INGLES ACTUAL QUE LLEVA
+        const [modeloUsado] = await db.query(query,gradoGrupoAlumno.id_alumno);
+
+        query = 'SELECT m.id_materia FROM Materia m WHERE m.modelo_materia = ? AND m.grado_materia = ? AND m.id_academia = 3' // SABER EL ID DE MATEIRA DE EL INGLES SIGUIENTE QUE DEBE DE TENER
+        const [idMateriaIngles] = await db.query(query,[modeloUsado[0].modelo_materia, Number(gradoGrupoAlumno.grado) + 1]);
+
+        query = 'UPDATE Alumno_Nivel_Ingles set id_materia = ?, id_personal=null, estado_evaluacion_nivel_ingles=0 WHERE id_alumno = ?'; // ACTUALIZAR EL ID_MATERIA A LA NUEVA DE INGLES QUE LE CORRESPONDE, PONER ID_PERSONAL EN NULL Y ESTADO EN 0
+        await db.query(query,[Number(idMateriaIngles[0].id_materia),gradoGrupoAlumno.id_alumno]);
+
+        query = 'UPDATE Alumno_Servicio set estado_evaluacion_servicio = 0 WHERE id_alumno = ?'; // PONER ESTADO EN 0 EN SERVICIOS ALUMNO
+        await db.query(query,[gradoGrupoAlumno.id_alumno]);
+
+        if (gradoGrupoAlumno.grado < 3 ) { // PARA ACTUALIZAR ARTE DE ALUMNOS
+          query  = 'SELECT m.modelo_materia FROM Materia m WHERE m.id_materia = (SELECT aae.id_materia FROM Alumno_Arte_Especialidad aae WHERE aae.id_alumno = ?)'; // SABER QUE MODELO EDUCATIVO ES LA MATERIA DE ARTE QUE LLEVA
+          const [modeloUsadoArte] = await db.query(query,gradoGrupoAlumno.id_alumno);
+
+          query = `SELECT m.id_materia FROM Materia m WHERE m.modelo_materia = ? AND m.grado_materia = ? AND m.nombre_materia LIKE '%ARTE%'` // SABER EL ID DE MATEIRA DE ARTE SIGUIENTE QUE DEBE DE TENER
+          const [idMateriaArte] = await db.query(query,[modeloUsadoArte[0].modelo_materia, Number(gradoGrupoAlumno.grado) + 1]);
+
+          query = 'UPDATE Alumno_Arte_Especialidad set id_materia = ?, id_personal=null, id_arte_especialidad = null, estado_evaluacion_arte_especialidad = 0 WHERE id_alumno = ?'; // ACTUALIZAR EL ID_MATERIA A LA NUEVA DE INGLES QUE LE CORRESPONDE, PONER ID_PERSONAL EN NULL Y ESTADO EN 0
+          await db.query(query,[Number(idMateriaArte[0].id_materia),gradoGrupoAlumno.id_alumno]);
+        }
+
+        // PONER AL ALUMO SUS NUEVAS MATERIAS PERO CON ID_PERSONAL EN NULL
+        query = 'SELECT m.id_materia FROM Materia m WHERE m.grado_materia = ? AND m.modelo_materia = ?';
+        const [materias] = await db.query(query, [Number(gradoGrupoAlumno.grado) + 1,modeloUsado[0].modelo_materia]);
+        materias.forEach(async materia => {
+          query = 'UPDATE Alumno_Materia set id_materia = ?, id_personal = null, estado_evaluacion_materia = 0 WHERE id_alumno = ?';
+          await db.query(query,[materia.id_materia,gradoGrupoAlumno.id_alumno ]);
+        });
+      }else{
+        query = 'UPDATE Alumno set estado_alumno=0 WHERE id_alumno = ?'; // ACTUALIZAR ESTADO A 0 EN ALUMNO
+        await db.query(query,[gradoGrupoAlumno.id_alumno]);
+
+        query = "SELECT a.id_usuario FROM Alumno a WHERE a.id_alumno = ?"; // OBTENER EL ID_USUARIO DEL ALUMNO
+        const [idUsuario] = await db.query(query,[gradoGrupoAlumno.id_alumno]);
+        console.log('ididididi',idUsuario[0].id_usuario);
+
+        query = 'UPDATE Usuario set estado_usuario = 0 WHERE id_usuario  = ?'; // ACTUALIZAR ESTADO A 0 EN USUARIO 
+        await db.query(query,[idUsuario]);
+      }
+    });
+
+    // LLENAR AL AZAR NUEVAMENTE Personal_360
+    const [personal] = await db.query('SELECT id_personal FROM Personal'); 
+    function getRandom(arr, n, exclude) { const filtered = arr.filter(p => p.id_personal !== exclude); // excluirse a sí mismo 
+      const shuffled = [...filtered].sort(() => 0.5 - Math.random()); return shuffled.slice(0, n); 
+    } 
+    let Nuevos360 = []; 
+    for (const p of personal) { const seleccionados = getRandom(personal, 5, p.id_personal); 
+      Nuevos360 = seleccionados.map(seleccionado => [ p.id_personal, seleccionado.id_personal, 0 ]); 
+      await db.query('INSERT INTO Personal_360 (id_evaluador, id_personal, estado_evaluacion_360) VALUES ?',[Nuevos360]); 
+    }
+
+    // ESTADO DE EVALUACION 0 EN PARES
+    query  = 'SELECT * FROM Personal_Par';
+    const [pares] = await db.query(query);
+    pares.forEach(async par => {
+      query = 'UPDATE Personal_Par set estado_evaluacion_par = 0';
+      await db.query(query);
+    });
+
+    // CAMBIOS EN Grupo_Materia / PONER EN NULL ID_PERSONA Y HORAS 
+    query = 'SELECT * FROM Grupo_Materia';
+    const [materias] = await db.query(query); 
+    materias.forEach(async element => {
+      query = 'UPDATE Grupo_Materia set id_personal = null, horas_materia =  null';
+      await db.query(query);
+    });
+
+    // ACTUALIZAR Personal_Nivel_Ingles
+    query = 'UPDATE Personal_Nivel_Ingles set id_nivel_ingles = null, id_grado_grupo = null, id_materia = null';
+    await db.query(query);
+
+    res.json({ success: true, message: 'Ciclo cerrado correctamente!' });
+
+    } catch (error) {
+      console.error('Error al cerrar ciclo:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta más tarde' });
+    }
+  });
 
 
   // Alumno: Se pasa de grupo

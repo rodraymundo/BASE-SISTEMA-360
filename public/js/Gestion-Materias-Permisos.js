@@ -105,11 +105,127 @@ document.addEventListener('DOMContentLoaded', async () => {
   let nivelesIngles = [];
   let asignaciones = [];
 
+  // attach once guard
+let asignacionesHandlerAttached = false;
+if (!asignacionesHandlerAttached && asignacionesContainer) {
+  asignacionesContainer.addEventListener('click', async (e) => {
+    const saveBtn = e.target.closest('.save-asign-btn');
+    if (!saveBtn) return;
+
+    const row = saveBtn.closest('.asignacion-row');
+    if (!row) return;
+
+    saveBtn.disabled = true;
+    const select = row.querySelector('.select-asign-personal');
+    const cancelBtn = row.querySelector('.cancel-asign-btn');
+    if (select) select.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+
+    const id_materia = row.dataset.id_materia;
+    const id_grado_grupo = row.dataset.id_grado_grupo;
+    const tipo = row.dataset.tipo; // 'ingles'|'arte'|'normal'
+    const id_personal_original = row.dataset.id_personal_original || null;
+    const id_nivel_ingles_original = row.dataset.id_nivel_ingles || null;
+    const id_arte_especialidad_original = row.dataset.id_arte_especialidad || null;
+    const horasOriginal = row.dataset.horas_materia ?? null;
+
+    const nuevo_id_personal = select ? select.value : null;
+    const horasInput = row.querySelector('.horas-asignacion-input');
+    const nuevas_horas = horasInput ? horasInput.value : null;
+
+    try {
+      if (!nuevo_id_personal) {
+        throw new Error('Selecciona un profesor válido.');
+      }
+
+      // si no cambió persona ni horas -> nada que hacer
+      const sinCambioPersona = String(nuevo_id_personal) === String(id_personal_original);
+      const cambioHoras = (typeof nuevas_horas !== 'undefined' && String(nuevas_horas) !== String(horasOriginal) && nuevas_horas !== '');
+      if (sinCambioPersona && !cambioHoras) {
+        Swal.fire('Sin cambios', 'No se detectaron cambios en esta asignación.', 'info');
+        throw { silent:true };
+      }
+
+      // construir body para POST único (backend maneja delete/insert según tipo)
+      const body = {
+        id_personal: nuevo_id_personal,
+        id_grado_grupo: id_grado_grupo
+      };
+      if (nuevas_horas !== null && nuevas_horas !== '') body.horas_materia = Number(nuevas_horas);
+
+      if (tipo === 'ingles') body.id_nivel_ingles = id_nivel_ingles_original;
+      if (tipo === 'arte') body.id_arte_especialidad = id_arte_especialidad_original;
+
+      // token
+      const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
+      const { csrfToken } = await csrfRes.json();
+
+      // POST único — backend ya hace DELETE previo y INSERT nuevo (según tu ruta)
+      const postRes = await fetch(`/materias/${id_materia}/asignaciones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+      const postJson = await postRes.json();
+      if (!postRes.ok || !postJson.success) {
+        throw new Error(postJson.message || 'No se pudo crear/actualizar la asignación.');
+      }
+
+      // recargar UI
+      const isArteFlag = (tipo === 'arte');
+      await cargarAsignaciones(id_materia, isArteFlag, id_grado_grupo);
+      await cargarMaterias();
+      mostrarGrupos();
+
+      // re-render fila/modal
+      const materiaObj = (window._materiaMap && window._materiaMap.get(String(id_materia))) || { id_materia, nombre_materia: '' };
+      renderEditableAsignaciones(materiaObj, id_grado_grupo);
+
+      Swal.fire('Éxito', postJson.message || 'Asignación actualizada', 'success');
+
+    } catch (err) {
+      if (err && err.silent) {
+        // nada (sin cambios)
+      } else {
+        console.error('Error guardando asignación por fila:', err);
+        Swal.fire('Error', err.message || 'No se pudo actualizar la asignación.', 'error');
+      }
+      // reactivar UI
+      saveBtn.disabled = false;
+      if (select) select.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+  });
+
+  asignacionesHandlerAttached = true;
+}
+
+
 async function cargarMaterias() {
   try {
     listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">Cargando materias...</div>';
     const data = await fetchWithRetry('/materias', { credentials: 'include' });
-    todasMaterias = data.materias;
+    todasMaterias = Array.isArray(data.materias) ? data.materias : (data.materias || []);
+    // normalizar: agregar array de ids de grupos y campo 'profesores_text' para facilitar uso en UI
+    todasMaterias = todasMaterias.map(m => {
+      const ids = (m.grupos_ids || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => String(s));
+      // profesores_grupos viene como cadena; lo guardamos en profesores_text
+      return {
+        ...m,
+        grupos_ids_array: ids,
+        profesores_text: m.profesores_grupos || '' // cadena ya formateada por el servidor
+      };
+    });
+
+    // mapa rápido por id_materia
+    const materiaMap = new Map(todasMaterias.map(m => [String(m.id_materia), m]));
+    // exportarlo a scope superior (si no existe ya) para que otras funciones lo usen:
+    window._materiaMap = materiaMap; // o let materiaMap; en scope mayor si prefieres
   } catch (error) {
     console.error('Error al cargar materias:', error);
     listaMateriasList.innerHTML = '<div class="text-muted text-center py-3">No se pudo cargar las materias. Verifique que el servidor esté corriendo.</div>';
@@ -243,25 +359,6 @@ async function cargarMaterias() {
       });
     }
   }
-
-  async function abrirModalMateria(materia = null) {
-    if (materia) {
-      modalTitle.textContent = 'Editar Materia';
-      document.getElementById('id_materia').value = materia.id_materia;
-      document.getElementById('nombre_materia').value = materia.nombre_materia;
-      document.getElementById('modelo_materia').value = materia.modelo_materia;
-      document.getElementById('grado_materia').value = materia.grado_materia;
-      document.getElementById('id_academia').value = materia.id_academia || '';
-      deleteMateriaBtn.style.display = 'inline-block';
-    } else {
-      modalTitle.textContent = 'Agregar Materia';
-      materiaForm.reset();
-      document.getElementById('id_materia').value = '';
-      deleteMateriaBtn.style.display = 'none';
-    }
-    materiaModal.show();
-  }
-
 // --- variables de estado para modal asignar ---
 let currentAssignment = null; // la asignación actual (para este grupo+materia), si existe
 let allowedProfesores = [];   // profesores tiempo completo / asimilados (objetos personales)
@@ -384,21 +481,12 @@ async function cargarAsignaciones(id_materia, isArte, filtroGrupoId = null) {
     const nombre = [currentAssignment.nombre_personal, currentAssignment.apaterno_personal, currentAssignment.amaterno_personal].filter(Boolean).join(' ');
     const nivel = currentAssignment.nombre_nivel_ingles ? ` · ${escapeHtml(currentAssignment.nombre_nivel_ingles)}` : '';
     const arte = currentAssignment.nombre_arte_especialidad ? ` · ${escapeHtml(currentAssignment.nombre_arte_especialidad)}` : '';
-    const hrs = currentAssignment.horas_materia ? ` · ${escapeHtml(String(currentAssignment.horas_materia))} hrs` : '';
-
-    // Rellenar input de horas si existe asignación actual
-    const horasInput = document.getElementById('horas_materia');
-    if (horasInput && currentAssignment && currentAssignment.horas_materia) {
-      horasInput.value = currentAssignment.horas_materia;
-    } else if (horasInput) {
-      horasInput.value = '';
-    }
 
 
     cont.innerHTML = `
       <div class="d-flex justify-content-between align-items-center">
         <div class="small">
-          <strong>${escapeHtml(nombre)}</strong>${hrs}${nivel}${arte}
+          <strong>${escapeHtml(nombre)}</strong>${nivel}${arte}
 
         </div>
       </div>
@@ -429,9 +517,66 @@ document.addEventListener('click', (e) => {
   }
 });
 
+function renderEditableAsignaciones(materia, grupoId) {
+  const cont = document.getElementById('asignacionesContainer');
+  if (!cont) return;
+
+  const all = Array.isArray(asignaciones) ? asignaciones : [];
+  const filas = all.filter(a => String(a.id_grado_grupo) === String(grupoId));
+
+  console.log('Asignaciones filtradas:', filas); // Debug: Verify id_arte_especialidad
+
+  if (!filas.length) {
+    cont.innerHTML = '<div class="text-muted small">Sin asignaciones para este grupo.</div>';
+    return;
+  }
+
+  const html = filas.map((a, idx) => {
+    const tipo = a.id_nivel_ingles ? 'ingles' : (a.id_arte_especialidad ? 'arte' : 'normal');
+    const etiqueta = a.nombre_nivel_ingles || a.nombre_arte_especialidad || '';
+
+    const options = (allowedProfesores || []).map(p => {
+      const full = [p.nombre_personal, p.apaterno_personal, p.amaterno_personal].filter(Boolean).join(' ');
+      const selected = String(p.id_personal) === String(a.id_personal) ? 'selected' : '';
+      return `<option value="${p.id_personal}" ${selected}>${escapeHtml(full)}</option>`;
+    }).join('');
+
+    const dataAttrs = [
+      `data-id_personal_original="${a.id_personal ?? ''}"`,
+      `data-id_grado_grupo="${a.id_grado_grupo ?? ''}"`,
+      `data-id_nivel_ingles="${a.id_nivel_ingles ?? ''}"`,
+      `data-id_arte_especialidad="${a.id_arte_especialidad ?? ''}"`
+    ].join(' ');
+
+    return `
+      <div class="mb-2 asignacion-row" ${dataAttrs} data-id_materia="${a.id_materia || materia.id_materia}" data-tipo="${tipo}" data-idx="${idx}">
+        <div class="d-flex gap-2 align-items-center">
+          <div style="flex:1;">
+            <div class="small text-muted">${escapeHtml([a.nombre_personal, a.apaterno_personal, a.amaterno_personal].filter(Boolean).join(' '))}</div>
+            <div class="small fw-semibold">${escapeHtml(materia.nombre_materia)} ${etiqueta ? `· ${escapeHtml(String(etiqueta))}` : ''}</div>
+          </div>
+          <div style="min-width:260px;">
+            <select class="form-select form-select-sm select-asign-personal" data-field-idx="${idx}">
+              ${options}
+            </select>
+          </div>
+          <div style="min-width:140px;">
+            <button class="btn btn-sm btn-danger save-asign-btn" data-idx="${idx}" title="Guardar solo esta asignación">Guardar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  cont.innerHTML = html;
+}
+
 // abrirModalAsignar: ahora bloquea el grupo, prepara lista de profesores permitidos y carga asignación actual
 async function abrirModalAsignar(materia, selectedGroupId = null) {
-  asignarModalTitle.textContent = `Asignar Profesores y Grupos - ${materia.nombre_materia}`;
+  // buscar el grupo
+  const g = todosLosGradosGrupos.find(gr => String(gr.id_grado_grupo) === String(selectedGroupId)) || {};
+
+  asignarModalTitle.textContent = `Asignar Profesor - ${materia.nombre_materia} - ${g.grado}° ${g.grupo}`;
   document.getElementById('id_materia_asignar').value = materia.id_materia;
 
   // reset de estado
@@ -441,10 +586,6 @@ async function abrirModalAsignar(materia, selectedGroupId = null) {
   const idPersonalField = document.getElementById('id_personal');
   if (idPersonalField) idPersonalField.value = '';
 
-  // ocultar/disable controles antiguos
-  // idRolSelect.style.display = 'none'; // si quieres ocultar select de rol
-  idPersonalSelect.innerHTML = '<option value="">Seleccione un profesor</option>';
-  idPersonalSelect.disabled = true;
 
   // Grupo: poblar select con los grupos permitidos y forzar al grupo seleccionado (bloqueado)
   // poblarSelectDeGrupos usa todosLosGradosGrupos; la llamamos para cargar las opciones
@@ -463,11 +604,15 @@ async function abrirModalAsignar(materia, selectedGroupId = null) {
   // cargar lista de profesores permitidos y renderizar buscador
   await cargarProfesoresPermitidos();
 
-  // rellenar asignación actual (para este grupo)
   await cargarAsignaciones(materia.id_materia, isArte, selectedGroupId);
 
+  // render editable por fila (nueva función)
+  renderEditableAsignaciones(materia, selectedGroupId);
+
   asignarModal.show();
+
 }
+
 
 // ajustamos submit: si ya hay currentAssignment y se escoge otro profesor, primero eliminamos la asignación actual y luego creamos la nueva
 asignarForm.addEventListener('submit', async (e) => {
@@ -475,7 +620,6 @@ asignarForm.addEventListener('submit', async (e) => {
   const id_materia = document.getElementById('id_materia_asignar').value;
   const id_personal = document.getElementById('id_personal').value || selectedPersonalId;
   const id_grado_grupo = document.getElementById('id_grado_grupo').value;
-  const horas_materia = document.getElementById('horas_materia').value;
   const id_nivel_ingles = idNivelInglesSelect.required ? document.getElementById('id_nivel_ingles').value : null;
 
   if (!id_personal) {
@@ -483,7 +627,7 @@ asignarForm.addEventListener('submit', async (e) => {
     return;
   }
 
-  const data = { id_personal, id_grado_grupo, horas_materia };
+  const data = { id_personal, id_grado_grupo};
   if (id_nivel_ingles) data.id_nivel_ingles = id_nivel_ingles;
 
   try {
@@ -830,7 +974,7 @@ asignarForm.addEventListener('submit', async (e) => {
 
 // --- Helper: construye un key legible del grupo ---
 function grupoLabel(g) {
-  return `Grado ${g.grado} · Grupo ${g.grupo}`;
+  return `${g.grado}° ${g.grupo}`;
 }
 
 // --- Muestra los grupos en formato accordion y sus materias dentro ---
@@ -839,7 +983,7 @@ function grupoLabel(g) {
 async function mostrarGrupos() {
   const q = (buscadorMaterias?.value || '').trim().toLowerCase();
 
-  // Agrupar gradosGrupos por grado (ej. 1 => [ {id_grado_grupo:.., grupo: 'A', grado:1}, ... ])
+  // Agrupar gradosGrupos por grado
   const gradoMap = {};
   (gradosGrupos || []).forEach(g => {
     const gradoNum = Number(g.grado) || 0;
@@ -848,34 +992,23 @@ async function mostrarGrupos() {
   });
 
   const gradosOrdenados = Object.keys(gradoMap).map(Number).sort((a,b) => a - b);
-
   let html = '';
 
-  // Iteramos por grado
   for (const gradoNum of gradosOrdenados) {
     const grupos = gradoMap[gradoNum] || [];
 
-    // Para todos los grupos de este grado, pedimos (concurrente) las materias por grupo usando cargarMateriasPorGrupo
-    // cargarMateriasPorGrupo usa grupoCache, así que si ya se consultó no hace fetch otra vez
-    const materiasPorCadaGrupo = await Promise.all(
-      grupos.map(g => cargarMateriasPorGrupo(g.id_grado_grupo).catch(err => {
-        console.error('Error cargando materias del grupo', g.id_grado_grupo, err);
-        return []; // en error devolvemos vacío para no romper la UI
-      }))
-    );
-
-    // Construimos el HTML de los grupos de este grado
-    const gruposHtml = grupos.map((g, idx) => {
+    // Para cada grupo, contamos las materias que tienen asociacion a ese grupo
+    const gruposHtml = grupos.map(g => {
       const key = g.id_grado_grupo;
-      const materias = Array.isArray(materiasPorCadaGrupo[idx]) ? materiasPorCadaGrupo[idx] : [];
-
-      // Aplicar el filtro de búsqueda a las materias de este grupo
-      const materiasFiltradas = materias.filter(m => {
-        const text = `${m.nombre_materia} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase();
+      // buscar materias en todasMaterias que incluyan este grupo en grupos_ids_array
+      const materiasRelacionadas = (todasMaterias || []).filter(m => Array.isArray(m.grupos_ids_array) && m.grupos_ids_array.includes(String(key)));
+      // aplicar filtro de búsqueda q sobre nombre/modelo/academia
+      const materiasFiltradas = materiasRelacionadas.filter(m => {
+        const text = `${m.nombre_materia || ''} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase();
         return q ? text.includes(q) : true;
       });
 
-      if (!materiasFiltradas.length) return '';
+      if (materiasFiltradas.length === 0) return ''; // no mostrar grupo si no tiene materias que coincidan
 
       return `
         <div class="list-group-item p-2 d-flex justify-content-between align-items-center">
@@ -909,62 +1042,60 @@ async function mostrarGrupos() {
   gruposAccordion.innerHTML = html || '<div class="text-muted text-center py-3">No se encontraron grupos con materias en curso.</div>';
 }
 
-
-
 // cache para no recargar varias veces
 const grupoCache = {};
 
 // Fetch y render de materias de un grupo
 async function cargarMateriasPorGrupo(id_grado_grupo) {
   if (!id_grado_grupo) return [];
-  // ya en cache?
   if (grupoCache[id_grado_grupo]) return grupoCache[id_grado_grupo];
 
+  // 1) Intentar construir la lista localmente a partir de todasMaterias
+  const fromAll = (todasMaterias || []).filter(m => {
+    return Array.isArray(m.grupos_ids_array) && m.grupos_ids_array.includes(String(id_grado_grupo));
+  });
+
+  if (fromAll.length) {
+    // si vienen sin 'asignaciones' (detalles), podemos mantener el campo profesores_text
+    grupoCache[id_grado_grupo] = fromAll;
+    return grupoCache[id_grado_grupo];
+  }
+
+  // 2) Fallback: si el servidor tiene detalles por grupo, pedirlos (mantener compatibilidad)
   try {
     const res = await fetchWithRetry(`/grupos/${id_grado_grupo}/materias`, { credentials: 'include' });
-    if (!res.success) throw new Error('Error en respuesta del servidor');
-    grupoCache[id_grado_grupo] = res.materias || [];
-    return grupoCache[id_grado_grupo];
+    if (!res || !res.success) {
+      // si res es array o formato distinto, adaptamos
+      const materiasServidor = Array.isArray(res) ? res : (res.materias || []);
+      // mezclar con materiaMap si existe
+      const merged = materiasServidor.map(m => {
+        const extra = (window._materiaMap && window._materiaMap.get(String(m.id_materia))) || {};
+        return {
+          ...extra, // preferimos campos procesados localmente (profesores_text, grupos_ids_array)
+          ...m
+        };
+      });
+      grupoCache[id_grado_grupo] = merged;
+      return merged;
+    }
+    // res.success === true
+    const lista = res.materias || [];
+    // mezclar con materiaMap
+    const merged = lista.map(m => {
+      const extra = (window._materiaMap && window._materiaMap.get(String(m.id_materia))) || {};
+      return {
+        ...extra,
+        ...m
+      };
+    });
+    grupoCache[id_grado_grupo] = merged;
+    return merged;
   } catch (err) {
-    console.error('Error cargando materias por grupo:', err);
+    console.error('Error cargando materias por grupo (fallback):', err);
     throw err;
   }
 }
 
-function renderMateriasDelGrupo(gradoGrupoId, materias) {
-  const body = document.querySelector(`.grupo-body[data-id="${gradoGrupoId}"]`);
-  if (!body) return;
-  if (!Array.isArray(materias) || materias.length === 0) {
-    body.innerHTML = '<div class="p-3 text-muted small">No hay materias asignadas a este grupo.</div>';
-    return;
-  }
-
-  const materiasHtml = materias.map(m => {
-    // m.asignaciones es un array de asignaciones sólo para este grupo (viene del endpoint)
-    const asignHtml = (m.asignaciones && m.asignaciones.length > 0)
-      ? m.asignaciones.map(a => `<div>${escapeHtml(a.nombre_personal)} ${a.horas_materia ? `· ${escapeHtml(String(a.horas_materia))} hrs` : ''}${a.nombre_nivel_ingles ? ` · ${escapeHtml(a.nombre_nivel_ingles)}` : ''}${a.nombre_arte_especialidad ? ` · ${escapeHtml(a.nombre_arte_especialidad)}` : ''}</div>`).join('')
-      : `<div class="text-muted small">Sin profesor asignado</div>`;
-
-    return `
-      <div class="list-group-item d-flex justify-content-between align-items-center materia-item" data-id="${m.id_materia}" data-grupo-id="${gradoGrupoId}">
-        <div style="min-width:0;">
-          <div class="fw-bold text-danger" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.nombre_materia)}</div>
-          <div class="small text-muted">${escapeHtml(m.modelo_materia || '')} ${m.nombre_academia ? `· ${escapeHtml(m.nombre_academia)}` : ''}</div>
-          <div class="mt-2">${asignHtml}</div>
-        </div>
-        <div class="ms-3 text-end" style="flex:0 0 auto;">
-          <button class="btn btn-outline-danger btn-sm mt-1 openAsignBtn" data-id="${m.id_materia}" data-grupo-id="${gradoGrupoId}" title="Editar asignaciones">
-            <i class="fas fa-user-edit"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  body.innerHTML = `<div class="list-group list-group-flush">${materiasHtml}</div>`;
-}
-
-// Render dentro del modal (filtrado por búsqueda interna)
 function renderMateriasDelGrupoEnModal(gradoGrupoId, materias, q = '') {
   if (!grupoModalBody) return;
   if (!Array.isArray(materias) || materias.length === 0) {
@@ -972,12 +1103,88 @@ function renderMateriasDelGrupoEnModal(gradoGrupoId, materias, q = '') {
     return;
   }
 
-  const filtradas = q ? materias.filter(m => `${m.nombre_materia} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase().includes(q.toLowerCase())) : materias;
+  const grupoObj = (gradosGrupos || []).find(g => String(g.id_grado_grupo) === String(gradoGrupoId));
+  const grupoName = grupoObj ? String(grupoObj.grupo).trim() : null;
+
+  const filtradas = q
+    ? materias.filter(m => `${m.nombre_materia} ${m.modelo_materia || ''} ${(m.nombre_academia||'')}`.toLowerCase().includes(q.toLowerCase()))
+    : materias;
 
   const materiasHtml = filtradas.map(m => {
-    const asignHtml = (m.asignaciones && m.asignaciones.length > 0)
-      ? m.asignaciones.map(a => `<div class="small">${escapeHtml(a.nombre_personal)}${a.horas_materia ? ` · ${escapeHtml(String(a.horas_materia))} hrs` : ''}${a.nombre_nivel_ingles ? ` · ${escapeHtml(a.nombre_nivel_ingles)}` : ''}${a.nombre_arte_especialidad ? ` · ${escapeHtml(a.nombre_arte_especialidad)}` : ''}</div>`).join('')
-      : `<div class="text-muted small">Sin profesor asignado</div>`;
+    let asignHtml = '';
+
+    // 1) Si hay estructura 'asignaciones' como array, filtrar por id_grado_grupo
+    if (Array.isArray(m.asignaciones) && m.asignaciones.length > 0) {
+      const asignsFiltradas = m.asignaciones.filter(a => String(a.id_grado_grupo) === String(gradoGrupoId));
+      if (asignsFiltradas.length > 0) {
+        asignHtml = asignsFiltradas.map(a => {
+          const parts = [a.nombre_personal, a.apaterno_personal, a.amaterno_personal].filter(Boolean);
+          const nombre = parts.join(' ');
+          const extras = [
+            a.nombre_nivel_ingles ? a.nombre_nivel_ingles : null,
+            a.nombre_arte_especialidad ? a.nombre_arte_especialidad : null
+          ].filter(Boolean).join(' · ');
+          return `<div class="small">${escapeHtml(nombre)}${extras ? ` · ${escapeHtml(extras)}` : ''}</div>`;
+        }).join('');
+      }
+    }
+
+    // 2) Si no hay asignaciones estructuradas, parsear la cadena compacta devuelta por el backend
+    if (!asignHtml && (m.profesores_text || m.profesores_grupos)) {
+      const text = (m.profesores_text || m.profesores_grupos || '').trim();
+      if (text) {
+        // separar por ';' -- cada segmento puede ser encabezado o asignación
+        const items = text.split(';').map(s => s.trim()).filter(Boolean);
+
+        // construimos HTML por cada item, pero sólo mostramos asignaciones que correspondan al grupo actual
+        const pieces = items.map(item => {
+          // Si parece encabezado (contiene '·' y no tiene '-' ni lista de grupos), mostrar como header
+          if (item.includes('·') && !item.includes('-')) {
+            return `<div class="small fw-semibold">${escapeHtml(item)}</div>`;
+          }
+
+          // intentamos extraer la parte "grupos" (por lo general está después del último ' - ')
+          const parts = item.split(' - ');
+          const namePart = parts.slice(0, -1).join(' - ') || parts[0] || item;
+          const lastPart = parts.slice(-1)[0] || '';
+
+          // extraer texto entre paréntesis
+          const parenMatch = lastPart.match(/\(([^)]+)\)/);
+          const parenText = parenMatch ? ` (${parenMatch[1].trim()})` : '';
+          // limpiar la parte de grupos (quitar paréntesis y texto ya extraído)
+          const groupsPartClean = lastPart.replace(/\([^)]*\)/g, '').trim();
+
+          // obtener tokens de grupos (separados por coma o barra)
+          const tokens = groupsPartClean
+            .split(/[,\/]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+          // si el grupo actual aparece entre los tokens -> construir línea mostrando sólo ese grupo
+          if (grupoName && tokens.some(t => String(t).toLowerCase() === String(grupoName).toLowerCase())) {
+            // devolver sólo el nombre + ' - ' + grupoName
+            return `<div class="small">${escapeHtml(namePart)} ${escapeHtml(parenText)}</div>`;
+          }
+
+          // fallback: si no había '-' (no pudimos separar), pero el grupoName aparece en todo el item -> mostrar item (limpio)
+          if (!item.includes(' - ') && grupoName && new RegExp(`\\b${grupoName}\\b`, 'i').test(item)) {
+            return `<div class="small">${escapeHtml(item)}</div>`;
+          }
+
+          // no corresponde al grupo actual -> no mostrar
+          return '';
+        }).filter(Boolean);
+
+        if (pieces.length > 0) {
+          asignHtml = pieces.join('');
+        }
+      }
+    }
+
+    // 3) Si después de todo no hay asignación para este grupo
+    if (!asignHtml) {
+      asignHtml = `<div class="text-muted small">Sin profesor asignado para este grupo.</div>`;
+    }
 
     return `
       <div class="list-group-item d-flex justify-content-between align-items-start">
@@ -998,11 +1205,12 @@ function renderMateriasDelGrupoEnModal(gradoGrupoId, materias, q = '') {
   grupoModalBody.innerHTML = `<div class="list-group list-group-flush">${materiasHtml}</div>`;
 }
 
+
 // abrir modal del grupo y cargar datos (lazy)
 async function abrirModalGrupo(id_grado_grupo) {
   const grupo = gradosGrupos.find(g => String(g.id_grado_grupo) === String(id_grado_grupo));
   const label = grupo ? grupoLabel(grupo) : `Grupo ${id_grado_grupo}`;
-  if (grupoModalTitle) grupoModalTitle.textContent = `Materias — ${label}`;
+  if (grupoModalTitle) grupoModalTitle.textContent = `Materias - ${label}`;
   if (!grupoModalBody) return;
 
   grupoModalBody.innerHTML = '<div class="text-center py-3 text-muted">Cargando materias del grupo...</div>';
