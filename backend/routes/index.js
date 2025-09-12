@@ -2390,7 +2390,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.post('/postRespuestas360', authMiddleware, async (req, res) => {
     const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
     const {id_personal,respuestas,comentarios} = req.body;
-    const tipo_pregunta = 5; // EL TIPO DE PREGUNTA DE PAR
+    const tipo_pregunta = 5; // EL TIPO DE PREGUNTA DE 360
     const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
       id_evaluador,
       id_personal,
@@ -2455,7 +2455,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.post('/postRespuestasJefe', authMiddleware, async (req, res) => {
     const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
     const {id_personal,respuestas,comentarios} = req.body;
-    const tipo_pregunta = 5; // EL TIPO DE PREGUNTA DE PAR
+    const tipo_pregunta = 7; // EL TIPO DE PREGUNTA DE JEFE
     const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
       id_evaluador,
       id_personal,
@@ -2520,7 +2520,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.post('/postRespuestasSubordinado', authMiddleware, async (req, res) => {
     const id_evaluador = req.session.user.id_personal; // EL ID DE LA PERSONA QUE ESTA EVALUANDO
     const {id_personal,respuestas,comentarios} = req.body;
-    const tipo_pregunta = 4; // EL TIPO DE PREGUNTA DE PAR
+    const tipo_pregunta = 4; // EL TIPO DE PREGUNTA DE SUBORDINADO
     const valoresRespuestas = respuestas.map(respuesta => [ // AGREGAR TODOS LOS VALORES DE LAS PTEGUNTAS NECESARIOS EN EL INSERT
       id_evaluador,
       id_personal,
@@ -2550,7 +2550,6 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
       res.status(500).json({ success: false, message: 'Error en el servidor. Intenta mas tarde' });
     }
   });
-
   // OBTENER INFO DE PERSONA
   router.get('/getInfoPersona', authMiddleware, async (req, res) => { 
     const id_personal = req.session.user.id_personal; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
@@ -4027,15 +4026,15 @@ router.get('/personnel-director', authMiddleware, async (req, res) => {
         }
 
         const aggregatedEvaluations = {};
-        allEvaluations.forEach(eval => {
-            if (!aggregatedEvaluations[eval.id_personal]) {
-                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+        allEvaluations.forEach(evaluation => {
+            if (!aggregatedEvaluations[evaluation.id_personal]) {
+                aggregatedEvaluations[evaluation.id_personal] = { positive_count: 0, total_count: 0 };
             }
-            if (eval.positive_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
+            if (evaluation.positive_count !== undefined) {
+                aggregatedEvaluations[evaluation.id_personal].positive_count += evaluation.positive_count || 0;
             }
-            if (eval.total_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
+            if (evaluation.total_count !== undefined) {
+                aggregatedEvaluations[evaluation.id_personal].total_count += evaluation.total_count || 0;
             }
         });
 
@@ -4099,15 +4098,15 @@ router.get('/evaluations-director-full', authMiddleware, async (req, res) => {
         }
 
         const aggregatedEvaluations = {};
-        allEvaluations.forEach(eval => {
-            if (!aggregatedEvaluations[eval.id_personal]) {
-                aggregatedEvaluations[eval.id_personal] = { positive_count: 0, total_count: 0 };
+        allEvaluations.forEach(evaluation => {
+            if (!aggregatedEvaluations[evaluation.id_personal]) {
+                aggregatedEvaluations[evaluation.id_personal] = { positive_count: 0, total_count: 0 };
             }
-            if (eval.positive_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].positive_count += eval.positive_count || 0;
+            if (evaluation.positive_count !== undefined) {
+                aggregatedEvaluations[evaluation.id_personal].positive_count += evaluation.positive_count || 0;
             }
-            if (eval.total_count !== undefined) {
-                aggregatedEvaluations[eval.id_personal].total_count += eval.total_count || 0;
+            if (evaluation.total_count !== undefined) {
+                aggregatedEvaluations[evaluation.id_personal].total_count += evaluation.total_count || 0;
             }
         });
 
@@ -7464,128 +7463,6 @@ router.get('/historico-comments-director/:id_personal/:ciclo', async (req, res) 
 
 //FIN RUTAS DE HISTORICO
 
-
-// HACER CIERRE DE CICLO
-router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
-  const { ciclo } = req.body;
-  let query = '';
-  // Lista de tablas a respaldar
-  const tablasReinicio = [
-    'Resultado_Kpi',
-    'Personal_Nivel_Ingles',
-    'Alumno_Materia',
-    'Grupo_Materia',
-    'Alumno_Taller',
-    'Alumno_Arte_Especialidad',
-    'Alumno_Servicio',
-      'Respuesta_Alumno_Docente',
-      'Respuesta_Alumno_Docente_Ingles',
-      'Respuesta_Alumno_Docente_Arte',
-      'Respuesta_Alumno_Servicio',
-      'Respuesta_Alumno_Taller',
-      'Respuesta_Alumno_Counselor',
-      'Respuesta_Personal',
-      'Respuesta_Alumno_Psicopedagogico',
-      'Respuesta_Alumno_Disciplina_Deportiva',
-      'Respuesta_Alumno_Liga_Deportiva',
-      'Comentario_Docente',
-      'Comentario_Docente_Ingles',
-      'Comentario_Docente_Arte',
-      'Comentario_Servicio',
-      'Comentario_Taller',
-      'Comentario_Counselor',
-      'Comentario_Personal',
-      'Comentario_Psicopedagogico',
-      'Comentario_Disciplina_Deportiva',
-      'Comentario_Liga_Deportiva',
-    // 'Personal_Jefe',
-    // 'Personal_Subordinado',
-    'Personal_Par',
-    'Personal_Coordinador',
-    'Personal_360'
-  ];
-
-  const tablasGuardado = [
-    'Personal_Taller',
-    'Alumno',
-    'Personal',
-    'Evaluador_Kpi',
-  ];
-
-  // 'Alumno_Nivel_Ingles', REINICIAR SOLO id_personal
-
-  try {
-    for (const tabla of tablasReinicio) {
-      const historico = `${tabla}_Historico`;
-
-        // Respaldar datos
-        const insertQuery = `
-          INSERT INTO ${historico}
-          SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
-          FROM ${tabla};
-        `;
-        await db.query(insertQuery, [ciclo]);
-
-        // Vaciar tabla original
-        await db.query(`TRUNCATE TABLE ${tabla}`);
-      }
-
-    for (const tabla of tablasGuardado) {
-      const historico = `${tabla}_Historico`;
-
-      // Respaldar datos
-      const insertQuery = `
-        INSERT INTO ${historico}
-        SELECT *, ? AS ciclo, NOW() AS fecha_respaldo
-        FROM ${tabla};
-      `;
-      await db.query(insertQuery, [ciclo]);
-    }
-
-    // PASAR ALUMNOS DE GRADO
-    query = 'SELECT a.id_alumno, gg.grado, gg.grupo FROM Alumno a , Grado_Grupo gg WHERE a.id_grado_grupo = gg.id_grado_grupo';
-    const [gradoGrupoAlumnos] = await db.query(query); // TRAER CADA ID ALUMNO CON SU GRADO Y GRUPO 
-    gradoGrupoAlumnos.forEach(async gradoGrupoAlumno => {
-      console.log(gradoGrupoAlumno.grado);
-      console.log(gradoGrupoAlumno.grupo);
-      console.log(gradoGrupoAlumno.id_alumno);
-      if (gradoGrupoAlumno.grado < 6 ){ // EN CASO DE QUE NO SEA DE 6TO
-        query = 'SELECT gg.id_grado_grupo FROM Grado_Grupo gg WHERE gg.grado = ? AND gg.grupo = ?' // OBTENER EL ID_GRADO_GRUPO QUE SE LE PONDRA COMO NUEVO AL ALUMNO
-        const [idGradoGrupoNuevo] = await db.query(query,[Number(gradoGrupoAlumno.grado) + 1 ,gradoGrupoAlumno.grupo]);
-
-        query ='UPDATE Alumno set id_grado_grupo = ? WHERE id_alumno = ?' // AQTUALIZAR ID_GRADO_GRUPO
-        await db.query(query,[idGradoGrupoNuevo[0].id_grado_grupo,gradoGrupoAlumno.id_alumno]);
-
-        query  = 'SELECT m.modelo_materia FROM Materia m WHERE m.id_materia = (SELECT anl.id_materia FROM Alumno_Nivel_Ingles anl WHERE anl.id_alumno = ?)'; // SABER QUE MODELO EDUCATIVO ES EL INGLES ACTUAL QUE LLEVA
-        const [modeloUsado] = await db.query(query,gradoGrupoAlumno.id_alumno);
-
-        query = 'SELECT m.id_materia FROM Materia m WHERE m.modelo_materia = ? AND m.grado_materia = ? AND m.id_academia = 3' // SABER EL ID DE MATEIRA DE EL INGLES SIGUIENTE QUE DEBE DE TENER
-        const [idMateriaIngles] = await db.query(query,[modeloUsado[0].modelo_materia, Number(gradoGrupoAlumno.grado) + 1]);
-
-        query = 'UPDATE Alumno_Nivel_Ingles set id_materia = ? WHERE id_alumno = ?'; // ACTUALIZAR EL ID_MATERIA A LA NUEVA DE INGLES QUE LE CORRESPONDE
-        await db.query(query,[Number(idMateriaIngles[0].id_materia),gradoGrupoAlumno.id_alumno]);
-      }else{
-        query = 'UPDATE Alumno set estado_alumno=0 WHERE id_alumno = ?'; // ACTUALIZAR ESTADO A 0 EN ALUMNO
-        await db.query(query,[gradoGrupoAlumno.id_alumno]);
-
-        query = "SELECT a.id_usuario FROM Alumno a WHERE a.id_alumno = ?"; // OBTENER EL ID_USUARIO DEL ALUMNO
-        const [idUsuario] = await db.query(query,[gradoGrupoAlumno.id_alumno]);
-        console.log('ididididi',idUsuario[0].id_usuario);
-
-        query = 'UPDATE Usuario set estado_usuario = 0 WHERE id_usuario  = ?'; // ACTUALIZAR ESTADO A 0 EN USUARIO 
-        await db.query(query,[idUsuario]);
-      }
-    });
-
-      res.json({ success: true, message: 'Ciclo cerrado correctamente!' });
-
-    } catch (error) {
-      console.error('Error al cerrar ciclo:', error);
-      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta más tarde' });
-    }
-  });
-
-
   //NUEVAS RUTAS 
   // GET /grupos/:id/materias => materias asignadas al grupo con detalle (incluye arte/ingles aunque no estén en Grupo_Materia)
 router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
@@ -7801,7 +7678,8 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
     'Alumno_Arte_Especialidad', // NULL ID_PERSONAL (YA), ID_ARTE_ESPECIALIDAD EN (YA),ESTADO EN 0 (YA), PASAR ID_MATERIA SI ES 4TO YA NO / (CHECAR CON LOS DE PRIMERO QUE JALE BIEN)
     'Alumno_Materia', // PONER ID_MATERIAS DE SU NUEVO GRADO, ID_PERSONAL EN NULL  Y ESTADO EN 0 (YA)
     'Personal_Nivel_Ingles', // PONER EN NULL ID_NIVEL_INGLES (NO), NULL ID_GRADO_GRUPO (NO), NULL ID_MATERIA (YA)
-
+    'Personal_Jefe', // PONER ESTADO EN 0
+    'Personal_Subordinado', // PONER ESTADO EN 0
   ];
 
   try {
@@ -7889,7 +7767,7 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
     });
 
     // LLENAR AL AZAR NUEVAMENTE Personal_360
-    const [personal] = await db.query('SELECT id_personal FROM Personal'); 
+    const [personal] = await db.query('SELECT id_personal FROM Personal WHERE estado_personal = 1'); 
     function getRandom(arr, n, exclude) { const filtered = arr.filter(p => p.id_personal !== exclude); // excluirse a sí mismo 
       const shuffled = [...filtered].sort(() => 0.5 - Math.random()); return shuffled.slice(0, n); 
     } 
@@ -7907,16 +7785,24 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
       await db.query(query);
     });
 
-    // CAMBIOS EN Grupo_Materia / PONER EN NULL ID_PERSONA Y HORAS 
+    // CAMBIOS EN Grupo_Materia / PONER EN NULL ID_PERSONA 
     query = 'SELECT * FROM Grupo_Materia';
     const [materias] = await db.query(query); 
     materias.forEach(async element => {
-      query = 'UPDATE Grupo_Materia set id_personal = null, horas_materia =  null';
+      query = 'UPDATE Grupo_Materia set id_personal = null';
       await db.query(query);
     });
 
     // ACTUALIZAR Personal_Nivel_Ingles
     query = 'UPDATE Personal_Nivel_Ingles set id_nivel_ingles = null, id_grado_grupo = null, id_materia = null';
+    await db.query(query);
+
+    // ACTUALIZAR Personal_Jefe PONIENDO EL ESTADO DE EVALUACION EN 0
+    query = 'UPDATE Personal_Jefe set estado_evaluacion_jefe = 0';
+    await db.query(query);
+
+    // ACTUALIZAR Personal_Subordinado PONIENDO EL ESTADO DE EVALUACION EN 0
+    query = 'UPDATE Personal_Subordinado set estado_evaluacion_subordinado = 0';
     await db.query(query);
 
     res.json({ success: true, message: 'Ciclo cerrado correctamente!' });

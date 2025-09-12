@@ -117,6 +117,20 @@ async function main() {
     const [personalRows] = await conn.query("SELECT id_personal, nombre_personal, apaterno_personal, id_usuario FROM Personal");
     for (const p of personalRows) {
       const currentUserId = p.id_usuario || null;
+
+      // Si ya tiene usuario asignado en la tabla Usuario, lo dejamos igual
+      if (currentUserId) {
+        const [exists] = await conn.query(
+          "SELECT id_usuario FROM Usuario WHERE id_usuario = ?",
+          [currentUserId]
+        );
+        if (exists.length > 0) {
+          // Usuario ya existe, no hacemos nada con este personal
+          continue;
+        }
+      }
+
+      // Solo si no tiene usuario asignado, procedemos a crear uno
       const nombre = (p.nombre_personal || '').trim();
       const apaterno = (p.apaterno_personal || '').trim();
 
