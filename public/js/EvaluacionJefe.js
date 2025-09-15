@@ -52,7 +52,7 @@ async function cargarJefes() {
             cardJefe.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
             cardJefe.innerHTML = `  
                 <div class="card h-100 shadow rounded-4 p-4">
-                    <img src='./assets/img/${jefe.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Jefe">
+                    <img src='${jefe.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Jefe">
                     <div class="card-body text-center">
                         <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreJefe}</h5>
                         <p class="card-text mb-1">${jefe.nombre_puesto}</p>

@@ -52,7 +52,7 @@ async function cargar360() {
             card360.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
             card360.innerHTML = `  
                 <div class="card h-100 shadow rounded-4 p-4">
-                    <img src='./assets/img/${personal.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Personal">
+                    <img src='${personal.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Personal">
                     <div class="card-body text-center">
                         <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombrePersonal}</h5>
                         <p class="card-text mb-1">${personal.nombre_puesto}</p>
