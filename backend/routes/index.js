@@ -7851,6 +7851,101 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
   });
 
 
+  // OBTENER JEFES ACTUALES DE LA PERSONA + TODAS LAS PERSONAS PARA SELECCIONAR NUEVO JEFE
+  router.get('/getJefe/:id_personal', authMiddleware, async (req, res) => { 
+    const id_personal = req.params.id_personal;
+
+    // 1. Obtener todos los jefes de esa persona (puede tener varios)
+    const query = `
+      SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal
+      FROM Personal p
+      WHERE p.id_personal IN (
+        SELECT pj.id_personal 
+        FROM Personal_Jefe pj 
+        WHERE pj.id_evaluador = ?
+      )
+    `;
+
+    // 2. Obtener todas las personas para que el usuario pueda elegir
+    const query2 = `
+      SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal 
+      FROM Personal p
+    `;
+
+    try {
+      const [jefes] = await db.query(query, [id_personal]);
+      const [personas] = await db.query(query2);
+
+      res.json({ success: true, jefes, personas });
+    } catch (error) {
+      console.error('Error al obtener jefes:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+  });
+  
+  // ASIGNAR JEFES Y PONERLO COMO SUBORDINADO
+  router.post('/asignarJefe', authMiddleware, async (req, res) => {
+    const { id_evaluador, jefes } = req.body;
+
+    if (!Array.isArray(jefes)) {
+      return res.status(400).json({ success: false, message: 'Formato inválido: jefes debe ser un array.' });
+    }
+
+    let connection;
+    try {
+      // Iniciar una transacción
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+
+      // 1. Validar que id_evaluador no esté en el array de jefes (evitar autoasignación)
+      if (jefes.includes(id_evaluador.toString())) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, message: 'No puedes asignarte como tu propio jefe.' });
+      }
+
+      // 2. Validar que los IDs de jefes existan en la tabla Personal
+      if (jefes.length > 0) {
+        const [validJefes] = await connection.query(
+          'SELECT id_personal FROM Personal WHERE id_personal IN (?)',
+          [jefes]
+        );
+        const validIds = validJefes.map(j => j.id_personal.toString());
+        const invalidIds = jefes.filter(id => !validIds.includes(id.toString()));
+        if (invalidIds.length > 0) {
+          await connection.rollback();
+          return res.status(400).json({ success: false, message: `IDs de jefes inválidos: ${invalidIds.join(', ')}` });
+        }
+      }
+
+      // 3. Borrar los jefes actuales del evaluador en Personal_Jefe
+      await connection.query('DELETE FROM Personal_Jefe WHERE id_evaluador = ?', [id_evaluador]);
+
+      // 4. Borrar las entradas en Personal_Subordinado donde id_evaluador aparece como subordinado
+      // Esto elimina todas las relaciones previas donde id_evaluador era subordinado de cualquier jefe
+      await connection.query('DELETE FROM Personal_Subordinado WHERE id_personal = ?', [id_evaluador]);
+
+      // 5. Insertar los nuevos jefes en Personal_Jefe
+      for (const id_personal of jefes) {
+        await connection.query('INSERT INTO Personal_Jefe (id_personal, id_evaluador) VALUES (?, ?)', [id_personal, id_evaluador]);
+      }
+
+      // 6. Insertar el evaluador como subordinado de cada jefe en Personal_Subordinado
+      for (const id_personal of jefes) {
+        await connection.query('INSERT INTO Personal_Subordinado (id_evaluador, id_personal) VALUES (?, ?)', [id_personal, id_evaluador]);
+      }
+
+      // Confirmar la transacción
+      await connection.commit();
+      res.json({ success: true, message: 'Jefes y subordinados asignados correctamente' });
+    } catch (error) {
+      if (connection) await connection.rollback();
+      console.error('Error al asignar jefes:', error);
+      res.status(500).json({ success: false, message: 'Error en el servidor. Intenta más tarde' });
+    } finally {
+      if (connection) connection.release();
+    }
+  });
+  
   // Alumno: Se pasa de grupo
   // Alumno_Taller: Cuando el alumno sale de 6to se elimina
   // Alumno_Arte_Especialidad: Cuando pasen a 4to se eliminan

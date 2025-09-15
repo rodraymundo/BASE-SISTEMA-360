@@ -242,6 +242,9 @@ console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
             <button class="btn btn-assign-kpi btn-sm assignKpiBtn" title="Asignar KPIs" aria-label="Asignar KPIs" data-id="${p.id_personal || ''}">
               <i class="fas fa-tasks"></i><span>Asignar KPIs</span>
             </button>
+            <button class="btn btn-kpi btn-sm assingJefeBtn" title="Ajustar Jefe Directo" aria-label="Ajustar Jefe Directo" data-id="${p.id_personal || ''}">
+              <i class="fas fa-pencil-alt"></i><span>Jefe Directo</span>
+            </button>
           </div>
         </div>
       </div>
@@ -517,7 +520,6 @@ console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
           </div>
           <div class="modal-footer">
             <button id="kpiSaveAllBtn" type="button" class="btn btn-danger">Guardar cambios</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
           </div>
         </div>
       </div>
@@ -550,7 +552,6 @@ console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
           </div>
           <div class="modal-footer">
             <button id="assignKpiSaveAllBtn" type="button" class="btn btn-danger">Guardar cambios</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
           </div>
         </div>
       </div>
@@ -566,6 +567,116 @@ console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
       assignKpiListContainer.innerHTML = '<div class="text-muted text-center py-3">Seleccione una categoría para ver sus KPIs.</div>';
     });
   }
+
+  function ensureJefeModalExists() {
+    if (document.getElementById('jefeModal')) return;
+    const modalHtml = `
+    <div class="modal fade" id="jefeModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Ajustar Jefe Directo - <span id="jefeModalPersonalName"></span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <h6>Jefes actuales</h6>
+            <ul id="jefeActualList" class="list-group mb-3"></ul>
+
+            <h6>Selecciona su jefe directo</h6>
+            <div id="jefeOpcionesList" class="list-group" style="max-height:320px; overflow:auto;"></div>
+          </div>
+          <div class="modal-footer">
+            <button id="jefeSaveBtn" type="button" class="btn btn-danger">Guardar cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  async function openJefeModalForPersonal(personal) {
+    ensureJefeModalExists();
+    document.getElementById('jefeModalPersonalName').textContent =
+      `${personal.nombre_personal || ''} ${personal.apaterno_personal || ''}`.trim();
+
+    const jefeActualList = document.getElementById('jefeActualList');
+    const jefeOpcionesList = document.getElementById('jefeOpcionesList');
+    jefeActualList.innerHTML = '<li class="list-group-item text-muted">Cargando...</li>';
+    jefeOpcionesList.innerHTML = '<div class="list-group-item">Cargando opciones...</div>';
+
+    try {
+      const resp = await fetchWithRetry(`/getJefe/${personal.id_personal}`, { credentials: 'include' });
+      if (!resp.success) throw new Error(resp.message || 'Error en el servidor.');
+
+      const jefes = resp.jefes || [];
+      const personas = resp.personas || [];
+
+      // Lista de jefes actuales
+      jefeActualList.innerHTML = jefes.length === 0
+        ? '<li class="list-group-item text-muted">No tiene jefes asignados</li>'
+        : jefes.map(j => `<li class="list-group-item">${j.nombre_personal} ${j.apaterno_personal || ''}</li>`).join('');
+
+      // Radios para elegir un nuevo jefe
+      // Checkboxes para permitir más de un jefe
+      const jefesActualesIds = jefes.map(j => String(j.id_personal));
+      jefeOpcionesList.innerHTML = personas
+        .filter(p => String(p.id_personal) !== String(personal.id_personal)) // excluir a sí mismo
+        .map(p => {
+          const pid = String(p.id_personal);
+          const nombre = `${p.nombre_personal} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}`.trim();
+          const checked = jefesActualesIds.includes(pid) ? 'checked' : '';
+          return `
+            <label class="list-group-item d-flex align-items-center" style="cursor:pointer;">
+              <input class="form-check-input me-2" type="checkbox" name="nuevoJefe" value="${pid}" ${checked}>
+              <div>${nombre}</div>
+            </label>`;
+        }).join('');
+
+
+      // Guardar cambios
+      document.getElementById('jefeSaveBtn').onclick = async () => {
+        const selected = Array.from(document.querySelectorAll('input[name="nuevoJefe"]:checked'))
+          .map(cb => cb.value);
+
+        if (selected.length === 0) {
+          Swal.fire('Atención', 'Debes seleccionar al menos un jefe.', 'warning');
+          return;
+        }
+
+        try {
+          const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
+          const { csrfToken } = await csrfRes.json();
+          const saveRes = await fetch('/asignarJefe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+            credentials: 'include',
+            body: JSON.stringify({
+              id_evaluador: personal.id_personal,
+              jefes: [selected.value]
+            })
+          });
+          const result = await saveRes.json();
+          if (!saveRes.ok || !result.success) throw new Error(result.message || 'Error al guardar');
+
+          Swal.fire('Éxito', 'Jefe asignado correctamente.', 'success');
+          bootstrap.Modal.getInstance(document.getElementById('jefeModal')).hide();
+          await cargarPersonal(); // refrescar lista
+        } catch (err) {
+          console.error(err);
+          Swal.fire('Error', err.message || 'No se pudo guardar el jefe.', 'error');
+        }
+      };
+
+      const modalEl = document.getElementById('jefeModal');
+      const bsModal = new bootstrap.Modal(modalEl);
+      bsModal.show();
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', err.message, 'error');
+    }
+  }
+
+
 
   async function cargarAsignacionesPuestoKpi(puestoId) {
     try {
@@ -1190,6 +1301,20 @@ console.log(`Personal: ${p.nombre_personal} -> Foto URL: ${fotoUrl}`);
       }
       return;
     }
+
+    const assignJefeBtn = e.target.closest('.assingJefeBtn');
+    if (assignJefeBtn) {
+      const id = assignJefeBtn.dataset.id;
+      try {
+        const personal = await fetchWithRetry(`/personal/${id}`, { credentials: 'include' });
+        openJefeModalForPersonal(personal);
+      } catch (error) {
+        console.error('Error al cargar personal para jefe:', error);
+        Swal.fire('Error', 'No se pudieron cargar los datos del personal para asignar jefe.', 'error');
+      }
+      return;
+    }
+
   });
 
   buscadorPersonal.addEventListener('input', () => {
