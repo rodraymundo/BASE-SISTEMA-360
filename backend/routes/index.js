@@ -6,6 +6,7 @@
   const bcrypt = require('bcryptjs');
   const { permisoMiddleware } = require('../middleware/permisosMiddleware'); 
   const { bloquearAlumnos } = require('../middleware/bloquearAlumnosMiddleware'); // Middleware para bloquear 
+  const { SoloPrimerosTresGrados } = require('../middleware/elecciontaller'); // Middleware para permitir solo a 1º, 2º y 3º
   const permitirRoles = require('../middleware/roles');
   const multer = require('multer');
   const streamifier = require('streamifier');
@@ -205,6 +206,18 @@ const upload = multer({ storage });
   });
 
   router.get('/Elegir-Taller', authMiddleware, (req, res) => {
+    const user = req.session.user;
+
+    if (!user || user.userType !== 'alumno') {
+      return res.status(403).send('Acceso denegado');
+    }
+
+    // Si ya tiene ambos registrados, no debe ver la pantalla
+    if (user.tieneArte && user.tieneTaller) {
+      return res.redirect('/Dashboard');
+    }
+
+    // Si le falta alguno, puede entrar a la vista combinada
     res.sendFile(path.join(__dirname, '../../public/html/Elegir-Taller.html'));
   });
 
@@ -325,7 +338,12 @@ const upload = multer({ storage });
         return res.status(401).json({ success: false, message: 'Correo o contraseña incorrectos.' });
       }
       const [personal] = await db.query('SELECT id_personal, id_puesto, nombre_personal, apaterno_personal, amaterno_personal FROM Personal WHERE id_usuario = ?', [user.id_usuario]);
-      const [alumno] = await db.query('SELECT id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_personal FROM Alumno WHERE id_usuario = ?', [user.id_usuario]);
+      const [alumno] = await db.query(`
+      SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, 
+            a.id_personal, a.id_grado_grupo, g.grado, g.grupo
+      FROM Alumno a
+      JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
+      WHERE a.id_usuario = ?`, [user.id_usuario]);
       let userType, roles = [], id_personal = null, id_puesto = null, nombre_completo = null, id_alumno = null;
       if (personal.length > 0) {
         userType = 'personal';
@@ -365,13 +383,32 @@ const upload = multer({ storage });
           id_personal = alumno[0].id_personal; // SU COUNSELOR
           nombre_completo = `${alumno[0].nombre_alumno} ${alumno[0].apaterno_alumno} ${alumno[0].amaterno_alumno || ''}`.trim();
 
+          // 🔹 Verificar si ya tiene arte
+          const [arteRows] = await db.query(
+            'SELECT COUNT(*) AS cnt FROM Alumno_Arte_Especialidad WHERE id_alumno = ?',
+            [id_alumno]
+          );
+          const tieneArte = arteRows[0].cnt > 0;
+
+          // 🔹 Verificar si ya tiene taller
+          const [tallerRows] = await db.query(
+            'SELECT COUNT(*) AS cnt FROM Alumno_Taller WHERE id_alumno = ?',
+            [id_alumno]
+          );
+          const tieneTaller = tallerRows[0].cnt > 0;
+
           req.session.user = {
             id_usuario: user.id_usuario,
             email: user.correo_usuario,
             userType,
             id_alumno,
             nombre_completo,
-            id_personal 
+            id_personal,
+            id_grado_grupo: alumno[0].id_grado_grupo,
+            grado: alumno[0].grado,
+            grupo: alumno[0].grupo,
+            tieneArte,
+            tieneTaller
           };
           res.json({ success: true , userType, redirect: '/Dashboard' });
       } else {
@@ -382,6 +419,32 @@ const upload = multer({ storage });
       res.status(500).json({ success: false, message: 'Error en el servidor.' });
     }
   });
+
+  router.get('/mi-alumno', async (req, res) => {
+  // Verificamos que el usuario esté autenticado y sea alumno
+  if (!req.session.user || req.session.user.userType !== 'alumno') {
+    return res.status(401).json({ success: false, message: 'No autorizado' });
+  }
+
+  try {
+    // Tomamos los datos que ya guardaste en la sesión
+    const alumno = {
+      id_alumno: req.session.user.id_alumno,
+      nombre_completo: req.session.user.nombre_completo,
+      grado: req.session.user.grado,
+      grupo: req.session.user.grupo,
+      id_grado_grupo: req.session.user.id_grado_grupo,
+      tieneArte: req.session.user.tieneArte,
+      tieneTaller: req.session.user.tieneTaller
+    };
+
+    res.json({ success: true, alumno });
+  } catch (error) {
+    console.error('Error en /mi-alumno:', error);
+    res.status(500).json({ success: false, message: 'Error en el servidor' });
+  }
+});
+
 
   //CERRAR SESIÓN
   router.post('/logout', (req, res) => {
