@@ -82,7 +82,7 @@ body.gestion-personal-resultados {
   text-align: center;
   transition: transform 0.2s;
 
-  height: 365px;          /* Altura fija */
+  height: 250px;          /* Altura fija */
   display: flex;
   flex-direction: column;
 }
@@ -123,18 +123,11 @@ body.gestion-personal-resultados {
   margin-bottom: 1rem;
 }
 
-/* Contenedor de botones, siempre abajo */
 .personal-card .card-buttons {
-  margin-top: auto;           /* Empuja los botones al final */
   display: flex;
+  flex-wrap: wrap;     /* permite que brinquen de línea si no caben */
   justify-content: center;
-  gap: 0.5rem;
-}
-
-.personal-card .btn {
-  font-size: 0.85rem;
-  padding: 0.3rem 0.8rem;
-  margin: 0.2rem;
+  gap: 0.5rem;         /* separación uniforme */
 }
 
 .btn-perfil {

@@ -155,21 +155,32 @@ async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = '
             const percentage = evalInfo.total_count > 0 ? Math.round((evalInfo.positive_count / evalInfo.total_count) * 100) : 0;
 
             card.innerHTML = `
-                <img src="${person.img_personal || './assets/img/iconousuario.png'}" class="card-img-top profile-img" alt="Personnel Photo">
-                <div class="card-body text-center p-3">
-                    <div class="content-block">
-                        <h5 class="card-title fs-6">${escapeHtml(person.nombre_personal)} ${escapeHtml(person.apaterno_personal)} ${escapeHtml(person.amaterno_personal)}</h5>
-                        <p class="card-text small"><strong>Puesto:</strong> ${escapeHtml(person.nombre_puesto || '')}</p>
-                        ${person.subjects?.length ? `<p class="card-text small"><strong>Materias:</strong> ${escapeHtml(person.subjects.join(', '))}</p>` : ''}
-                        <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
-                    </div>
-                    <div class="rating-wrapper">
-                        <div class="rating-bar">
-                            <div class="rating-fill" style="width: ${percentage}%;"></div>
-                        </div>
-                    </div>
+            <div class="img-holder">
+                <img
+                src="${person.img_personal || './assets/img/iconousuario.png'}"
+                class="profile-img"
+                alt="Foto de ${escapeHtml(person.nombre_personal)}"
+                loading="lazy"
+                >
+            </div>
+            <div class="card-body text-center p-3">
+                <div class="content-block">
+                <h4 class="card-title fs-6">
+                ${escapeHtml(person.nombre_personal)} 
+                ${escapeHtml(person.apaterno_personal || '')} 
+                ${escapeHtml(person.amaterno_personal || '')}
+                </h4>
+                <br>
+                <p class="card-text small"><strong>Evaluación:</strong> ${percentage}%</p>
                 </div>
+                <div class="rating-wrapper">
+                <div class="rating-bar">
+                    <div class="rating-fill" style="width: ${percentage}%;"></div>
+                </div>
+                </div>
+            </div>
             `;
+
 
             card.addEventListener('click', () => showPersonnelModal(person));
             fragment.appendChild(card);

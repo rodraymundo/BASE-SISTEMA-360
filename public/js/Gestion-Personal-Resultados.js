@@ -248,7 +248,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="personal-card">
           <img src="${p.img_personal || 'iconousuario.png'}" alt="Foto de ${p.nombre_personal}">
           <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
-          <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
           <div>
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>

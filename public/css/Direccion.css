@@ -235,10 +235,6 @@
     #personnelModal .custom-chart {
         height: 180px;
     }
-    .profile-img-modal {
-        width: 100px;
-        height: 100px;
-    }
     .modal-title.text-danger {
         font-size: 1.25rem;
     }
@@ -290,15 +286,6 @@
 .card:hover {
     transform: translateY(-6px) scale(1.01);
     box-shadow: 0 10px 26px rgba(0,0,0,0.08);
-}
-
-/* perfil redondo más neutro */
-.card-img-top.profile-img {
-    width: 84px;
-    height: 84px;
-    object-fit: cover;
-    background: none; /* quitar gradiente amarillo/azul */
-    border: 2px solid rgba(0,0,0,0.04);
 }
 
 /* rating */
@@ -382,7 +369,7 @@
 #personnelCards .card {
   width: 100%;
   max-width: 220px;         /* ancho máximo por card */
-  height: 400px;           /* altura fija: ajustar si quieres más/menos */
+  height: 240px;           /* altura fija: ajustar si quieres más/menos */
   display: flex;
   flex-direction: column;
   justify-content: space-between; /* mantiene rating abajo */
@@ -405,14 +392,6 @@
   padding: 0.5rem 0.75rem !important;
   height: 100% !important;
   box-sizing: border-box !important;
-}
-
-/* Perfil: mantener imagen circular pero más neutra */
-.card-img-top.profile-img,
-.profile-img-modal {
-    background: none;
-    box-shadow: none;
-    border: 1px solid rgba(0,0,0,0.04);
 }
 
 /* Rating: menos llamativo (usa el color de marca pero sin sobresalir) */
@@ -568,132 +547,59 @@
   .card.flat-card .card-body { padding-top: 0.3rem; }
   #personnelCards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; }
   #personnelCards .card { max-width: 100%; }
-  #personnelCards .card .card-img-top.profile-img { width: 64px; height: 64px; }
 }
 
 
-/* =========================
-   PERSONNEL CARDS - FIXED SIZE + BORDER
-   Pegar al final de Direccion.css
-   ========================= */
-
-#personnelCards {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
-  gap: 1rem !important;
-  align-items: start !important;
-  justify-items: center !important;
-  padding: 0.5rem 0.25rem !important;
+/* -----------------------------
+   Avatars fijos y circulares
+   ----------------------------- */
+:root{
+  --avatar-size-desktop: 96px; /* tamaño máximo fijo en desktop */
+  --avatar-size-mobile: 64px;  /* tamaño en móvil */
+  --avatar-holder-height: calc(var(--avatar-size-desktop) + 28px); /* espacio reservado */
 }
 
-/* Card homogénea (ancho y alto fijos) */
-#personnelCards .card {
+/* Contenedor que reserva espacio en la parte superior de la card.
+   Mantiene la misma altura para todas las cards (evita saltos). */
+#personnelCards .card .img-holder{
+  height: var(--avatar-holder-height) !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
   width: 100% !important;
-  max-width: 220px !important;    /* ancho fijo por card */
-  height: 360px !important;       /* altura fija (ajustable) */
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: space-between !important; /* rating abajo */
-  background: #ffffff !important;
-  border: 1px solid rgba(0,0,0,0.08) !important; /* borde sutil visible */
-  border-radius: 10px !important;
-  padding: 0 !important;
+  box-sizing: border-box;
+  margin-top: 0 !important; /* aseguramos que no haya desplazamientos extra */
+}
+
+/* Imagen circular con tamaño fijo */
+#personnelCards .card .img-holder img.profile-img{
+  width: var(--avatar-size-desktop) !important;
+  height: var(--avatar-size-desktop) !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;    /* recorta sin deformar */
+  display: block !important;
+  border: 2px solid rgba(0,0,0,0.04) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06) !important;
+}
+
+/* Override en caso de reglas antiguas que usen margin:60px */
+#personnelCards .card .card-img-top.profile-img,
+#personnelCards .card .img-holder img.profile-img{
   margin: 0 !important;
-  box-shadow: none !important;
-  overflow: hidden !important;
-  transition: transform 240ms cubic-bezier(.22,1,.36,1), box-shadow 240ms !important;
 }
 
-/* Card destacada ligeramente más grande */
-#personnelCards .card.card-middle {
-  max-width: 260px !important;
-  height: 360px !important;
-}
+/* Móvil: tamaño menor y holder más pequeño */
+@media (max-width: 700px){
+  :root{
+    --avatar-size-desktop: var(--avatar-size-mobile);
+    --avatar-holder-height: calc(var(--avatar-size-mobile) + 20px);
+  }
 
-#personnelCards .card .card-body {
-  /* ya es flex column; garantizamos comportamiento consistente */
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: space-between !important; /* rating abajo */
-  padding: 0.5rem 0.75rem !important;
-  height: 100% !important;
-  box-sizing: border-box !important;
-}
-/* Bloque con info para truncado */
-#personnelCards .card .content-block {
-  flex: 1 1 auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;   /* CENTRADO vertical */
-  align-items: center !important;
-  gap: 6px !important;
-  padding: 0px 6px 0 !important; /* <- antes era 0 6px */
-  text-align: center !important;
-}
-
-/* Imagen consistente */
-#personnelCards .card .card-img-top.profile-img {
-  width: 76px !important;
-  height: 76px !important;
-  margin: 60px auto 8px !important; /* subimos margen superior a 16px */
-  object-fit: cover !important;
-}
-
-/* Titular y textos con truncado */
-#personnelCards .card .card-title {
-  font-size: 0.95rem !important;
-  margin: 0 !important;
-  line-height: 1.1 !important;
-  display: -webkit-box !important;
-  -webkit-box-orient: vertical !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: normal !important;
-}
-
-#personnelCards .card .card-text.small {
-  font-size: 0.85rem !important;
-  margin: 0 !important;
-  display: -webkit-box !important;
-  -webkit-line-clamp: 1 !important;
-  -webkit-box-orient: vertical !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: normal !important;
-  color: #555 !important;
-}
-
-/* Rating fijo abajo */
-#personnelCards .card .rating-wrapper {
-  flex: 0 0 auto !important;
-  width: 100% !important;
-  padding: 6px 10px 8px !important;
-}
-
-/* Barra rating */
-#personnelCards .card .rating-bar {
-  background: #f1f1f1 !important;
-  height: 8px !important;
-  border-radius: 6px !important;
-  overflow: hidden !important;
-}
-#personnelCards .card .rating-fill {
-  background: var(--brand-red) !important;
-  height: 100% !important;
-  border-radius: 6px !important;
-}
-
-/* Hover suave */
-#personnelCards .card:hover {
-  transform: translateY(-6px) scale(1.02) !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.06) !important;
-}
-
-/* Mobile tweaks */
-@media (max-width: 700px) {
-  #personnelCards { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; gap: 0.6rem !important; }
-  #personnelCards .card { height: 230px !important; max-width: 200px !important; }
-  #personnelCards .card.card-middle { height: 250px !important; max-width: 220px !important; }
-  #personnelCards .card .card-img-top.profile-img { width: 64px !important; height: 64px !important; }
-  #personnelCards .card .card-title { -webkit-line-clamp: 2 !important; }
+  #personnelCards .card .img-holder{
+    height: var(--avatar-holder-height) !important;
+  }
+  #personnelCards .card .img-holder img.profile-img{
+    width: var(--avatar-size-mobile) !important;
+    height: var(--avatar-size-mobile) !important;
+  }
 }

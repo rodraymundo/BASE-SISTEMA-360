@@ -4237,27 +4237,27 @@ router.get('/comments-director', authMiddleware, async (req, res) => {
         `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cd.comentario_docente as comment 
          FROM Comentario_Docente cd 
          JOIN Alumno a ON cd.id_alumno = a.id_alumno 
-         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
          WHERE cd.id_personal = ? AND cd.tipo_comentario = ?`,
         `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdi.comentario_docente_ingles as comment 
          FROM Comentario_Docente_Ingles cdi 
          JOIN Alumno a ON cdi.id_alumno = a.id_alumno 
-         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
          WHERE cdi.id_personal = ? AND cdi.tipo_comentario = ?`,
         `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cda.comentario_docente_arte as comment 
          FROM Comentario_Docente_Arte cda 
          JOIN Alumno a ON cda.id_alumno = a.id_alumno 
-         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
          WHERE cda.id_personal = ? AND cda.tipo_comentario = ?`,
         `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, ct.comentario_taller as comment 
          FROM Comentario_Taller ct 
          JOIN Alumno a ON ct.id_alumno = a.id_alumno 
-         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
          WHERE ct.id_personal = ? AND ct.tipo_comentario = ?`,
         `SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cc.comentario_counselor as comment 
          FROM Comentario_Counselor cc 
          JOIN Alumno a ON cc.id_alumno = a.id_alumno 
-         JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
+         JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo 
          WHERE cc.id_personal = ? AND cc.tipo_comentario = ?`,
         `SELECT e.id_evaluador, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, cp.comentario_personal as comment 
          FROM Comentario_Personal cp 
@@ -4297,7 +4297,7 @@ router.get('/comments-servicio', authMiddleware, async (req, res) => {
         SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cs.comentario_servicio as comment
         FROM Comentario_Servicio cs
         JOIN Alumno a ON cs.id_alumno = a.id_alumno
-        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
         WHERE cs.id_servicio = ? AND cs.tipo_comentario = ?
     `;
 
@@ -4328,7 +4328,7 @@ router.get('/comments-liga-deportiva', authMiddleware, async (req, res) => {
         SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cld.comentario_servicio as comment
         FROM Comentario_Liga_Deportiva cld
         JOIN Alumno a ON cld.id_alumno = a.id_alumno
-        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
         WHERE cld.id_liga_deportiva = ? AND cld.tipo_comentario = ?
     `;
 
@@ -4359,7 +4359,7 @@ router.get('/comments-disciplina-deportiva', authMiddleware, async (req, res) =>
         SELECT a.id_alumno, a.nombre_alumno, a.apaterno_alumno, a.amaterno_alumno, gg.grupo, cdd.comentario_servicio as comment
         FROM Comentario_Disciplina_Deportiva cdd
         JOIN Alumno a ON cdd.id_alumno = a.id_alumno
-        JOIN Grado_grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
+        JOIN Grado_Grupo gg ON a.id_grado_grupo = gg.id_grado_grupo
         WHERE cdd.id_disciplina_deportiva = ? AND cdd.tipo_comentario = ?
     `;
 
