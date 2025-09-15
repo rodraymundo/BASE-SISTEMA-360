@@ -103,7 +103,6 @@
               <div id="collapseAdministracion" class="accordion-collapse collapse" aria-labelledby="headingAdministracion" data-bs-parent="#rolesAccordion">
                 <div class="accordion-body">
                   <ul class="list-group list-group-flush">
-                    <li class="list-group-item role-item" data-role="Administrador">Administrador</li>
                     <li class="list-group-item role-item" data-role="Auxiliar Administrativo">Auxiliar Administrativo</li>
                     <li class="list-group-item role-item" data-role="Necesidades Tecnológicas">Necesidades Tecnológicas</li>
                     <li class="list-group-item role-item" data-role="Marketing">Marketing</li>
@@ -158,13 +157,16 @@
       </nav>
       <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-          <h2>Resultados del Personal</h2>
-          <div class="input-group" style="max-width: 400px;">
-            <input id="buscadorPersonal" type="search" class="form-control" placeholder="Buscar personal...">
-          </div>
+            <h2 id="mainTitle">Resultados del Personal</h2>
+            <div class="input-group" style="max-width: 400px;">
+                <input id="buscadorPersonal" type="search" class="form-control" placeholder="Buscar personal...">
+            </div>
         </div>
+
         <div id="personalContainer" class="row"></div>
-      </main>
+
+        <div id="serviciosContainer" class="row" style="display: none;"></div>
+    </main>
     </div>
   </div>
   <div class="modal fade" id="perfilModal" tabindex="-1" aria-labelledby="perfilModalLabel" aria-hidden="true">
