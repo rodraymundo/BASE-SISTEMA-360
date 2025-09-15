@@ -198,8 +198,13 @@ export function renderHeader(user) {
 
   const elegirTallerBtn = header.querySelector('#elegir-taller-btn');
   if (elegirTallerBtn && user.userType === 'alumno') {
-    elegirTallerBtn.style.display = 'block';
+    // Mostrar solo si le falta arte o taller
+    if (!user.tieneTaller || (!user.tieneArte && esAlumnoPrimeroATercero(user.grado))) {
+      // Nota: Taller de arte obligatorio solo para 1º-3º
+      elegirTallerBtn.style.display = 'block';
+    }
   }
+
 
   const gestionCaptacionBtn = header.querySelector('#gestion-captacion-btn');
   if (gestionCaptacionBtn && user.userType === 'personal' && Array.isArray(user.roles)) {
