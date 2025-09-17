@@ -135,21 +135,26 @@ function actualizarResumenYEstilos() {
         }
     });
 
-    // Actualizar estilos de Talleres Extra (tarjetas representando un grupo de equipos)
+    // Actualizar estilos de Talleres Extra (soporta cards agrupadas y cards individuales)
     document.querySelectorAll('.seleccionable-taller').forEach(card => {
-        try {
-            const equiposIds = JSON.parse(card.dataset.equipos || '[]'); // array de ids
-            // Si alguno de los ids del grupo está en seleccionExtras => marcar la tarjeta de grupo como seleccionada
+        // Si la tarjeta tiene dataset.equipos -> es una tarjeta "agrupada"
+        if (card.dataset.equipos && card.dataset.equipos.trim() !== '') {
+            let equiposIds;
+            try {
+                equiposIds = JSON.parse(card.dataset.equipos);
+            } catch (e) {
+                equiposIds = [];
+            }
             const algunoSeleccionado = equiposIds.some(id => seleccionExtras.has(id));
             if (algunoSeleccionado) {
                 card.classList.add('seleccionado', 'border-danger', 'shadow-lg');
             } else {
                 card.classList.remove('seleccionado', 'border-danger', 'shadow-lg');
             }
-        } catch (e) {
-            // Fallback: si no tiene dataset.equipos, mantener comportamiento antiguo si existe dataset.id
+        } else {
+            // Tarjeta individual: usamos data-id
             const cardId = parseInt(card.dataset.id, 10);
-            if (seleccionExtras.has(cardId)) {
+            if (!isNaN(cardId) && seleccionExtras.has(cardId)) {
                 card.classList.add('seleccionado', 'border-danger', 'shadow-lg');
             } else {
                 card.classList.remove('seleccionado', 'border-danger', 'shadow-lg');
@@ -157,7 +162,6 @@ function actualizarResumenYEstilos() {
         }
     });
 
-    
     // Construir el HTML del resumen
     let resumenHtml = `
         <div class="card border-2 shadow-sm rounded-3 mt-4">
@@ -179,7 +183,7 @@ function actualizarResumenYEstilos() {
             </div>
         `;
     }
-    
+
     // Sección Extraescolar en el resumen
     if (document.getElementById('extra-container')) {
         const colClass = document.getElementById('arte-container') ? 'col-md-6' : 'col-12';
@@ -187,7 +191,7 @@ function actualizarResumenYEstilos() {
             <div class="${colClass}">
                 <strong class="text-secondary">Talleres Extraescolares:</strong>
                 <div id="resumen-extra" class="ps-3">`;
-        
+
         if (seleccionExtras.size > 0) {
             resumenHtml += '<div class="d-flex flex-wrap gap-2 mt-2">';
             for (const taller of seleccionExtras.values()) {
@@ -204,7 +208,6 @@ function actualizarResumenYEstilos() {
     resumenHtml += '</div></div></div>';
     resumenContainer.innerHTML = resumenHtml;
 }
-
 
 async function cargarTalleresArte(id_grado_grupo) {
     try {
@@ -258,78 +261,67 @@ async function cargarTalleresExtra() {
         const container = document.getElementById('extra-container');
         container.innerHTML = '';
 
-        // --- Agrupar talleres por nombre base (quitando E1/E2) ---
-        const talleresMap = new Map();
+        // --- Calcular cuántos equipos hay por "base" (p. ej. "Fútbol" -> 2) ---
+        const baseCounts = new Map();
         data.talleres.forEach(t => {
-            const nombreBase = t.nombre_taller.replace(/ E[12]$/, '');
-            if (!talleresMap.has(nombreBase)) {
-                talleresMap.set(nombreBase, []);
-            }
-            talleresMap.get(nombreBase).push(t);
-            // Guardamos también la relación id_taller -> nombreBase
-            equipoIdToBase.set(t.id_taller, nombreBase);
+            const base = t.nombre_taller.replace(/ E[12]$/i, '').trim();
+            baseCounts.set(base, (baseCounts.get(base) || 0) + 1);
+            // Guardamos el mapping id -> base para uso posterior
+            equipoIdToBase.set(t.id_taller, base);
         });
 
         // Asegurarnos que el conteo empieza vacío si no existe
         conteoEquipos = conteoEquipos || {};
 
-        // --- Crear tarjetas por nombre base ---
-        talleresMap.forEach((equipos, nombreBase) => {
+        // --- Crear tarjeta por cada taller (mostrar cada E1/E2 por separado) ---
+        data.talleres.forEach(t => {
+            const base = t.nombre_taller.replace(/ E[12]$/i, '').trim();
+
             const card = document.createElement('div');
             card.className = 'card h-100 text-center seleccionable-taller border-2 rounded-3 shadow-sm';
             card.style.cursor = 'pointer';
-            card.dataset.nombreBase = nombreBase;
-            // Guardamos los ids de los equipos en JSON (p. ej. [12,13])
-            card.dataset.equipos = JSON.stringify(equipos.map(e => e.id_taller));
+            card.dataset.id = t.id_taller;
+            card.dataset.nombre = t.nombre_taller;   // nombre completo (ej. "Fútbol E1")
+            card.dataset.base = base;               // nombre base (ej. "Fútbol")
 
             card.innerHTML = `
                 <div class="card-body d-flex justify-content-center align-items-center p-3">
-                    <h6 class="fw-semibold text-danger mb-0">${nombreBase}</h6>
+                    <h6 class="fw-semibold text-danger mb-0">${t.nombre_taller}</h6>
                 </div>
             `;
 
             card.addEventListener('click', () => {
-                // Si ya está seleccionado alguno de los equipos de este grupo -> lo quitamos (toggle)
-                const equiposIds = JSON.parse(card.dataset.equipos);
-                const equipoSeleccionadoEnEsteGrupo = equiposIds.find(id => seleccionExtras.has(id));
+                const id = parseInt(card.dataset.id, 10);
 
-                if (equipoSeleccionadoEnEsteGrupo) {
-                    // Deseleccionar ese equipo
-                    seleccionExtras.delete(equipoSeleccionadoEnEsteGrupo);
-                    conteoEquipos[equipoSeleccionadoEnEsteGrupo] = Math.max((conteoEquipos[equipoSeleccionadoEnEsteGrupo]||1) - 1, 0);
+                // Si ya está seleccionado: toggle (deseleccionar)
+                if (seleccionExtras.has(id)) {
+                    seleccionExtras.delete(id);
+                    conteoEquipos[id] = Math.max((conteoEquipos[id] || 1) - 1, 0);
                     actualizarResumenYEstilos();
                     return;
                 }
 
-                // Si intenta seleccionar más de 4 talleres (contando ya seleccionados) bloqueamos
+                // Validar máximo 4 talleres
                 if (seleccionExtras.size >= 4) {
                     Swal.fire('Atención', 'Solo puedes seleccionar hasta 4 talleres extraescolares.', 'warning');
                     return;
                 }
 
-                // Elegir el equipo (id) con menos participantes para balancear
-                let minAlumnos = Infinity;
-                let candidatos = [];
-
-                // Buscar equipos con menor cantidad de alumnos
-                equipos.forEach(e => {
-                    const count = conteoEquipos[e.id_taller] || 0;
-                    if (count < minAlumnos) {
-                        minAlumnos = count;
-                        candidatos = [e];
-                    } else if (count === minAlumnos) {
-                        candidatos.push(e);
+                // Si hay más de 1 equipo con la misma base (p. ej. Fútbol E1 y E2),
+                // impedir seleccionar otro del mismo base.
+                const necesitaUnSoloEquipo = (baseCounts.get(base) || 0) > 1;
+                if (necesitaUnSoloEquipo) {
+                    const yaTieneOtroDelMismoBase = Array.from(seleccionExtras.keys())
+                        .some(selId => equipoIdToBase.get(selId) === base);
+                    if (yaTieneOtroDelMismoBase) {
+                        Swal.fire('Atención', `Solo puedes seleccionar un equipo de ${base} (E1 o E2).`, 'warning');
+                        return;
                     }
-                });
+                }
 
-                // Elegir aleatoriamente entre los que tienen menor cantidad (para balancear)
-                const equipoElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
-
-
-                // Agregar selección: guardamos el id real del equipo pero como nombre mostramos el nombre base
-                seleccionExtras.set(equipoElegido.id_taller, { id: equipoElegido.id_taller, nombre: nombreBase });
-                conteoEquipos[equipoElegido.id_taller] = (conteoEquipos[equipoElegido.id_taller] || 0) + 1;
-
+                // Todo OK: seleccionar este equipo (guardamos el nombre completo)
+                seleccionExtras.set(id, { id, nombre: t.nombre_taller });
+                conteoEquipos[id] = (conteoEquipos[id] || 0) + 1;
                 actualizarResumenYEstilos();
             });
 
@@ -342,56 +334,63 @@ async function cargarTalleresExtra() {
     }
 }
 
+
 async function marcarSeleccionActual() {
     try {
         const res = await fetch('/talleres-por-alumno', { credentials: 'include' });
         const data = await res.json();
         if (!data.success) return;
 
-        // --- Extras: si el backend devuelve los equipos seleccionados (ids) los registramos ---
-        if (data.extraescolares) {
-            data.extraescolares.forEach(e => {
+        // Limpiar selecciones en memoria antes de restaurar
+        seleccionExtras = new Map();
+
+        // --- Extras: registrar los talleres seleccionados del alumno ---
+        if (Array.isArray(data.extraescolares)) {
+            for (const e of data.extraescolares) {
                 const id = parseInt(e.id_taller ?? e.id ?? e.id_extra, 10);
-                if (isNaN(id)) return;
+                if (isNaN(id)) continue;
 
-                // Buscar el nombre base en nuestro mapa (equipoIdToBase) si ya fue cargado,
-                // si no existe, tomar lo que venga del servidor
-                const nombreBase = equipoIdToBase.get(id) || e.nombre_taller || e.nombre || 'Taller extra';
-                seleccionExtras.set(id, { id, nombre: nombreBase });
+                // Buscar la tarjeta DOM y obtener nombre final si existe
+                const card = document.querySelector(`.seleccionable-taller[data-id="${id}"]`);
+                const nombreFinal = card?.dataset.nombre || e.nombre_taller || e.nombre || `Taller ${id}`;
 
-                // Aumentar conteo (importante para la lógica de balanceo)
-                conteoEquipos[id] = (conteoEquipos[id] || 0) + 1;
-            });
+                // Guardar en memoria la selección
+                seleccionExtras.set(id, { id, nombre: nombreFinal });
+
+                // Marcar la tarjeta si está en el DOM (clases visuales)
+                if (card) {
+                    card.classList.add('seleccionado', 'border-danger', 'shadow-lg');
+                }
+            }
         }
 
-        // --- Arte: lo guardamos en la variable aún si no existe la tarjeta en DOM ---
+        // --- Arte: restaurar si existe ---
         if (data.arte) {
             const idArte = parseInt(data.arte.id_arte_especialidad ?? data.arte.id_arte ?? data.arte.id, 10);
-            const idPersonal = data.arte.id_personal ? parseInt(data.arte.id_personal, 10) : null;
-            const nombreArte = data.arte.nombre_arte_especialidad
-                || data.arte.nombre
-                || data.arte.nombre_arte
-                || 'Taller de arte guardado';
+            if (!isNaN(idArte)) {
+                const idPersonal = data.arte.id_personal ? parseInt(data.arte.id_personal, 10) : null;
+                const nombreArte = data.arte.nombre_arte_especialidad
+                    || data.arte.nombre
+                    || data.arte.nombre_arte
+                    || 'Taller de arte guardado';
 
-            const cardArte = document.querySelector(`.seleccionable-arte[data-id="${idArte}"]`);
-            const nombreFinal = cardArte?.dataset.nombre || nombreArte;
+                seleccionArte = {
+                    id_arte_especialidad: idArte,
+                    id_personal: idPersonal,
+                    nombre: nombreArte
+                };
 
-            seleccionArte = {
-                id_arte_especialidad: idArte,
-                id_personal: idPersonal,
-                nombre: nombreFinal
-            };
-
-            if (cardArte) {
-                cardArte.dataset.nombre = nombreFinal;
-                cardArte.classList.add('border-danger', 'shadow-lg', 'seleccionado');
+                // Marcar tarjeta de arte si existe en DOM
+                const cardArte = document.querySelector(`.seleccionable-arte[data-id="${idArte}"]`);
+                if (cardArte) {
+                    cardArte.dataset.nombre = nombreArte;
+                    cardArte.classList.add('border-danger', 'shadow-lg', 'seleccionado');
+                }
             }
-
         }
 
-        // Finalmente, actualizar resumen y estilos (si ya existe el DOM del resumen)
+        // Actualizar resumen y estilos (deja todo consistente)
         actualizarResumenYEstilos();
-
     } catch (err) {
         console.error('Error marcando selección actual:', err);
     }

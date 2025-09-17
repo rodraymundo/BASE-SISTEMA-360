@@ -79,7 +79,9 @@ async function buscarAlumnos(termino) {
 
       item.innerHTML = `
         <div>
-          <h6 class="mb-1">${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}</h6>
+          <h6 class="mb-1">
+            ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''} ${alumno.nombre_alumno}
+          </h6>
           <small><strong>Counselor:</strong> ${alumno.nombre_counselor ? alumno.nombre_counselor + ' ' + alumno.apaterno_counselor : '-'}</small><br>
           <small><strong>Correo:</strong> ${alumno.correo_alumno || '-'}</small><br>
           <small><strong>Taller extraescolar:</strong> ${alumno.talleres || '-'}</small><br>
@@ -168,7 +170,9 @@ async function cargarAlumnosPorGrupo(id_grado_grupo, nombreGrupo) {
 
       item.innerHTML = `
         <div>
-          <h6 class="mb-1">${alumno.nombre_alumno} ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''}</h6>
+          <h6 class="mb-1">
+            ${alumno.apaterno_alumno} ${alumno.amaterno_alumno || ''} ${alumno.nombre_alumno}
+          </h6>
           <small><strong>Counselor:</strong> ${alumno.nombre_counselor ? alumno.nombre_counselor + ' ' + alumno.apaterno_counselor : '-'}</small><br>
           <small><strong>Correo:</strong> ${alumno.correo_alumno || '-'}</small><br>
           <small><strong>Taller Extraescolar:</strong> ${alumno.talleres || '-'}</small><br>

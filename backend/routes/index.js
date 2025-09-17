@@ -923,47 +923,52 @@ const upload = multer({ storage });
     }
   });
 
-  //OBTENER ALUMNOS POR GRUPO
-  router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res) => {
-    const { id_grado_grupo } = req.params;
-    try {
-      const [alumnos] = await db.query(`
-        SELECT 
-          a.id_alumno,
-          MAX(a.nombre_alumno) AS nombre_alumno,
-          MAX(a.apaterno_alumno) AS apaterno_alumno,
-          MAX(a.amaterno_alumno) AS amaterno_alumno,
-          MAX(a.id_grado_grupo) AS id_grado_grupo,
-          MAX(a.id_personal) AS id_personal,
-          MAX(u.correo_usuario) AS correo_alumno,
-          MAX(g.grado) AS grado,
-          MAX(g.grupo) AS grupo,
-          MAX(p.nombre_personal) AS nombre_counselor,
-          MAX(p.apaterno_personal) AS apaterno_counselor,
-          GROUP_CONCAT(DISTINCT t.nombre_taller SEPARATOR ', ') AS talleres,
-          MAX(ni.nombre_nivel_ingles) AS nombre_nivel_ingles,
-          MAX(ae.nombre_arte_especialidad) AS nombre_arte_especialidad
-        FROM Alumno a
-        JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
-        LEFT JOIN Usuario u ON a.id_usuario = u.id_usuario
-        LEFT JOIN Personal p ON a.id_personal = p.id_personal
-        LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
-        LEFT JOIN Taller t ON at.id_taller = t.id_taller
-        LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
-        LEFT JOIN Nivel_Ingles ni ON ani.id_nivel_ingles = ni.id_nivel_ingles
-        LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
-        LEFT JOIN Arte_Especialidad ae ON aae.id_arte_especialidad = ae.id_arte_especialidad
-        WHERE a.id_grado_grupo = ? AND a.estado_alumno = 1
-        GROUP BY a.id_alumno
-      `, [id_grado_grupo]);
+ // OBTENER ALUMNOS POR GRUPO
+router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res) => {
+  const { id_grado_grupo } = req.params;
+  try {
+    const [alumnos] = await db.query(`
+      SELECT 
+        a.id_alumno,
+        MAX(a.nombre_alumno) AS nombre_alumno,
+        MAX(a.apaterno_alumno) AS apaterno_alumno,
+        MAX(a.amaterno_alumno) AS amaterno_alumno,
+        MAX(a.id_grado_grupo) AS id_grado_grupo,
+        MAX(a.id_personal) AS id_personal,
+        MAX(u.correo_usuario) AS correo_alumno,
+        MAX(g.grado) AS grado,
+        MAX(g.grupo) AS grupo,
+        MAX(p.nombre_personal) AS nombre_counselor,
+        MAX(p.apaterno_personal) AS apaterno_counselor,
+        GROUP_CONCAT(DISTINCT t.nombre_taller SEPARATOR ', ') AS talleres,
+        MAX(ni.nombre_nivel_ingles) AS nombre_nivel_ingles,
+        MAX(ae.nombre_arte_especialidad) AS nombre_arte_especialidad
+      FROM Alumno a
+      JOIN Grado_Grupo g ON a.id_grado_grupo = g.id_grado_grupo
+      LEFT JOIN Usuario u ON a.id_usuario = u.id_usuario
+      LEFT JOIN Personal p ON a.id_personal = p.id_personal
+      LEFT JOIN Alumno_Taller at ON a.id_alumno = at.id_alumno
+      LEFT JOIN Taller t ON at.id_taller = t.id_taller
+      LEFT JOIN Alumno_Nivel_Ingles ani ON a.id_alumno = ani.id_alumno
+      LEFT JOIN Nivel_Ingles ni ON ani.id_nivel_ingles = ni.id_nivel_ingles
+      LEFT JOIN Alumno_Arte_Especialidad aae ON a.id_alumno = aae.id_alumno
+      LEFT JOIN Arte_Especialidad ae ON aae.id_arte_especialidad = ae.id_arte_especialidad
+      WHERE a.id_grado_grupo = ? AND a.estado_alumno = 1
+      GROUP BY a.id_alumno
+      ORDER BY
+        COALESCE(MAX(a.apaterno_alumno), '') COLLATE utf8mb4_unicode_ci ASC,
+        COALESCE(MAX(a.amaterno_alumno), '') COLLATE utf8mb4_unicode_ci ASC,
+        COALESCE(MAX(a.nombre_alumno), '') COLLATE utf8mb4_unicode_ci ASC
+    `, [id_grado_grupo]);
 
-      console.log('Alumnos por grupo:', JSON.stringify(alumnos, null, 2)); // Debug log
-      res.json({ success: true, alumnos });
-    } catch (error) {
-      console.error('Error al obtener alumnos por grupo:', error);
-      res.status(500).json({ success: false, message: 'Error al obtener alumnos del grupo' });
-    }
-  });
+    console.log('Alumnos por grupo (ordenados):', alumnos.map(a => `${a.apaterno_alumno || ''} ${a.amaterno_alumno || ''}, ${a.nombre_alumno || ''}`));
+    res.json({ success: true, alumnos });
+  } catch (error) {
+    console.error('Error al obtener alumnos por grupo:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener alumnos del grupo' });
+  }
+});
+
 
   //OBTENER PERSONAL QUE ES COUNSELOR
   router.get('/counselors-disponibles', authMiddleware, async (req, res) => {
