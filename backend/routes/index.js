@@ -1224,7 +1224,6 @@ router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res
   });
 
   //ACTUALIZAR EL GRUPO DEL ALUMNO
-  // ACTUALIZAR EL GRUPO DEL ALUMNO
   router.post('/actualizar-grupo-alumno', authMiddleware, async (req, res) => {
     const { id_alumno, id_grado_grupo } = req.body;
 
@@ -1232,40 +1231,35 @@ router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res
     try {
       await connection.beginTransaction();
 
-      // 1. Obtener el nivel de inglés actual del alumno
-      const [nivelInglesActual] = await connection.query(
-        `SELECT id_nivel_ingles FROM Alumno_Nivel_Ingles WHERE id_alumno = ?`,
+      // 1) Verificar si realmente está cambiando de grupo
+      const [alumnoActual] = await connection.query(
+        `SELECT id_grado_grupo FROM Alumno WHERE id_alumno = ?`,
         [id_alumno]
       );
 
-      // 2. Si el alumno tiene un nivel de inglés asignado, verificar si el nuevo grupo tiene un docente que lo imparta
-      if (nivelInglesActual.length > 0 && nivelInglesActual[0].id_nivel_ingles) {
-        const [docentesNivelIngles] = await connection.query(
-          `SELECT 1 FROM Personal_Nivel_Ingles pni
-          WHERE pni.id_grado_grupo = ? AND pni.id_nivel_ingles = ?`,
-          [id_grado_grupo, nivelInglesActual[0].id_nivel_ingles]
-        );
-
-        if (docentesNivelIngles.length === 0) {
-          throw new Error(
-            'No se puede cambiar al grupo seleccionado porque no hay un docente asignado para el nivel de inglés actual del alumno.'
-          );
-        }
+      if (alumnoActual.length === 0) {
+        throw new Error('Alumno no encontrado');
       }
 
-      // 3. Actualizar grupo
+      if (alumnoActual[0].id_grado_grupo === parseInt(id_grado_grupo)) {
+        // No cambia de grupo, no hacemos nada
+        await connection.commit();
+        return res.json({ success: true, message: 'El alumno ya está en ese grupo' });
+      }
+
+      // 2) Actualizar grupo
       await connection.query(
         'UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?',
         [id_grado_grupo, id_alumno]
       );
 
-      // 4. Eliminar materias anteriores
+      // 3) Eliminar materias anteriores
       await connection.query(
         'DELETE FROM Alumno_Materia WHERE id_alumno = ?',
         [id_alumno]
       );
 
-      // 5. Insertar nuevas materias del grupo
+      // 4) Insertar materias del nuevo grupo
       const [materiasGrupo] = await connection.query(
         'SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?',
         [id_grado_grupo]
@@ -1289,6 +1283,66 @@ router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res
       connection.release();
     }
   });
+  router.post('/actualizar-grupo-alumno', authMiddleware, async (req, res) => {
+    const { id_alumno, id_grado_grupo } = req.body;
+
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      // 1) Verificar si realmente está cambiando de grupo
+      const [alumnoActual] = await connection.query(
+        `SELECT id_grado_grupo FROM Alumno WHERE id_alumno = ?`,
+        [id_alumno]
+      );
+
+      if (alumnoActual.length === 0) {
+        throw new Error('Alumno no encontrado');
+      }
+
+      if (alumnoActual[0].id_grado_grupo === parseInt(id_grado_grupo)) {
+        // No cambia de grupo, no hacemos nada
+        await connection.commit();
+        return res.json({ success: true, message: 'El alumno ya está en ese grupo' });
+      }
+
+      // 2) Actualizar grupo
+      await connection.query(
+        'UPDATE Alumno SET id_grado_grupo = ? WHERE id_alumno = ?',
+        [id_grado_grupo, id_alumno]
+      );
+
+      // 3) Eliminar materias anteriores
+      await connection.query(
+        'DELETE FROM Alumno_Materia WHERE id_alumno = ?',
+        [id_alumno]
+      );
+
+      // 4) Insertar materias del nuevo grupo
+      const [materiasGrupo] = await connection.query(
+        'SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?',
+        [id_grado_grupo]
+      );
+
+      for (const m of materiasGrupo) {
+        await connection.query(
+          `INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia)
+          VALUES (?, ?, ?, 0)`,
+          [id_alumno, m.id_materia, m.id_personal]
+        );
+      }
+
+      await connection.commit();
+      res.json({ success: true });
+    } catch (error) {
+      await connection.rollback();
+      console.error('Error al actualizar grupo:', error);
+      res.status(500).json({ success: false, message: error.message || 'Error al actualizar grupo del alumno' });
+    } finally {
+      connection.release();
+    }
+  });
+
 
   //BUSCAR ALUMNOS
   router.get('/buscar-alumnos', authMiddleware, async (req, res) => {
