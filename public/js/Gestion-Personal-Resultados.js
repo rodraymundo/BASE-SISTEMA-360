@@ -1,19 +1,19 @@
 import { renderHeader } from '../assets/js/header.js';
 
 const tipoToIdPregunta = {
-  'Materias': 1,
-  'Counselors': 2,
-  'Coordinadores': 3,
-  'Subordinados': 4,
+  'materias': 1,
+  'counselors': 2,
+  'coordinadores': 3,
+  'subordinados': 4,
   '360': 5,
-  'Pares': 6,
-  'Jefes': 7,
-  'Servicios': 8,
-  'Talleres': 9,
-  'Instalaciones': 10,
-  'Inglés': 1,
-  'Artes': 1,
-  'Psicopedagogico': 1
+  'pares': 6,
+  'jefes': 7,
+  'servicios': 8,
+  'talleres': 9,
+  'instalaciones': 10,
+  'ingles': 1,
+  'artes': 1,
+  'psicopedagogico': 1
 };
 
 async function fetchWithRetry(url, options, retries = 3) {
@@ -246,8 +246,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     personalContainer.innerHTML = filtrados.map(p => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-          <img src="${p.img_personal || 'iconousuario.png'}" alt="Foto de ${p.nombre_personal}">
-          <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
+          <img src="${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
+          <h5>
+            ${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}
+          </h5>
+          <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
           <div>
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>
@@ -301,7 +304,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     serviciosContainer.innerHTML = filtrados.map(s => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-          <img src="${s.img_servicio || 'service.png'}" alt="Foto de ${s.nombre_servicio}">
+          <img src="/assets/img/${s.img_servicio || 'service.png'}" alt="Foto de ${s.nombre_servicio}">
           <h5>${s.nombre_servicio}</h5>
           <p>Servicio</p>
           <div>

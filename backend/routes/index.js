@@ -5865,6 +5865,16 @@ router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
 
 //RUTAS DE RESULTADOS
 
+/*router.get('/roles', authMiddleware, async (req, res) => {
+  try {
+    const [roles] = await db.query('SELECT id_rol, nombre_rol FROM Rol');
+    res.json(roles);
+  } catch (error) {
+    console.error('Error al obtener roles:', error);
+    res.status(500).json({ success: false, message: 'Error interno al obtener roles' });
+  }
+});*/
+
 router.get('/personal-por-rol-resultados/:id_rol', authMiddleware, async (req, res) => {
   const { id_rol } = req.params;
   try {
@@ -7027,6 +7037,7 @@ router.get('/ligas-deportivas-resultados/:id_liga', async (req, res) => {
 
 
 //FIN RUTAS DE RESULTADOS
+
 
 //INICIO RUTAS DE HISTORICO
 
