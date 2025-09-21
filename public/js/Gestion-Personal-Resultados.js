@@ -20,13 +20,64 @@ async function fetchWithRetry(url, options, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, options);
-      if (!response.ok) throw new Error(`Error en la respuesta del servidor: ${response.status}`);
-      return await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText || 'No se pudo conectar al servidor'}`);
+      }
+      const data = await response.json();
+      return data;
     } catch (error) {
+      console.error(`Intento ${i + 1} fallido para ${url}:`, error.message);
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
+}
+
+function generatePersonalAccordion(roles) {
+  let html = '';
+  const catOrder = ['Dirección General', 'Subdirección', 'Coordinadores', 'Docentes', 'Administración', 'Mantenimiento', 'Disciplina'];
+  const categoryMatches = {
+    'Dirección General': role => ['FUNDADOR', 'DIRECTOR GENERAL'].includes(role.nombre_rol),
+    'Subdirección': role => role.nombre_rol.startsWith('SUBDIRECTOR '),
+    'Coordinadores': role => role.nombre_rol.startsWith('COORDINADOR ') || role.nombre_rol === 'COMITE TECNICO',
+    'Docentes': role => role.nombre_rol.startsWith('PROFESOR ') || ['COUNSELOR', 'PEDAGÓGICO', 'PROFESOR DE TIEMPO COMPLETO PEDAGOGICO', 'EQUIPO EDUCADOR', 'TALLER EXTRAESCOLAR'].includes(role.nombre_rol),
+    'Administración': role => ['AUXILIAR ADMINISTRATIVO', 'ADMINISTRADOR', 'ENLACE ADMINISTRATIVO DE CAPTACIÓN', 'MARKETING', 'NEGOCIOS', 'NECESIDADES TECNOLÓGICAS'].includes(role.nombre_rol),
+    'Mantenimiento': role => role.nombre_rol.startsWith('ENCARGADO ') || ['AYUDANTE DE LIMPIEZA', 'GUARDIA DE SEGURIDAD', 'PARAMÉDICO'].includes(role.nombre_rol),
+    'Disciplina': role => ['DISCIPLINA', 'DISCIPLINA DE TALLERES'].includes(role.nombre_rol),
+  };
+
+  for (let i = 0; i < catOrder.length; i++) {
+    const cat = catOrder[i];
+    const catRoles = roles.filter(categoryMatches[cat]);
+    if (catRoles.length === 0) continue;
+
+    const headingId = `heading${cat.replace(/\s+/g, '')}`;
+    const collapseId = `collapse${cat.replace(/\s+/g, '')}`;
+    const expanded = i === 0 ? 'true' : 'false';
+    const showClass = i === 0 ? 'show' : '';
+    const collapsedClass = i === 0 ? '' : 'collapsed';
+
+    html += `
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="${headingId}">
+          <button class="accordion-button ${collapsedClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${expanded}" aria-controls="${collapseId}">
+            ${cat}
+          </button>
+        </h2>
+        <div id="${collapseId}" class="accordion-collapse collapse ${showClass}" aria-labelledby="${headingId}" data-bs-parent="#rolesAccordion">
+          <div class="accordion-body">
+            <ul class="list-group list-group-flush">
+              ${catRoles.map(r => `<li class="list-group-item role-item" data-role="${r.nombre_rol}" data-type="personal" data-id-rol="${r.id_rol}">${r.nombre_rol}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const dynamicRoles = document.getElementById('dynamicRoles');
+  dynamicRoles.innerHTML = html;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -70,8 +121,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function cargarRoles() {
     try {
-      roles = await fetchWithRetry('/roles', { credentials: 'include' });
-      document.querySelectorAll('.role-item').forEach(item => {
+      const rolesData = await fetchWithRetry('/roles', { credentials: 'include' });
+      if (!Array.isArray(rolesData)) {
+        throw new Error('La respuesta de /roles no es un arreglo válido');
+      }
+      roles = rolesData;
+      generatePersonalAccordion(roles);
+      document.querySelectorAll('.role-item[data-type="personal"]').forEach(item => {
         const roleName = item.dataset.role;
         const role = roles.find(r => r.nombre_rol.toLowerCase() === roleName.toLowerCase());
         if (role) {
@@ -85,9 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error al cargar roles:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de roles (/roles).'
-          : 'No se pudieron cargar los roles. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los roles: ${error.message}. Verifique la configuración del servidor o la base de datos.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -107,9 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error al cargar personal completo:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de personal (/personal-resultados).'
-          : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos del personal: ${error.message}.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -133,9 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       personalContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar personal.</div>';
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de personal por rol (/personal-por-rol-resultados/:id_rol).'
-          : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos del personal: ${error.message}.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -162,9 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar servicios.</div>';
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de servicios (/servicios).'
-          : 'No se pudieron cargar los datos de servicios. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos de servicios: ${error.message}.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -190,9 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar disciplinas.</div>';
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de disciplinas (/disciplinas-la-loma).'
-          : 'No se pudieron cargar los datos de disciplinas. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos de disciplinas: ${error.message}.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -218,9 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Error al cargar ligas deportivas.</div>';
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404')
-          ? 'El servidor no tiene configurada la lista de ligas (/ligas-deportivas).'
-          : 'No se pudieron cargar los datos de ligas deportivas. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos de ligas deportivas: ${error.message}.`,
         icon: 'error',
         showCancelButton: true,
         confirmButtonText: 'Reintentar',
@@ -247,9 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
           <img src="${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
-          <h5>
-            ${p.nombre_personal || ''} ${p.apaterno_personal || ''} ${p.amaterno_personal || ''}
-          </h5>
+          <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
           <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
           <div>
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
@@ -439,7 +481,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const modalBody = document.querySelector('#perfilModal .modal-body');
       modalBody.innerHTML = `
         <div class="text-center">
-          <img src="${img_personal || 'user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
+          <img src="/assets/img/${img_personal || 'user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
           <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
           <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
         </div>
@@ -483,7 +525,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error en mostrarFichaCompleta:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404') ? 'Personal no encontrado.' : 'No se pudieron cargar los datos del personal. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los datos del personal: ${error.message}.`,
         icon: 'error',
         confirmButtonText: 'Aceptar'
       });
@@ -635,8 +677,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const idTipoPregunta = tipoToIdPregunta[tipo];
         const results = await fetchWithRetry(
           `/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`,
-          { credentials: "include" }
-        );
+          { credentials: "include"
+        });
         if (results.generalAverage !== "N/A" && !isNaN(parseFloat(results.generalAverage))) {
           labels.push(tipo.toUpperCase());
           dataScores.push(parseFloat(results.generalAverage));
@@ -715,7 +757,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error("Error generando PDF:", error);
       Swal.fire({
         title: "Error",
-        text: "No se pudo generar el PDF. Intenta nuevamente.",
+        text: `No se pudo generar el PDF: ${error.message}.`,
         icon: "error",
         confirmButtonText: "Aceptar"
       });
@@ -835,7 +877,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error en mostrarKPIs:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message.includes('404') ? 'KPIs no encontrados.' : error.message || 'No se pudieron cargar los KPIs. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar los KPIs: ${error.message}.`,
         icon: 'error',
         confirmButtonText: 'Aceptar'
       });
@@ -885,7 +927,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Error en mostrarEvaluaciones:', error);
       Swal.fire({
         title: 'Error',
-        text: error.message || 'No se pudieron cargar las evaluaciones. Asegúrese de que el servidor esté corriendo.',
+        text: `No se pudieron cargar las evaluaciones: ${error.message}.`,
         icon: 'error',
         confirmButtonText: 'Aceptar'
       });
@@ -893,371 +935,363 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function mostrarEvaluacionResults(id_personal, tipo) {
-  try {
-    const modalElement = document.getElementById('evaluacionResultsModal');
-    if (!modalElement) throw new Error('No se encontró el elemento #evaluacionResultsModal');
+    try {
+      const modalElement = document.getElementById('evaluacionResultsModal');
+      if (!modalElement) throw new Error('No se encontró el elemento #evaluacionResultsModal');
 
-    const modalBody = document.querySelector('#evaluacionResultsModal .modal-body');
-    if (!modalBody) throw new Error('No se encontró el elemento #evaluacionResultsModal .modal-body');
+      const modalBody = document.querySelector('#evaluacionResultsModal .modal-body');
+      if (!modalBody) throw new Error('No se encontró el elemento #evaluacionResultsModal .modal-body');
 
-    const idTipoPregunta = tipoToIdPregunta[tipo];
-    if (!idTipoPregunta) throw new Error('Tipo de evaluación no soportado');
+      const idTipoPregunta = tipoToIdPregunta[tipo];
+      if (!idTipoPregunta) throw new Error('Tipo de evaluación no soportado');
 
-    // Obtener resultados de la evaluación
-    const data = await fetchWithRetry(`/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
+      const data = await fetchWithRetry(`/personal-evaluaciones-results/${id_personal}/${tipo}?id_tipo_pregunta=${idTipoPregunta}`, { credentials: 'include' });
 
-    // Obtener comentarios positivos y negativos
-    const positiveComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=positive`, { credentials: 'include' });
-    const negativeComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=negative`, { credentials: 'include' });
+      const positiveComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=positive`, { credentials: 'include' });
+      const negativeComments = await fetchWithRetry(`/comments-director?id_personal=${id_personal}&type=negative`, { credentials: 'include' });
 
-    let html = `
-      <div class="results-header">
-        <h4>PREPA BALMORAL ESCOCÉS</h4>
-        <h5>CONCENTRADO EVALUACIÓN DOCENTE</h5>
-        <p>NOMBRE DEL DOCENTE: ${data.teacherName}</p>
-      </div>
-      <table class="results-table">
-        <thead>
-          <tr>
-            <th>No.</th>
-            <th>CRITERIO DE EVALUACIÓN</th>
-    `;
-
-    if (data.isMultiple) {
-      data.subjects.forEach(subject => {
-        html += `<th colspan="2">${subject.name}</th>`;
-      });
-      html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
-      data.subjects.forEach(() => {
-        html += `<th>% de Sí</th><th>% de No</th>`;
-      });
-      html += `<th></th></tr>`;
-    } else {
-      html += `
-        <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
-        <th>PROMEDIO</th>
-      </tr>
-      <tr>
-        <th></th>
-        <th></th>
-        <th>% de Sí</th>
-        <th>% de No</th>
-        <th></th>
-      </tr>
+      let html = `
+        <div class="results-header">
+          <h4>PREPA BALMORAL ESCOCÉS</h4>
+          <h5>CONCENTRADO EVALUACIÓN DOCENTE</h5>
+          <p>NOMBRE DEL DOCENTE: ${data.teacherName}</p>
+        </div>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>CRITERIO DE EVALUACIÓN</th>
       `;
-    }
 
-    html += `</thead><tbody>`;
+      if (data.isMultiple) {
+        data.subjects.forEach(subject => {
+          html += `<th colspan="2">${subject.name}</th>`;
+        });
+        html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
+        data.subjects.forEach(() => {
+          html += `<th>% de Sí</th><th>% de No</th>`;
+        });
+        html += `<th></th></tr>`;
+      } else {
+        html += `
+          <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
+          <th>PROMEDIO</th>
+        </tr>
+        <tr>
+          <th></th>
+          <th></th>
+          <th>% de Sí</th>
+          <th>% de No</th>
+          <th></th>
+        </tr>
+        `;
+      }
 
-    html += `<tr><td></td><td>Total de alumnos</td>`;
-    data.subjects.forEach(subject => {
-      html += `<td colspan="2">${subject.totalAlumnos}</td>`;
-    });
-    html += `<td></td></tr>`;
+      html += `</thead><tbody>`;
 
-    for (let i = 0; i < data.criteria.length; i++) {
-      const crit = data.criteria[i];
-      html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
+      html += `<tr><td></td><td>Total de alumnos</td>`;
       data.subjects.forEach(subject => {
-        const c = subject.criteria[i] || { pctSi: 0, pctNo: 0 };
-        html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+        html += `<td colspan="2">${subject.totalAlumnos}</td>`;
       });
-      html += `<td>${crit.promedio}%</td></tr>`;
-    }
+      html += `<td></td></tr>`;
 
-    html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
-    data.subjects.forEach(subject => {
-      html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
-    });
-    html += `<td>${data.generalAverage}%</td></tr>`;
+      for (let i = 0; i < data.criteria.length; i++) {
+        const crit = data.criteria[i];
+        html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
+        data.subjects.forEach(subject => {
+          const c = subject.criteria[i] || { pctSi: 0, pctNo: 0 };
+          html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+        });
+        html += `<td>${crit.promedio}%</td></tr>`;
+      }
 
-    html += `</tbody></table>`;
-
-    // Sección de comentarios dividida en dos tablas
-    html += `
-      <div class="comments-section">
-        <h3>Comentarios de Admiración</h3>
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th style="width: 10%;">No.</th>
-              <th style="width: 30%;">Comentarista</th>
-              <th style="width: 60%;">Comentario</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              positiveComments.comments && positiveComments.comments.length > 0
-                ? positiveComments.comments
-                    .map(
-                      (comment, index) => `
-                        <tr>
-                          <td>${index + 1}</td>
-                          <td>${comment.commenter}</td>
-                          <td>${comment.comment}</td>
-                        </tr>
-                      `
-                    )
-                    .join('')
-                : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
-            }
-          </tbody>
-        </table>
-      </div>
-      <div class="comments-section">
-        <h3>Áreas de Mejora</h3>
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th style="width: 10%;">No.</th>
-              <th style="width: 30%;">Comentarista</th>
-              <th style="width: 60%;">Comentario</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              negativeComments.comments && negativeComments.comments.length > 0
-                ? negativeComments.comments
-                    .map(
-                      (comment, index) => `
-                        <tr>
-                          <td>${index + 1}</td>
-                          <td>${comment.commenter}</td>
-                          <td>${comment.comment}</td>
-                        </tr>
-                      `
-                    )
-                    .join('')
-                : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
-            }
-          </tbody>
-        </table>
-      </div>
-    `;
-
-    modalBody.innerHTML = html;
-
-    const modal = new bootstrap.Modal(modalElement);
-
-    modalElement.addEventListener('hidden.bs.modal', () => {
-      const backdrops = document.querySelectorAll('.modal-backdrop');
-      backdrops.forEach(backdrop => backdrop.remove());
-      document.body.classList.remove('modal-open');
-      document.body.style.paddingRight = '';
-    }, { once: true });
-
-    modal.show();
-  } catch (error) {
-    console.error('Error en mostrarEvaluacionResults:', error);
-    Swal.fire({
-      title: 'Error',
-      text: error.message || 'No se pudieron cargar los resultados de la evaluación.',
-      icon: 'error',
-      confirmButtonText: 'Aceptar'
-    });
-  }
-}
-
-async function mostrarServiciosResultados(id, type) {
-  try {
-    const modalElement = document.getElementById('serviciosResultadosModal');
-    if (!modalElement) throw new Error('No se encontró el elemento #serviciosResultadosModal');
-
-    const modalBody = document.querySelector('#serviciosResultadosModal .modal-body');
-    if (!modalBody) throw new Error('No se encontró el elemento #serviciosResultadosModal .modal-body');
-
-    let endpoint, nombreCampo, tipoNombre, commentsEndpoint;
-    if (type === 'servicio') {
-      endpoint = `/servicios-resultados/${id}`;
-      nombreCampo = 'teacherName'; // Usamos teacherName para consistencia con el backend
-      tipoNombre = 'SERVICIOS';
-      commentsEndpoint = `/comments-servicio?id=${id}`;
-    } else if (type === 'disciplina') {
-      endpoint = `/disciplinas-la-loma-resultados/${id}`;
-      nombreCampo = 'nombre_disciplina';
-      tipoNombre = 'DISCIPLINAS DEPORTIVAS';
-      commentsEndpoint = `/comments-disciplina-deportiva?id=${id}`;
-    } else if (type === 'liga') {
-      endpoint = `/ligas-deportivas-resultados/${id}`;
-      nombreCampo = 'nombre_liga';
-      tipoNombre = 'LIGAS DEPORTIVAS';
-      commentsEndpoint = `/comments-liga-deportiva?id=${id}`;
-    } else {
-      throw new Error('Tipo no soportado');
-    }
-
-    // Obtener resultados
-    const data = await fetchWithRetry(`${endpoint}?id_tipo_pregunta=${tipoToIdPregunta['servicios']}`, { credentials: 'include' });
-
-    // Obtener comentarios positivos y negativos
-    const positiveComments = await fetchWithRetry(`${commentsEndpoint}&type=positive`, { credentials: 'include' });
-    const negativeComments = await fetchWithRetry(`${commentsEndpoint}&type=negative`, { credentials: 'include' });
-
-    let html = `
-      <div class="results-header">
-        <h4>PREPA BALMORAL ESCOCÉS</h4>
-        <h5>CONCENTRADO EVALUACIÓN DE ${tipoNombre}</h5>
-        <p>${type.toUpperCase()}: ${data[nombreCampo]}</p>
-      </div>
-      <table class="results-table">
-        <thead>
-          <tr>
-            <th>No.</th>
-            <th>CRITERIO DE EVALUACIÓN</th>
-    `;
-
-    if (data.isMultiple) {
+      html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
       data.subjects.forEach(subject => {
-        html += `<th colspan="2">${subject.name}</th>`;
+        html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
       });
-      html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
-      data.subjects.forEach(() => {
-        html += `<th>% de Sí</th><th>% de No</th>`;
-      });
-      html += `<th></th></tr>`;
-    } else {
+      html += `<td>${data.generalAverage}%</td></tr>`;
+
+      html += `</tbody></table>`;
+
       html += `
-        <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
-        <th>PROMEDIO</th>
-      </tr>
-      <tr>
-        <th></th>
-        <th></th>
-        <th>% de Sí</th>
-        <th>% de No</th>
-        <th></th>
-      </tr>
+        <div class="comments-section">
+          <h3>Comentarios de Admiración</h3>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">No.</th>
+                <th style="width: 30%;">Comentarista</th>
+                <th style="width: 60%;">Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                positiveComments.comments && positiveComments.comments.length > 0
+                  ? positiveComments.comments
+                      .map(
+                        (comment, index) => `
+                          <tr>
+                            <td>${index + 1}</td>
+                            <td>${comment.commenter}</td>
+                            <td>${comment.comment}</td>
+                          </tr>
+                        `
+                      )
+                      .join('')
+                  : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="comments-section">
+          <h3>Áreas de Mejora</h3>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">No.</th>
+                <th style="width: 30%;">Comentarista</th>
+                <th style="width: 60%;">Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                negativeComments.comments && negativeComments.comments.length > 0
+                  ? negativeComments.comments
+                      .map(
+                        (comment, index) => `
+                          <tr>
+                            <td>${index + 1}</td>
+                            <td>${comment.commenter}</td>
+                            <td>${comment.comment}</td>
+                          </tr>
+                        `
+                      )
+                      .join('')
+                  : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
       `;
-    }
 
-    html += `</thead><tbody>`;
+      modalBody.innerHTML = html;
 
-    html += `<tr><td></td><td>Total de alumnos</td>`;
-    data.subjects.forEach(subject => {
-      html += `<td colspan="2">${subject.totalAlumnos}</td>`;
-    });
-    html += `<td></td></tr>`;
+      const modal = new bootstrap.Modal(modalElement);
 
-    for (let i = 0; i < data.criteria.length; i++) {
-      const crit = data.criteria[i];
-      html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
-      data.subjects.forEach(subject => {
-        const c = subject.criteria[i] || { pctSi: 'N/A', pctNo: 'N/A' };
-        html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+      modalElement.addEventListener('hidden.bs.modal', () => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.paddingRight = '';
+      }, { once: true });
+
+      modal.show();
+    } catch (error) {
+      console.error('Error en mostrarEvaluacionResults:', error);
+      Swal.fire({
+        title: 'Error',
+        text: `No se pudieron cargar los resultados de la evaluación: ${error.message}.`,
+        icon: 'error',
+        confirmButtonText: 'Aceptar'
       });
-      html += `<td>${crit.promedio}%</td></tr>`;
     }
-
-    html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
-    data.subjects.forEach(subject => {
-      html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
-    });
-    html += `<td>${data.generalAverage}%</td></tr>`;
-
-    html += `</tbody></table>`;
-
-    // Sección de comentarios dividida en dos tablas
-    html += `
-      <div class="comments-section">
-        <h3>Comentarios de Admiración</h3>
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th style="width: 10%;">No.</th>
-              <th style="width: 30%;">Comentarista</th>
-              <th style="width: 60%;">Comentario</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              positiveComments.comments && positiveComments.comments.length > 0
-                ? positiveComments.comments
-                    .map(
-                      (comment, index) => `
-                        <tr>
-                          <td>${index + 1}</td>
-                          <td>${comment.commenter}</td>
-                          <td>${comment.comment}</td>
-                        </tr>
-                      `
-                    )
-                    .join('')
-                : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
-            }
-          </tbody>
-        </table>
-      </div>
-      <div class="comments-section">
-        <h3>Áreas de Mejora</h3>
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th style="width: 10%;">No.</th>
-              <th style="width: 30%;">Comentarista</th>
-              <th style="width: 60%;">Comentario</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              negativeComments.comments && negativeComments.comments.length > 0
-                ? negativeComments.comments
-                    .map(
-                      (comment, index) => `
-                        <tr>
-                          <td>${index + 1}</td>
-                          <td>${comment.commenter}</td>
-                          <td>${comment.comment}</td>
-                        </tr>
-                      `
-                    )
-                    .join('')
-                : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
-            }
-          </tbody>
-        </table>
-      </div>
-    `;
-
-    modalBody.innerHTML = html;
-
-    const modal = new bootstrap.Modal(modalElement);
-
-    modalElement.addEventListener('hidden.bs.modal', () => {
-      const backdrops = document.querySelectorAll('.modal-backdrop');
-      backdrops.forEach(backdrop => backdrop.remove());
-      document.body.classList.remove('modal-open');
-      document.body.style.paddingRight = '';
-    }, { once: true });
-
-    modal.show();
-  } catch (error) {
-    console.error(`Error en mostrarServiciosResultados (${type}):`, error);
-    Swal.fire({
-      title: 'Error',
-      text: error.message || `No se pudieron cargar los resultados de ${type}.`,
-      icon: 'error',
-      confirmButtonText: 'Aceptar'
-    });
   }
-}
+
+  async function mostrarServiciosResultados(id, type) {
+    try {
+      const modalElement = document.getElementById('serviciosResultadosModal');
+      if (!modalElement) throw new Error('No se encontró el elemento #serviciosResultadosModal');
+
+      const modalBody = document.querySelector('#serviciosResultadosModal .modal-body');
+      if (!modalBody) throw new Error('No se encontró el elemento #serviciosResultadosModal .modal-body');
+
+      let endpoint, nombreCampo, tipoNombre, commentsEndpoint;
+      if (type === 'servicio') {
+        endpoint = `/servicios-resultados/${id}`;
+        nombreCampo = 'teacherName';
+        tipoNombre = 'SERVICIOS';
+        commentsEndpoint = `/comments-servicio?id=${id}`;
+      } else if (type === 'disciplina') {
+        endpoint = `/disciplinas-la-loma-resultados/${id}`;
+        nombreCampo = 'nombre_disciplina';
+        tipoNombre = 'DISCIPLINAS DEPORTIVAS';
+        commentsEndpoint = `/comments-disciplina-deportiva?id=${id}`;
+      } else if (type === 'liga') {
+        endpoint = `/ligas-deportivas-resultados/${id}`;
+        nombreCampo = 'nombre_liga';
+        tipoNombre = 'LIGAS DEPORTIVAS';
+        commentsEndpoint = `/comments-liga-deportiva?id=${id}`;
+      } else {
+        throw new Error('Tipo no soportado');
+      }
+
+      const data = await fetchWithRetry(`${endpoint}?id_tipo_pregunta=${tipoToIdPregunta['servicios']}`, { credentials: 'include' });
+
+      const positiveComments = await fetchWithRetry(`${commentsEndpoint}&type=positive`, { credentials: 'include' });
+      const negativeComments = await fetchWithRetry(`${commentsEndpoint}&type=negative`, { credentials: 'include' });
+
+      let html = `
+        <div class="results-header">
+          <h4>PREPA BALMORAL ESCOCÉS</h4>
+          <h5>CONCENTRADO EVALUACIÓN DE ${tipoNombre}</h5>
+          <p>${type.toUpperCase()}: ${data[nombreCampo]}</p>
+        </div>
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>CRITERIO DE EVALUACIÓN</th>
+      `;
+
+      if (data.isMultiple) {
+        data.subjects.forEach(subject => {
+          html += `<th colspan="2">${subject.name}</th>`;
+        });
+        html += `<th>PROMEDIO</th></tr><tr><th></th><th></th>`;
+        data.subjects.forEach(() => {
+          html += `<th>% de Sí</th><th>% de No</th>`;
+        });
+        html += `<th></th></tr>`;
+      } else {
+        html += `
+          <th colspan="2">${data.subjects[0]?.name || 'N/A'}</th>
+          <th>PROMEDIO</th>
+        </tr>
+        <tr>
+          <th></th>
+          <th></th>
+          <th>% de Sí</th>
+          <th>% de No</th>
+          <th></th>
+        </tr>
+        `;
+      }
+
+      html += `</thead><tbody>`;
+
+      html += `<tr><td></td><td>Total de alumnos</td>`;
+      data.subjects.forEach(subject => {
+        html += `<td colspan="2">${subject.totalAlumnos}</td>`;
+      });
+      html += `<td></td></tr>`;
+
+      for (let i = 0; i < data.criteria.length; i++) {
+        const crit = data.criteria[i];
+        html += `<tr><td>${crit.no}</td><td>${crit.criterio}</td>`;
+        data.subjects.forEach(subject => {
+          const c = subject.criteria[i] || { pctSi: 'N/A', pctNo: 'N/A' };
+          html += `<td>${c.pctSi}%</td><td>${c.pctNo}%</td>`;
+        });
+        html += `<td>${crit.promedio}%</td></tr>`;
+      }
+
+      html += `<tr><td></td><td>PROMEDIO GENERAL DE SATISFACCIÓN</td>`;
+      data.subjects.forEach(subject => {
+        html += `<td>${subject.avgSi}%</td><td>${subject.avgNo}%</td>`;
+      });
+      html += `<td>${data.generalAverage}%</td></tr>`;
+
+      html += `</tbody></table>`;
+
+      html += `
+        <div class="comments-section">
+          <h3>Comentarios de Admiración</h3>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">No.</th>
+                <th style="width: 30%;">Comentarista</th>
+                <th style="width: 60%;">Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                positiveComments.comments && positiveComments.comments.length > 0
+                  ? positiveComments.comments
+                      .map(
+                        (comment, index) => `
+                          <tr>
+                            <td>${index + 1}</td>
+                            <td>${comment.commenter}</td>
+                            <td>${comment.comment}</td>
+                          </tr>
+                        `
+                      )
+                      .join('')
+                  : '<tr><td colspan="3">No hay comentarios de admiración disponibles</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="comments-section">
+          <h3>Áreas de Mejora</h3>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">No.</th>
+                <th style="width: 30%;">Comentarista</th>
+                <th style="width: 60%;">Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                negativeComments.comments && negativeComments.comments.length > 0
+                  ? negativeComments.comments
+                      .map(
+                        (comment, index) => `
+                          <tr>
+                            <td>${index + 1}</td>
+                            <td>${comment.commenter}</td>
+                            <td>${comment.comment}</td>
+                          </tr>
+                        `
+                      )
+                      .join('')
+                  : '<tr><td colspan="3">No hay áreas de mejora disponibles</td></tr>'
+              }
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      modalBody.innerHTML = html;
+
+      const modal = new bootstrap.Modal(modalElement);
+
+      modalElement.addEventListener('hidden.bs.modal', () => {
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.paddingRight = '';
+      }, { once: true });
+
+      modal.show();
+    } catch (error) {
+      console.error(`Error en mostrarServiciosResultados (${type}):`, error);
+      Swal.fire({
+        title: 'Error',
+        text: `No se pudieron cargar los resultados de ${type}: ${error.message}.`,
+        icon: 'error',
+        confirmButtonText: 'Aceptar'
+      });
+    }
+  }
 
   sidebar.addEventListener('click', async (e) => {
     const roleItem = e.target.closest('.role-item');
-    const accordionItem = e.target.closest('.accordion-item');
     if (roleItem && !roleItem.classList.contains('disabled')) {
       const idRol = roleItem.dataset.idRol;
+      const type = roleItem.dataset.type;
       document.querySelectorAll('.role-item').forEach(item => item.classList.remove('active'));
       roleItem.classList.add('active');
       buscadorPersonal.value = '';
-      await cargarPersonalPorRol(idRol);
-    } else if (accordionItem) {
-      document.querySelectorAll('.role-item').forEach(item => item.classList.remove('active'));
-      buscadorPersonal.value = '';
-      if (accordionItem.dataset.type === 'services') {
+      if (type === 'personal') {
+        await cargarPersonalPorRol(idRol);
+      } else if (type === 'services') {
         await cargarServicios();
-      } else if (accordionItem.dataset.type === 'la-loma') {
+      } else if (type === 'la-loma') {
         await cargarDisciplinasLaLoma();
-      } else if (accordionItem.dataset.type === 'ligas-deportivas') {
+      } else if (type === 'ligas-deportivas') {
         await cargarLigasDeportivas();
       }
     }
