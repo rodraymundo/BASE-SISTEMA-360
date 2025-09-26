@@ -2163,7 +2163,7 @@ router.get('/getTalleres', authMiddleware, async (req, res) => {
   router.get('/getCounselor', authMiddleware, async (req, res) => {
     const id_alumno = req.session.user.id_alumno; // SE AGREGO A LA SESSION DE USUARIO AL INICIAR SESION 
     const id_personal = req.session.user.id_personal; // SU COUNSELOR
-    const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, a.estado_evaluacion_counselor FROM Personal p, Alumno a WHERE a.id_alumno=? AND p.id_personal=?"; // OBTENER EL COUNSELOR QUE TIENE EL ALUMNO
+    const query = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal, p.img_personal, a.estado_evaluacion_counselor FROM Personal p, Alumno a WHERE a.id_alumno=? AND p.id_personal=?"; // OBTENER EL COUNSELOR QUE TIENE EL ALUMNO
     try {
       const [counselor] = await db.query(query,[id_alumno,id_personal]);
       res.json({ success: true, counselor });
