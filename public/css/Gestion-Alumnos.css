@@ -17,6 +17,13 @@ main.container {
   padding-bottom: 0 !important;
 }
 
+/* Solo para modales de Bootstrap */
+.modal-body {
+  max-height: 70vh;  /* 70% de la altura de la ventana */
+  overflow-y: auto;  /* scroll interno si hace falta */
+  padding: 1rem;
+}
+
 main .row {
   flex: 1;
   display: flex;

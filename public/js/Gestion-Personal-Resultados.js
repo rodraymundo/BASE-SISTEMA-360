@@ -38,18 +38,20 @@ function generatePersonalAccordion(roles) {
   let html = '';
   const catOrder = ['Dirección General', 'Subdirección', 'Coordinadores', 'Docentes', 'Administración', 'Mantenimiento', 'Disciplina'];
   const categoryMatches = {
-    'Dirección General': role => ['FUNDADOR', 'DIRECTOR GENERAL'].includes(role.nombre_rol),
-    'Subdirección': role => role.nombre_rol.startsWith('SUBDIRECTOR '),
-    'Coordinadores': role => role.nombre_rol.startsWith('COORDINADOR ') || role.nombre_rol === 'COMITE TECNICO',
-    'Docentes': role => role.nombre_rol.startsWith('PROFESOR ') || ['COUNSELOR', 'PEDAGÓGICO', 'PROFESOR DE TIEMPO COMPLETO PEDAGOGICO', 'EQUIPO EDUCADOR', 'TALLER EXTRAESCOLAR'].includes(role.nombre_rol),
-    'Administración': role => ['AUXILIAR ADMINISTRATIVO', 'ADMINISTRADOR', 'ENLACE ADMINISTRATIVO DE CAPTACIÓN', 'MARKETING', 'NEGOCIOS', 'NECESIDADES TECNOLÓGICAS'].includes(role.nombre_rol),
-    'Mantenimiento': role => role.nombre_rol.startsWith('ENCARGADO ') || ['AYUDANTE DE LIMPIEZA', 'GUARDIA DE SEGURIDAD', 'PARAMÉDICO'].includes(role.nombre_rol),
-    'Disciplina': role => ['DISCIPLINA', 'DISCIPLINA DE TALLERES'].includes(role.nombre_rol),
+    'Dirección General': role => ['FUNDADOR', 'DIRECTOR GENERAL'].includes(role.nombre_rol.toUpperCase()),
+    'Subdirección': role => role.nombre_rol.toUpperCase().startsWith('SUBDIRECCIÓN '),
+    'Coordinadores': role => role.nombre_rol.toUpperCase().startsWith('COORDINADOR ') || role.nombre_rol.toUpperCase() === 'COMITE TECNICO',
+    'Docentes': role => role.nombre_rol.toUpperCase().startsWith('PROFESOR ') || ['COUNSELOR', 'PEDAGÓGICO', 'PROFESOR DE TIEMPO COMPLETO PEDAGOGICO', 'EQUIPO EDUCADOR', 'TALLER EXTRAESCOLAR'].includes(role.nombre_rol.toUpperCase()),
+    'Administración': role => ['AUXILIAR ADMINISTRATIVO', 'ENLACE ADMINISTRATIVO DE CAPTACIÓN', 'MARKETING', 'NEGOCIOS', 'NECESIDADES TECNOLÓGICAS'].includes(role.nombre_rol.toUpperCase()),
+    'Mantenimiento': role => role.nombre_rol.toUpperCase().startsWith('ENCARGADO ') || ['AYUDANTE DE LIMPIEZA', 'GUARDIA DE SEGURIDAD', 'PARAMÉDICO'].includes(role.nombre_rol.toUpperCase()),
+    'Disciplina': role => ['DISCIPLINA', 'DISCIPLINA DE TALLERES'].includes(role.nombre_rol.toUpperCase()),
   };
 
   for (let i = 0; i < catOrder.length; i++) {
     const cat = catOrder[i];
     const catRoles = roles.filter(categoryMatches[cat]);
+    console.log(`Categoría "${cat}": ${catRoles.length} roles encontrados`, catRoles); // Log para depuración
+
     if (catRoles.length === 0) continue;
 
     const headingId = `heading${cat.replace(/\s+/g, '')}`;
@@ -68,7 +70,7 @@ function generatePersonalAccordion(roles) {
         <div id="${collapseId}" class="accordion-collapse collapse ${showClass}" aria-labelledby="${headingId}" data-bs-parent="#rolesAccordion">
           <div class="accordion-body">
             <ul class="list-group list-group-flush">
-              ${catRoles.map(r => `<li class="list-group-item role-item" data-role="${r.nombre_rol}" data-type="personal" data-id-rol="${r.id_rol}">${r.nombre_rol}</li>`).join('')}
+              ${catRoles.map(r => `<li class="list-group-item role-item" data-role="${r.nombre_rol}" data-type="personal">${r.nombre_rol}</li>`).join('')}
             </ul>
           </div>
         </div>
@@ -291,8 +293,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
           <img src="${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
-          <h5>${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}</h5>
-          <p>${p.roles_puesto || p.roles || p.nombre_puesto}</p>
+          <h5>
+            ${p.nombre_personal}
+            ${p.apaterno_personal != null ? p.apaterno_personal : ""}
+            ${p.amaterno_personal != null ? p.amaterno_personal : ""}
+          </h5>
+
           <div>
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>
@@ -435,7 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const now = new Date();
     const month = now.getMonth() + 1;
     const year = now.getFullYear();
-    return month >= 1 && month <= 6 ? `ENERO - JUNIO ${year}` : `JULIO - DICIEMBRE ${year}`;
+    return month >= 1 && month <= 6 ? `FEBRERO - JULIO ${year}` : `AGOSTO - ENERO ${year}`;
   }
 
   function calcularResumen(categoria) {

@@ -11,7 +11,7 @@
   const multer = require('multer');
   const streamifier = require('streamifier');
   const cloudinary = require('cloudinary').v2;
-
+  const xlsx = require("xlsx");
   
 // Configura Cloudinary con variables de entorno
 cloudinary.config({
@@ -5601,8 +5601,7 @@ router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
     id_personal,
     id_grado_grupo,
     id_nivel_ingles,
-    id_arte_especialidad,
-    horas_materia // opcional: si quieres manejar horas desde el front al crear asignación
+    id_arte_especialidad
   } = req.body;
 
   let conn;
@@ -5660,22 +5659,6 @@ router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
         [id_nivel_ingles, id_grado_grupo, id_materia]
       );
 
-      // comprobar si la tabla Personal_Nivel_Ingles tiene columna horas_materia (opcional)
-      const [colCheck] = await conn.query("SHOW COLUMNS FROM Personal_Nivel_Ingles LIKE 'horas_materia'");
-      if (colCheck.length) {
-        await conn.query(
-          `INSERT INTO Personal_Nivel_Ingles (id_personal, id_nivel_ingles, id_grado_grupo, id_materia, horas_materia)
-           VALUES (?, ?, ?, ?, ?)`,
-          [id_personal, id_nivel_ingles, id_grado_grupo, id_materia, (typeof horas_materia !== 'undefined' ? horas_materia : null)]
-        );
-      } else {
-        await conn.query(
-          `INSERT INTO Personal_Nivel_Ingles (id_personal, id_nivel_ingles, id_grado_grupo, id_materia)
-           VALUES (?, ?, ?, ?)`,
-          [id_personal, id_nivel_ingles, id_grado_grupo, id_materia]
-        );
-      }
-
       await conn.commit();
       return res.json({ success:true, message:'Asignación de inglés actualizada' });
     }
@@ -5696,43 +5679,33 @@ router.post('/materias/:id/asignaciones', authMiddleware, async (req, res) => {
         [id_arte_especialidad, id_grado_grupo, id_materia]
       );
 
-      // comprobar si la tabla Personal_Arte_Especialidad tiene columna horas_materia (opcional)
-      const [colCheck] = await conn.query("SHOW COLUMNS FROM Personal_Arte_Especialidad LIKE 'horas_materia'");
-      if (colCheck.length) {
-        await conn.query(
-          `INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo, id_materia, horas_materia)
-           VALUES (?, ?, ?, ?, ?)`,
-          [id_personal, id_arte_especialidad, id_grado_grupo, id_materia, (typeof horas_materia !== 'undefined' ? horas_materia : null)]
-        );
-      } else {
-        await conn.query(
-          `INSERT INTO Personal_Arte_Especialidad (id_personal, id_arte_especialidad, id_grado_grupo, id_materia)
-           VALUES (?, ?, ?, ?)`,
-          [id_personal, id_arte_especialidad, id_grado_grupo, id_materia]
-        );
-      }
-
       await conn.commit();
       return res.json({ success:true, message:'Asignación de arte actualizada' });
     }
 
-    // --- caso NORMAL (usar Grupo_Materia) ---
-    // si ya existe registro para materia+grupo => actualizar id_personal (y horas si vienen)
-    const [gmEx] = await conn.query('SELECT * FROM Grupo_Materia WHERE id_materia = ? AND id_grado_grupo = ?', [id_materia, id_grado_grupo]);
+    /// --- caso NORMAL (usar Grupo_Materia) ---
+    const [gmEx] = await conn.query(
+      'SELECT * FROM Grupo_Materia WHERE id_materia = ? AND id_grado_grupo = ?',
+      [id_materia, id_grado_grupo]
+    );
+
     if (gmEx.length) {
-      if (typeof horas_materia !== 'undefined') {
-        await conn.query('UPDATE Grupo_Materia SET id_personal = ?, horas_materia = ? WHERE id_materia = ? AND id_grado_grupo = ?', [id_personal, horas_materia, id_materia, id_grado_grupo]);
-      } else {
-        await conn.query('UPDATE Grupo_Materia SET id_personal = ? WHERE id_materia = ? AND id_grado_grupo = ?', [id_personal, id_materia, id_grado_grupo]);
-      }
+      // Solo actualizar el profesor asignado
+      await conn.query(
+        'UPDATE Grupo_Materia SET id_personal = ? WHERE id_materia = ? AND id_grado_grupo = ?',
+        [id_personal, id_materia, id_grado_grupo]
+      );
     } else {
-      // insertar; si horas no viene, poner 0 para evitar errores si la columna no admite NULL/DEFAULT
-      const hm = (typeof horas_materia !== 'undefined') ? horas_materia : 0;
-      await conn.query('INSERT INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo, horas_materia) VALUES (?, ?, ?, ?)', [id_materia, id_personal, id_grado_grupo, hm]);
+      // Insertar nueva relación
+      await conn.query(
+        'INSERT INTO Grupo_Materia (id_materia, id_personal, id_grado_grupo) VALUES (?, ?, ?)',
+        [id_materia, id_personal, id_grado_grupo]
+      );
     }
 
     await conn.commit();
-    return res.json({ success:true, message:'Asignación normal actualizada' });
+    return res.json({ success: true, message: 'Asignación normal actualizada' });
+
 
   } catch (err) {
     console.error('Error al asignar profesor:', err);
@@ -6011,18 +5984,17 @@ router.get('/personal-resultados/:id_personal', authMiddleware, async (req, res)
         m.nombre_materia, 
         m.modelo_materia, 
         m.grado_materia, 
-        gm.horas_materia, 
         gg.grupo
       FROM Grupo_Materia gm
       JOIN Materia m ON gm.id_materia = m.id_materia
-      JOIN Grado_grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
+      JOIN Grado_Grupo gg ON gm.id_grado_grupo = gg.id_grado_grupo
       WHERE gm.id_personal = ?
       ORDER BY m.grado_materia, m.nombre_materia
     `, [id_personal]);
 
     const [talleres] = await db.query(`
       SELECT t.nombre_taller
-      FROM Personal_taller pt
+      FROM Personal_Taller pt
       JOIN Taller t ON pt.id_taller = t.id_taller
       WHERE pt.id_personal = ?
       ORDER BY t.nombre_taller
@@ -6134,7 +6106,7 @@ router.get('/personal-evaluaciones-types/:id_personal', authMiddleware, async (r
 
     // Check for talleres
     const [talleresCount] = await db.query(`
-      SELECT COUNT(*) as count FROM Personal_taller WHERE id_personal = ?
+      SELECT COUNT(*) as count FROM Personal_Taller WHERE id_personal = ?
     `, [id_personal]);
     if (talleresCount[0].count > 0) {
       console.log(`Talleres encontrados para id_personal: ${id_personal}`);
@@ -6353,7 +6325,7 @@ const responseTables = {
   'ingles': { table: 'Respuesta_Alumno_Docente_Ingles', idField: 'id_nivel_ingles', nameField: 'nombre_nivel_ingles', joinTable: 'Nivel_Ingles', joinCondition: 'id_nivel_ingles' },
   'artes': { table: 'Respuesta_Alumno_Docente_Arte', idField: 'id_arte_especialidad', nameField: 'nombre_arte_especialidad', joinTable: 'Arte_Especialidad', joinCondition: 'id_arte_especialidad' },
   'servicios': { table: 'Respuesta_Alumno_Servicio', idField: 'id_servicio', nameField: 'nombre_servicio', joinTable: 'Servicio', joinCondition: 'id_servicio' },
-  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_taller' },
+  'talleres': { table: 'Respuesta_Alumno_Taller', idField: 'id_taller', nameField: 'nombre_taller', joinTable: 'Taller', joinCondition: 'id_taller', personalTable: 'Personal_Taller' },
   'counselors': { table: 'Respuesta_Alumno_Counselor', single: true },
   'psicopedagogico': { table: 'Respuesta_Alumno_Psicopedagogico', single: true },
   'coordinadores': { table: 'Respuesta_Personal', single: true, idField: 'id_personal', tipoPregunta: true },
@@ -8081,6 +8053,154 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
     }
   });
   
+
+  //PREVIEW EXCEL
+  router.post("/preview-excel", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.json({ success: false, message: "No se recibió ningún archivo" });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+
+    res.json({ success: true, alumnos: rows });
+  } catch (err) {
+    console.error("Error en preview-excel:", err);
+    res.json({ success: false, message: "Error al procesar el Excel" });
+  }
+});
+
+// IMPORTAR EXCEL
+router.post("/import-excel", async (req, res) => {
+  const conn = await db.getConnection();
+  await conn.beginTransaction();
+
+  try {
+    const { alumnos } = req.body;
+    if (!alumnos || !alumnos.length) {
+      return res.json({ success: false, message: "No se recibieron alumnos" });
+    }
+
+    let insertados = 0;
+    let errores = [];
+
+    for (const [idx, a] of alumnos.entries()) {
+      try {
+        // Normalizar datos
+        const nombre = a.nombre ? String(a.nombre).trim() : "";
+        const apaterno = a.apaterno ? String(a.apaterno).trim() : "";
+        const amaterno = a.amaterno ? String(a.amaterno).trim() : "";
+        const matricula = a.matricula ? String(a.matricula).trim() : "";
+        const counselorNombre = a.counselor ? String(a.counselor).trim() : "";
+        const grado = a.grado ? String(a.grado).trim() : "";
+        const grupo = a.grupo ? String(a.grupo).trim() : "";
+
+        // Validaciones mínimas
+        if (!nombre || !apaterno || !matricula || !grado || !grupo) {
+          errores.push(`Fila ${idx + 1}: Datos incompletos`);
+          continue;
+        }
+
+        // Verificar counselor
+        const [cRows] = await conn.query(
+          `SELECT id_personal FROM Personal 
+           WHERE CONCAT(nombre_personal, ' ', apaterno_personal, ' ', amaterno_personal) = ?`,
+          [counselorNombre]
+        );
+        if (!cRows.length) {
+          errores.push(`Fila ${idx + 1}: Counselor "${counselorNombre}" no existe`);
+          continue;
+        }
+        const id_personal = cRows[0].id_personal;
+
+        // Verificar grupo
+        const [gRows] = await conn.query(
+          "SELECT id_grado_grupo FROM Grado_Grupo WHERE grado = ? AND grupo = ?",
+          [grado, grupo]
+        );
+        if (!gRows.length) {
+          errores.push(`Fila ${idx + 1}: Grupo ${grado}-${grupo} no existe`);
+          continue;
+        }
+        const id_grado_grupo = gRows[0].id_grado_grupo;
+
+        // Evitar duplicados (por matrícula)
+        const [exist] = await conn.query(
+          "SELECT id_alumno FROM Alumno WHERE id_alumno = ?",
+          [matricula]
+        );
+        if (exist.length) {
+          errores.push(`Fila ${idx + 1}: Matrícula ${matricula} ya existe`);
+          continue;
+        }
+
+        // Crear usuario
+        const correo = `${matricula}@balmoralescoces.edu.mx`;
+        const rawPassword = "pass" + matricula; 
+        const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+        const [uRes] = await conn.query(
+          "INSERT INTO Usuario (correo_usuario, contraseña_usuario) VALUES (?, ?)",
+          [correo, passwordHash]
+        );
+
+        // Crear alumno
+        await conn.query(
+          `INSERT INTO Alumno 
+           (nombre_alumno, apaterno_alumno, amaterno_alumno, id_alumno, id_usuario, id_personal, id_grado_grupo)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [nombre, apaterno, amaterno, matricula, uRes.insertId, id_personal, id_grado_grupo]
+        );
+
+        // Insertar materias del grupo
+        const [materias] = await conn.query(
+          "SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?",
+          [id_grado_grupo]
+        );
+        for (const m of materias) {
+          await conn.query(
+            "INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia) VALUES (?, ?, ?, 0)",
+            [matricula, m.id_materia, m.id_personal]
+          );
+        }
+
+        // Insertar servicios
+        const [servicios] = await conn.query("SELECT id_servicio FROM Servicio");
+        for (const s of servicios) {
+          await conn.query(
+            "INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio) VALUES (?, ?, 0)",
+            [matricula, s.id_servicio]
+          );
+        }
+
+        insertados++;
+      } catch (errFila) {
+        console.error("Error en fila", idx + 1, errFila);
+        errores.push(`Fila ${idx + 1}: Error inesperado`);
+      }
+    }
+
+    await conn.commit();
+    conn.release();
+
+    res.json({
+      success: true,
+      message: `${insertados} alumno(s) importados con éxito`,
+      insertados,
+      errores,
+    });
+  } catch (err) {
+    await conn.rollback();
+    conn.release();
+    console.error("Error en import-excel:", err);
+    res.json({ success: false, message: "Error al importar alumnos" });
+  }
+});
+
+
+
   // Alumno: Se pasa de grupo
   // Alumno_Taller: Cuando el alumno sale de 6to se elimina
   // Alumno_Arte_Especialidad: Cuando pasen a 4to se eliminan

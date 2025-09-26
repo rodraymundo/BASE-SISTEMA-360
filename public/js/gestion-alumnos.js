@@ -792,3 +792,238 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
     Swal.fire('Error', error.message || 'No se pudo insertar alumno.', 'error');
   }
 });
+
+// --- IMPORTAR EXCEL: lógica del modal + preview + confirm ---
+(function () {
+  // Asegúrate de que el botón exista en DOM
+  const btnAbrir = document.getElementById('btn-importar-excel');
+  if (!btnAbrir) return;
+
+  // Crear referencia al modal de bootstrap
+  const modalEl = document.getElementById('modalImportarExcel');
+  const modalInstance = new bootstrap.Modal(modalEl);
+
+  const inputFile = document.getElementById('archivo-excel');
+  const btnPreview = document.getElementById('btn-preview-excel');
+  const btnReset = document.getElementById('btn-reset-preview');
+  const previewBody = document.getElementById('preview-excel-body');
+  const statusLabel = document.getElementById('preview-status');
+  const btnConfirmImport = document.getElementById('btn-confirm-import');
+  const checkSelectAll = document.getElementById('check-select-all');
+
+  let lastPreviewData = []; // array de objetos { raw: rowFromXLS, valid: bool, message: string, include: bool }
+
+  btnAbrir.addEventListener('click', () => {
+    // resetear estado al abrir
+    inputFile.value = '';
+    previewBody.innerHTML = '<p class="text-muted">Sube un archivo y haz clic en <strong>Previsualizar</strong>.</p>';
+    statusLabel.textContent = '';
+    lastPreviewData = [];
+    btnConfirmImport.disabled = true;
+    checkSelectAll.checked = true;
+    modalInstance.show();
+  });
+
+  btnReset.addEventListener('click', () => {
+    inputFile.value = '';
+    previewBody.innerHTML = '<p class="text-muted">Sube un archivo y haz clic en <strong>Previsualizar</strong>.</p>';
+    statusLabel.textContent = '';
+    lastPreviewData = [];
+    btnConfirmImport.disabled = true;
+  });
+
+  checkSelectAll.addEventListener('change', () => {
+    const checked = checkSelectAll.checked;
+    lastPreviewData.forEach(row => row.include = checked && row.valid);
+    renderPreviewTable();
+  });
+
+  btnPreview.addEventListener('click', async () => {
+    if (!inputFile.files || !inputFile.files[0]) {
+      Swal.fire('Atención', 'Selecciona un archivo Excel primero.', 'warning');
+      return;
+    }
+
+    statusLabel.textContent = 'Procesando...';
+    btnPreview.disabled = true;
+
+    try {
+      const token = await obtenerCsrfToken();
+      const fd = new FormData();
+      fd.append('file', inputFile.files[0]);
+
+      const res = await fetch('/preview-excel', {
+        method: 'POST',
+        headers: { 'CSRF-Token': token },
+        credentials: 'include',
+        body: fd
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Error al procesar el archivo en el servidor.');
+      }
+
+      // data.alumnos => array de rows del excel (nombres de columnas según el excel)
+      // Normalizar y validar mínimamente en frontend (puedes mejorar esto)
+      lastPreviewData = data.alumnos.map((r, idx) => {
+        // Mapear campos esperados (intenta varias variantes de nombres)
+        const nombre = r.Nombre ?? r.Nombre1 ?? r.nombre ?? r['Nombre(s)'] ?? '';
+        const apaterno = r.ApellidoP ?? r.ApellidoPaterno ?? r['Apellido Paterno'] ?? r.apaterno ?? '';
+        const amaterno = r.ApellidoM ?? r.ApellidoMaterno ?? r['Apellido Materno'] ?? r.amaterno ?? '';
+        const matricula = r.Matricula ?? r.Matrícula ?? r.matricula ?? r['Matrícula'] ?? '';
+        const counselor = r.Counselor ?? r.counselor ?? r['Counselor'] ?? r['Counselor Name'] ?? '';
+        const grado = r.Grado ?? r.grado ?? '';
+        const grupo = r.Grupo ?? r.grupo ?? '';
+
+        // validaciones básicas
+        const problems = [];
+        if (!nombre) problems.push('Falta Nombre');
+        if (!apaterno) problems.push('Falta Apellido paterno');
+        if (!matricula) problems.push('Falta Matrícula');
+        if (!grado || !grupo) problems.push('Falta Grado/Grupo');
+        // Nota: validación de counselor se hará en el servidor al importar
+
+        const valid = problems.length === 0;
+
+        return {
+          id: idx,
+          raw: { nombre, apaterno, amaterno, matricula, counselor, grado, grupo },
+          valid,
+          message: problems.join('; '),
+          include: valid // por defecto incluimos sólo las válidas
+        };
+      });
+
+      renderPreviewTable();
+      statusLabel.textContent = `${lastPreviewData.length} fila(s) leídas — ${lastPreviewData.filter(r=>r.valid).length} válidas`;
+      btnConfirmImport.disabled = lastPreviewData.filter(r => r.include).length === 0;
+
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', err.message || 'Error al previsualizar el Excel', 'error');
+      statusLabel.textContent = '';
+    } finally {
+      btnPreview.disabled = false;
+    }
+  });
+
+  function renderPreviewTable() {
+    if (!lastPreviewData || lastPreviewData.length === 0) {
+      previewBody.innerHTML = '<p class="text-muted">No hay filas para previsualizar.</p>';
+      btnConfirmImport.disabled = true;
+      return;
+    }
+
+    // Construir tabla
+    const rowsHtml = lastPreviewData.map(r => {
+      const { nombre, apaterno, amaterno, matricula, counselor, grado, grupo } = r.raw;
+      const badge = r.valid ? '' : `<span class="badge bg-warning text-dark">Problem: ${r.message}</span>`;
+      const checked = r.include ? 'checked' : '';
+      const disabled = r.valid ? '' : 'disabled';
+      return `
+        <tr data-rowid="${r.id}">
+          <td class="text-center align-middle"><input type="checkbox" class="row-include" ${checked} ${disabled}></td>
+          <td class="align-middle">${apaterno} ${amaterno || ''} ${nombre}</td>
+          <td class="align-middle">${matricula}</td>
+          <td class="align-middle">${counselor || '<span class="text-muted">—</span>'}</td>
+          <td class="align-middle">${grado} ${grupo}</td>
+          <td class="align-middle">${badge}</td>
+        </tr>
+      `;
+    }).join('');
+
+    previewBody.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:40px;" class="text-center">OK</th>
+              <th>Nombre completo</th>
+              <th>Matrícula</th>
+              <th>Counselor</th>
+              <th>Grado/Grupo</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    `;
+
+    // Hook: checkbox listeners
+    previewBody.querySelectorAll('.row-include').forEach(chk => {
+      chk.addEventListener('change', (ev) => {
+        const tr = ev.target.closest('tr');
+        const id = parseInt(tr.dataset.rowid, 10);
+        const row = lastPreviewData.find(r => r.id === id);
+        if (row && row.valid) row.include = ev.target.checked;
+        btnConfirmImport.disabled = lastPreviewData.filter(r => r.include).length === 0;
+        // Update "select all" checkbox based on current rows
+        const allIncluded = lastPreviewData.filter(r=>r.valid).every(r=>r.include);
+        checkSelectAll.checked = !!allIncluded;
+      });
+    });
+
+    // set select-all checkbox state
+    const allIncluded = lastPreviewData.filter(r=>r.valid).every(r=>r.include);
+    checkSelectAll.checked = !!allIncluded;
+    btnConfirmImport.disabled = lastPreviewData.filter(r => r.include).length === 0;
+  }
+
+  // Confirm import
+  btnConfirmImport.addEventListener('click', async () => {
+    const toImport = lastPreviewData.filter(r => r.include).map(r => r.raw);
+    if (toImport.length === 0) {
+      Swal.fire('Atención', 'No hay filas seleccionadas para importar.', 'warning');
+      return;
+    }
+
+    // Mostrar confirmación y resumen
+    const resumen = `
+      Se importarán <strong>${toImport.length}</strong> alumno(s).<br>
+      ¿Deseas continuar? Esta acción creará usuarios (correo institucional) y registros en la base de datos.
+    `;
+    const confirmed = await Swal.fire({
+      title: 'Confirmar importación',
+      html: resumen,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Importar ahora',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmed.isConfirmed) return;
+
+    try {
+      const token = await obtenerCsrfToken();
+
+      btnConfirmImport.disabled = true;
+      btnConfirmImport.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Importando...';
+
+      const res = await fetch('/import-excel', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': token },
+        body: JSON.stringify({ alumnos: toImport })
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Error al importar');
+
+      Swal.fire('Listo', data.message || `${data.insertados || toImport.length} alumnos importados.`, 'success');
+      modalInstance.hide();
+
+      // refrescar lista (si hay grupo activo)
+      document.querySelector('#lista-grupos .active')?.click();
+
+    } catch (err) {
+      console.error(err);
+      Swal.fire('Error', err.message || 'No se pudo completar la importación', 'error');
+    } finally {
+      btnConfirmImport.disabled = false;
+      btnConfirmImport.innerHTML = '<i class="fas fa-file-import me-1"></i> Importar seleccionados';
+    }
+  });
+
+})();
