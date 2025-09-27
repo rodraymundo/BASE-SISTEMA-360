@@ -88,7 +88,7 @@ async function cargarProfesores() {
             cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
             cardProfesor.innerHTML = `  
                 <div class="card h-100 shadow rounded-4 p-4">
-                    <img src='./assets/img/${ingles.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
+                    <img src='${ingles.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
                     <div class="card-body text-center">
                         <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
                         <p class="card-text mb-1"><strong>MATERIA:</strong> ${ingles.nombre_materia} / ${ingles.nombre_nivel_ingles}</p>
@@ -121,7 +121,7 @@ async function cargarProfesores() {
             cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
             cardProfesor.innerHTML = `  
                 <div class="card h-100 shadow rounded-4 p-4">
-                    <img src='./assets/img/${arte.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
+                    <img src='${arte.img_personal}' class="card-img-top rounded-top-4" alt="Imagen del Profesor">
                     <div class="card-body text-center">
                         <h5 class="fw-bold text-uppercase bg-danger text-white rounded-pill py-2 px-3 d-inline-block shadow-lg">${nombreProfesor}</h5>
                         <p class="card-text mb-1"><strong>MATERIA:</strong> ${arte.nombre_materia} / ${arte.nombre_arte_especialidad}</p>
