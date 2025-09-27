@@ -261,7 +261,6 @@ async function cargarPreguntasModal(id_personal) {
                 // DEPENDIENDO DE LA RESPUESTA APARECE EL ESPPACIO PARA COMENTAR O NO
                 if (comentarioNegativoSeleccionValor === "1") {
                     comentarioSubordinadoNegativo.classList.remove('d-none');
-Par
                     comentarioSubordinadoNegativo.classList.add('d-none');
                 }
             });
