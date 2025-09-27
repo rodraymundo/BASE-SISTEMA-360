@@ -49,7 +49,7 @@ async function cargarProfesores() {
                     break;
             }
 
-            nombreProfesor = `${profesor.nombre_personal} ${profesor.apaterno_personal} ${profesor.amaterno_personal}`;
+            nombreProfesor = `${profesor.nombre_personal} ${profesor.apaterno_personal} ${profesor.amaterno_personal =! null ? profesor.amaterno_personal : ''}`;
 
             cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
             cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
@@ -82,7 +82,7 @@ async function cargarProfesores() {
                     break;
             }
 
-            nombreProfesor = `${ingles.nombre_personal} ${ingles.apaterno_personal} ${ingles.amaterno_personal}`;
+            nombreProfesor = `${ingles.nombre_personal} ${ingles.apaterno_personal} ${ingles.amaterno_personal =! null ? ingles.amaterno_personal : ''}`;
 
             cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
             cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
@@ -115,7 +115,7 @@ async function cargarProfesores() {
                     break;
             }
 
-            nombreProfesor = `${arte.nombre_personal} ${arte.apaterno_personal} ${arte.amaterno_personal}`;
+            nombreProfesor = `${arte.nombre_personal} ${arte.apaterno_personal} ${arte.amaterno_personal =! null ? arte.amaterno_personal : ''}`;
 
             cardProfesor = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
             cardProfesor.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA

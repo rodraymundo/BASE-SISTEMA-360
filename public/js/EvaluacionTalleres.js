@@ -46,7 +46,7 @@ async function cargarTalleres() {
                     break;
             }
 
-            const nombreEncargado = `${taller.nombre_personal} ${taller.apaterno_personal} ${taller.amaterno_personal}`;
+            const nombreEncargado = `${taller.nombre_personal} ${taller.apaterno_personal} ${taller.amaterno_personal =! null ? taller.amaterno_personal : ''}`;
 
             const cardTaller = document.createElement('div'); // SE CREA UN ELEMENTO HTML QUE ALMACENARA EL CONTENIDO
             cardTaller.className = 'col mb-3'; // SE LE AGREGAN LAS CLASES PRINCIPALES A EL ELEMENTO HTML Y ABAJO EL CONTENIDO QUE ALMACENARA
