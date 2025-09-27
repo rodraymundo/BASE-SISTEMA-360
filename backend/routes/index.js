@@ -27,6 +27,7 @@ const upload = multer({ storage });
   //PRUEBA RECUPERACIÓN CONTRASEÑA
   const nodemailer = require('nodemailer');
   const { v4: uuidv4 } = require('uuid');
+  const axios = require('axios');
 
   //CONFIGURAR TRANSPORTE DE BREVO
   const transporter = nodemailer.createTransport({
@@ -58,18 +59,28 @@ const upload = multer({ storage });
 
       const link = `https://base-sistema-360.onrender.com/Restablecer-contrasena?token=${token}`; //CAMBIAR CUANDO SE TENGA SERVIDOR
 
-      await transporter.sendMail({
-        from: '"Prepa Balmoral Escocés" <raymundo7personal@gmail.com>',
-        to: email,
-        subject: 'Recuperación de contraseña',
-        html: `
-          <p>Solicitaste recuperar tu contraseña.</p>
-          <p><a href="${link}">Haz clic aquí para restablecerla</a></p>
-          <p>Este enlace expirará en 1 hora.</p>
-        `
-      });
+          const response = await axios.post(
+          'https://api.brevo.com/v3/smtp/email',
+          {
+            sender: { name: "Prepa Balmoral Escocés", email: "raymundo7personal@gmail.com" },
+            to: [{ email }],
+            subject: 'Recuperación de contraseña',
+            htmlContent: `
+              <p>Solicitaste recuperar tu contraseña.</p>
+              <p><a href="${link}">Haz clic aquí para restablecerla</a></p>
+              <p>Este enlace expirará en 1 hora.</p>
+            `
+          },
+          {
+            headers: {
+              'api-key': process.env.BREVO_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
 
-      res.json({ success: true, message: 'Correo enviado' });
+        console.log('Correo enviado con Brevo API:', response.data);
+        res.json({ success: true, message: 'Correo enviado' });
 
     } catch (error) {
       console.error('Error al enviar correo:', error);
