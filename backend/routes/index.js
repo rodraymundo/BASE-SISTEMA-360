@@ -8072,7 +8072,7 @@ router.post('/guardarDatosCiclo', authMiddleware, async (req, res) => {
   }
 });
 
-// IMPORTAR EXCEL
+// IMPORTAR EXCEL - versión optimizada (bulk + parallel bcrypt)
 router.post("/import-excel", async (req, res) => {
   const conn = await db.getConnection();
   await conn.beginTransaction();
@@ -8080,122 +8080,246 @@ router.post("/import-excel", async (req, res) => {
   try {
     const { alumnos } = req.body;
     if (!alumnos || !alumnos.length) {
+      conn.release();
       return res.json({ success: false, message: "No se recibieron alumnos" });
     }
 
-    let insertados = 0;
-    let errores = [];
+    // CONFIG
+    const saltRounds = 8; // más rápido que 10; ajusta según tu CPU / seguridad
+    const BATCH_SIZE = 200; // si necesitas partir en lotes grandes puedes reducir esto
 
-    for (const [idx, a] of alumnos.entries()) {
-      try {
-        // Normalizar datos
-        const nombre = a.nombre ? String(a.nombre).trim() : "";
-        const apaterno = a.apaterno ? String(a.apaterno).trim() : "";
-        const amaterno = a.amaterno ? String(a.amaterno).trim() : "";
-        const matricula = a.matricula ? String(a.matricula).trim() : "";
-        const counselorNombre = a.counselor ? String(a.counselor).trim() : "";
-        const grado = a.grado ? String(a.grado).trim() : "";
-        const grupo = a.grupo ? String(a.grupo).trim() : "";
+    // Normalizar input -> array de objetos limpios
+    const normalized = alumnos.map((a, idx) => ({
+      __row: idx + 1,
+      nombre: a.nombre ? String(a.nombre).trim() : "",
+      apaterno: a.apaterno ? String(a.apaterno).trim() : "",
+      amaterno: a.amaterno ? String(a.amaterno).trim() : "",
+      matricula: a.matricula ? String(a.matricula).trim() : "",
+      counselor: a.counselor ? String(a.counselor).trim() : "",
+      grado: a.grado ? String(a.grado).trim() : "",
+      grupo: a.grupo ? String(a.grupo).trim() : ""
+    }));
 
-        // Validaciones mínimas
-        if (!nombre || !apaterno || !matricula || !grado || !grupo) {
-          errores.push(`Fila ${idx + 1}: Datos incompletos`);
-          continue;
-        }
+    // Validaciones frontend-minimas ya hechas, aquí acumulamos errores por fila y filtramos "candidateRows"
+    const errores = [];
+    const candidates = [];
+    normalized.forEach(r => {
+      const missing = [];
+      if (!r.nombre) missing.push("Falta Nombre");
+      if (!r.apaterno) missing.push("Falta Apellido paterno");
+      if (!r.matricula) missing.push("Falta Matrícula");
+      if (!r.grado || !r.grupo) missing.push("Falta Grado/Grupo");
+      if (missing.length) {
+        errores.push(`Fila ${r.__row}: ${missing.join('; ')}`);
+      } else {
+        candidates.push(r);
+      }
+    });
 
-        // Verificar counselor
-        const [cRows] = await conn.query(
-          `SELECT id_personal FROM Personal 
-           WHERE CONCAT(nombre_personal, ' ', apaterno_personal, ' ', amaterno_personal) = ?`,
-          [counselorNombre]
-        );
-        if (!cRows.length) {
-          errores.push(`Fila ${idx + 1}: Counselor "${counselorNombre}" no existe`);
-          continue;
-        }
-        const id_personal = cRows[0].id_personal;
+    if (candidates.length === 0) {
+      await conn.rollback();
+      conn.release();
+      return res.json({ success: false, message: "No hay filas válidas para importar", insertados: 0, errores });
+    }
 
-        // Verificar grupo
-        const [gRows] = await conn.query(
-          "SELECT id_grado_grupo FROM Grado_Grupo WHERE grado = ? AND grupo = ?",
-          [grado, grupo]
-        );
-        if (!gRows.length) {
-          errores.push(`Fila ${idx + 1}: Grupo ${grado}-${grupo} no existe`);
-          continue;
-        }
-        const id_grado_grupo = gRows[0].id_grado_grupo;
+    // --- 1) Pre-cargar datos útiles del servidor para mapear sin queries por fila ---
+    // 1.a Todos los personal (para mapear por nombre completo)
+    const [personales] = await conn.query(`
+      SELECT id_personal, nombre_personal, apaterno_personal, amaterno_personal
+      FROM Personal
+    `);
+    const personalMap = new Map();
+    personales.forEach(p => {
+      const full = `${p.nombre_personal} ${p.apaterno_personal} ${p.amaterno_personal}`.replace(/\s+/g,' ').trim();
+      personalMap.set(full.toLowerCase(), p.id_personal);
+    });
 
-        // Evitar duplicados (por matrícula)
-        const [exist] = await conn.query(
-          "SELECT id_alumno FROM Alumno WHERE id_alumno = ?",
-          [matricula]
-        );
-        if (exist.length) {
-          errores.push(`Fila ${idx + 1}: Matrícula ${matricula} ya existe`);
-          continue;
-        }
+    // 1.b Todos los grupos (grado+grupo -> id_grado_grupo)
+    const [gruposRows] = await conn.query(`SELECT id_grado_grupo, grado, grupo FROM Grado_Grupo`);
+    const grupoMap = new Map();
+    gruposRows.forEach(g => {
+      const key = `${String(g.grado).trim()}|${String(g.grupo).trim()}`;
+      grupoMap.set(key, g.id_grado_grupo);
+    });
 
-        // Crear usuario
-        const correo = `${matricula}@balmoralescoces.edu.mx`;
-        const rawPassword = "pass" + matricula; 
-        const passwordHash = await bcrypt.hash(rawPassword, 10);
+    // 1.c Servicios (lista para insertar)
+    const [servs] = await conn.query(`SELECT id_servicio FROM Servicio`);
+    const serviciosIds = servs.map(s => s.id_servicio);
 
-        const [uRes] = await conn.query(
-          "INSERT INTO Usuario (correo_usuario, contraseña_usuario) VALUES (?, ?)",
-          [correo, passwordHash]
-        );
+    // 1.d Materias por grupo: sacamos todas las materias de todos los grupos que usaremos
+    // recopilar id_grado_grupo únicos de candidates
+    const gruposNecesarios = [...new Set(candidates.map(c => `${c.grado}|${c.grupo}`))];
+    const gruposNecesariosIds = [];
+    for (const gkey of gruposNecesarios) {
+      const idg = grupoMap.get(gkey);
+      if (idg) gruposNecesariosIds.push(idg);
+    }
 
-        // Crear alumno
+    // traer las materias para esos grupos (si hay)
+    let materiasPorGrupo = new Map(); // id_grado_grupo -> [{id_materia, id_personal}, ...]
+    if (gruposNecesariosIds.length) {
+      const [gm] = await conn.query(
+        `SELECT id_grado_grupo, id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo IN (?)`,
+        [gruposNecesariosIds]
+      );
+      gm.forEach(row => {
+        if (!materiasPorGrupo.has(row.id_grado_grupo)) materiasPorGrupo.set(row.id_grado_grupo, []);
+        materiasPorGrupo.get(row.id_grado_grupo).push({ id_materia: row.id_materia, id_personal: row.id_personal });
+      });
+    }
+
+    // 1.e Matrículas ya existentes (para evitar duplicados) -> look up de todas las matriculas en input
+    const allMatriculas = [...new Set(candidates.map(c => c.matricula))];
+    let existingMatriculas = new Set();
+    if (allMatriculas.length) {
+      const [existRows] = await conn.query(`SELECT id_alumno FROM Alumno WHERE id_alumno IN (?)`, [allMatriculas]);
+      existRows.forEach(r => existingMatriculas.add(String(r.id_alumno)));
+    }
+
+    // --- 2) Validar cada candidate con los maps (counselor exist, grupo exist, matricula no repetida) ---
+    const toInsert = []; // filas válidas para insertar
+    candidates.forEach(r => {
+      const rowNum = r.__row;
+      // counselor puede venir vacío (según tú) — si obligatorio marcar error
+      const counselorKey = r.counselor ? r.counselor.replace(/\s+/g,' ').trim().toLowerCase() : "";
+      const id_personal = counselorKey ? personalMap.get(counselorKey) : null;
+      if (r.counselor && !id_personal) {
+        errores.push(`Fila ${rowNum}: Counselor "${r.counselor}" no existe`);
+        return;
+      }
+
+      const grupoKey = `${r.grado}|${r.grupo}`;
+      const id_grado_grupo = grupoMap.get(grupoKey);
+      if (!id_grado_grupo) {
+        errores.push(`Fila ${rowNum}: Grupo ${r.grado}-${r.grupo} no existe`);
+        return;
+      }
+
+      if (existingMatriculas.has(r.matricula)) {
+        errores.push(`Fila ${rowNum}: Matrícula ${r.matricula} ya existe`);
+        return;
+      }
+
+      // todo ok -> empujar con ids resueltos
+      toInsert.push({
+        __row: rowNum,
+        nombre: r.nombre,
+        apaterno: r.apaterno,
+        amaterno: r.amaterno,
+        matricula: r.matricula,
+        id_personal: id_personal || null,
+        id_grado_grupo
+      });
+    });
+
+    if (!toInsert.length) {
+      await conn.rollback();
+      conn.release();
+      return res.json({ success: false, message: "No hay filas válidas para insertar", insertados: 0, errores });
+    }
+
+    // --- 3) Generar hashes de contraseñas en paralelo (pass + matricula) ---
+    const hashes = await Promise.all(
+      toInsert.map(t => bcrypt.hash("pass" + t.matricula, saltRounds))
+    );
+
+    // --- 4) Insertar Usuarios en bulk por lotes (para controlar tamaño) ---
+    function chunkArray(arr, size) {
+      const res = [];
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+      return res;
+    }
+
+    let allInsertedCount = 0;
+    const userChunks = chunkArray(toInsert.map((t, i) => ({
+      correo: `${t.matricula}@balmoralescoces.edu.mx`,
+      hash: hashes[i],
+      matricula: t.matricula,
+      idx: i
+    })), BATCH_SIZE);
+
+    // Para mapear id_usuario por índice de toInsert
+    const idUsuarioByIndex = new Array(toInsert.length);
+
+    for (const chunk of userChunks) {
+      const values = chunk.map(c => [c.correo, c.hash]);
+      const [uRes] = await conn.query(`INSERT INTO Usuario (correo_usuario, contraseña_usuario) VALUES ?`, [values]);
+      // insertId = primer id asignado en este batch
+      const firstId = uRes.insertId;
+      // Asegurarse: chunk order corresponde a valores insertados en el mismo orden
+      chunk.forEach((c, j) => {
+        idUsuarioByIndex[c.idx] = firstId + j;
+      });
+    }
+
+    // --- 5) Insertar Alumnos en bulk (en los mismos lotes que los usuarios para mantener correspondencia) ---
+    const alumnoValues = toInsert.map((t, i) => [
+      t.matricula, // id_alumno
+      t.nombre,
+      t.apaterno,
+      t.amaterno,
+      idUsuarioByIndex[i], // id_usuario
+      t.id_personal,
+      t.id_grado_grupo
+    ]);
+    // INSERT INTO Alumno (id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_usuario, id_personal, id_grado_grupo)
+    // Note: el orden de columnas debe coincidir con tu DDL
+    // Asegúrate de que los nombres de columnas coincidan exactamente con tu tabla
+    // Aquí uso el mismo orden que me mostraste antes.
+    await conn.query(
+      `INSERT INTO Alumno (id_alumno, nombre_alumno, apaterno_alumno, amaterno_alumno, id_usuario, id_personal, id_grado_grupo) VALUES ?`,
+      [alumnoValues]
+    );
+
+    // --- 6) Insertar Alumno_Materia (bulk) para cada alumno según su grupo ---
+    const alumnoMateriaRows = [];
+    toInsert.forEach((t) => {
+      const materias = materiasPorGrupo.get(t.id_grado_grupo) || [];
+      materias.forEach(m => {
+        alumnoMateriaRows.push([t.matricula, m.id_materia, m.id_personal, 0]);
+      });
+    });
+    if (alumnoMateriaRows.length) {
+      // columnas: id_alumno, id_materia, id_personal, estado_evaluacion_materia
+      await conn.query(
+        `INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia) VALUES ?`,
+        [alumnoMateriaRows]
+      );
+    }
+
+    // --- 7) Insertar Alumno_Servicio (bulk) para cada alumno ---
+    const alumnoServicioRows = [];
+    if (serviciosIds.length) {
+      toInsert.forEach(t => {
+        serviciosIds.forEach(id_serv => {
+          alumnoServicioRows.push([t.matricula, id_serv, 0]);
+        });
+      });
+      if (alumnoServicioRows.length) {
         await conn.query(
-          `INSERT INTO Alumno 
-           (nombre_alumno, apaterno_alumno, amaterno_alumno, id_alumno, id_usuario, id_personal, id_grado_grupo)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [nombre, apaterno, amaterno, matricula, uRes.insertId, id_personal, id_grado_grupo]
+          `INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio) VALUES ?`,
+          [alumnoServicioRows]
         );
-
-        // Insertar materias del grupo
-        const [materias] = await conn.query(
-          "SELECT id_materia, id_personal FROM Grupo_Materia WHERE id_grado_grupo = ?",
-          [id_grado_grupo]
-        );
-        for (const m of materias) {
-          await conn.query(
-            "INSERT INTO Alumno_Materia (id_alumno, id_materia, id_personal, estado_evaluacion_materia) VALUES (?, ?, ?, 0)",
-            [matricula, m.id_materia, m.id_personal]
-          );
-        }
-
-        // Insertar servicios
-        const [servicios] = await conn.query("SELECT id_servicio FROM Servicio");
-        for (const s of servicios) {
-          await conn.query(
-            "INSERT INTO Alumno_Servicio (id_alumno, id_servicio, estado_evaluacion_servicio) VALUES (?, ?, 0)",
-            [matricula, s.id_servicio]
-          );
-        }
-
-        insertados++;
-      } catch (errFila) {
-        console.error("Error en fila", idx + 1, errFila);
-        errores.push(`Fila ${idx + 1}: Error inesperado`);
       }
     }
 
     await conn.commit();
     conn.release();
 
-    res.json({
+    allInsertedCount = toInsert.length;
+    // combinar errores pre-existentes con los encontrados
+    return res.json({
       success: true,
-      message: `${insertados} alumno(s) importados con éxito`,
-      insertados,
-      errores,
+      message: `${allInsertedCount} alumno(s) importados con éxito`,
+      insertados: allInsertedCount,
+      errores
     });
+
   } catch (err) {
-    await conn.rollback();
+    try { await conn.rollback(); } catch(e) { console.error('Rollback error', e); }
     conn.release();
     console.error("Error en import-excel:", err);
-    res.json({ success: false, message: "Error al importar alumnos" });
+    return res.json({ success: false, message: "Error al importar alumnos", error: err.message });
   }
 });
 
