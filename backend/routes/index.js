@@ -56,7 +56,7 @@ const upload = multer({ storage });
         [token, expiracion, email]
       );
 
-      const link = `http://localhost:3000/Restablecer-contrasena?token=${token}`; //CAMBIAR CUANDO SE TENGA SERVIDOR
+      const link = `https://base-sistema-360.onrender.com/Restablecer-contrasena?token=${token}`; //CAMBIAR CUANDO SE TENGA SERVIDOR
 
       await transporter.sendMail({
         from: '"Prepa Balmoral Escocés" <raymundo7personal@gmail.com>',
