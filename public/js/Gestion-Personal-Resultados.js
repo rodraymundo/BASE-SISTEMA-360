@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       personalContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando personal...</div>';
       personal = await fetchWithRetry(`/personal-por-rol-resultados/${id_rol}`, { credentials: 'include' });
-      mainTitle.innerHTML = '<i class="fas fa-users me-2"></i>Resultados del Personal';
+      mainTitle.innerHTML = 'Personal';
       serviciosContainer.style.display = 'none';
       personalContainer.style.display = 'flex';
       mostrarPersonal(personal);
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando servicios...</div>';
       servicios = await fetchWithRetry('/servicios', { credentials: 'include' });
       servicios = servicios.filter(s => s.id_servicio !== 3 && s.id_servicio !== 8);
-      mainTitle.innerHTML = '<i class="fas fa-concierge-bell me-2"></i>Resultados de Servicios';
+      mainTitle.innerHTML = 'Servicios';
       personalContainer.style.display = 'none';
       serviciosContainer.style.display = 'flex';
       serviciosContainer.style.flexWrap = 'wrap';
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando disciplinas...</div>';
       disciplinas = await fetchWithRetry('/disciplinas-la-loma', { credentials: 'include' });
-      mainTitle.innerHTML = '<i class="fas fa-futbol me-2"></i>Disciplinas de La Loma';
+      mainTitle.innerHTML = 'Disciplinas de La Loma';
       personalContainer.style.display = 'none';
       serviciosContainer.style.display = 'flex';
       serviciosContainer.style.flexWrap = 'wrap';
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       serviciosContainer.innerHTML = '<div class="col-12 text-muted text-center">Cargando ligas deportivas...</div>';
       ligas = await fetchWithRetry('/ligas-deportivas', { credentials: 'include' });
-      mainTitle.innerHTML = '<i class="fas fa-trophy me-2"></i>Ligas Deportivas';
+      mainTitle.innerHTML = 'Ligas Deportivas';
       personalContainer.style.display = 'none';
       serviciosContainer.style.display = 'flex';
       serviciosContainer.style.flexWrap = 'wrap';

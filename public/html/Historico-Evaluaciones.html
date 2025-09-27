@@ -23,8 +23,9 @@
       <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
         <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
           <h1 class="h2">Evaluaciones Históricas</h1>
-          <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="d-flex align-items-center gap-2">
             <input type="text" id="buscadorPersonal" class="form-control" placeholder="Buscar personal...">
+            <button class="btn btn-danger fw-bold" id="btnCerrarCiclo" style="height: calc(2.25rem + 2px); width: 190px;">Cerrar Ciclo</button>
           </div>
         </div>
         <div id="personalContainer" class="row"></div>
@@ -121,6 +122,7 @@
   <canvas id="chart-canvas" width="800" height="400" style="display: none;"></canvas>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./assets/js/DashboardPersonal.js" type="module"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script type="module" src="/js/Historico-Evaluaciones.js"></script>
 </body>
