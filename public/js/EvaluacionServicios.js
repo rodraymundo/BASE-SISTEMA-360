@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await Swal.fire({
                         icon: 'error',
                         title: resulado.message,
-                        text: resulado.message,
+    
                     });
                 }
             });
@@ -685,7 +685,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                                     await Swal.fire({
                                         icon: 'success',
                                         title: resulado.message,
-                                        text: resulado.message,
+                    
                                         timer: 1500,
                                         showConfirmButton: false
                                     });
@@ -694,7 +694,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                                     await Swal.fire({
                                         icon: 'error',
                                         title: resulado.message,
-                                        text: resulado.message,
+                    
                                     });
                                 }
                             });
@@ -1061,7 +1061,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                                     await Swal.fire({
                                         icon: 'success',
                                         title: resulado.message,
-                                        text: resulado.message,
+                    
                                         timer: 1500,
                                         showConfirmButton: false
                                     });
@@ -1070,7 +1070,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                                     await Swal.fire({
                                         icon: 'error',
                                         title: resulado.message,
-                                        text: resulado.message,
+                    
                                     });
                                 }
                             });
@@ -1206,7 +1206,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                     await Swal.fire({
                         icon: 'success',
                         title: resulado.message,
-                        text: resulado.message,
+    
                         timer: 1500,
                         showConfirmButton: false
                     });
@@ -1215,7 +1215,7 @@ async function cargarPreguntasModal(id_servicio, nombre_servicio) {
                     await Swal.fire({
                         icon: 'error',
                         title: resulado.message,
-                        text: resulado.message,
+    
                     });
                 }
             });

@@ -365,7 +365,7 @@ async function cargarPreguntasModal(id_personal) {
                 await Swal.fire({
                     icon: 'success',
                     title: resulado.message,
-                    text: resulado.message,
+
                     timer: 1500,
                     showConfirmButton: false
                 });
@@ -374,7 +374,7 @@ async function cargarPreguntasModal(id_personal) {
                 await Swal.fire({
                     icon: 'error',
                     title: resulado.message,
-                    text: resulado.message,
+
                 });
             }
         });

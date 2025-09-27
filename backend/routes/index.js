@@ -1896,7 +1896,7 @@ router.get('/alumnos-por-grupo/:id_grado_grupo', authMiddleware, async (req, res
 
   // OBTENER TODOS LOS PSICOLOGOS
   router.get('/getPsicologos', authMiddleware, async (req, res) => {
-    const query = `SELECT pr.id_puesto FROM Puesto_rol pr WHERE pr.id_rol IN (SELECT r.id_rol FROM Rol r WHERE r.nombre_rol = "PEDAGÓGICO")`; // OBTENER PUESTOS QUE TIENE EL ROL DE PEDAGOGICO
+    const query = `SELECT pr.id_puesto FROM Puesto_Rol pr WHERE pr.id_rol IN (SELECT r.id_rol FROM Rol r WHERE r.nombre_rol = "PEDAGÓGICO")`; // OBTENER PUESTOS QUE TIENE EL ROL DE PEDAGOGICO
     const query2 = "SELECT p.id_personal, p.nombre_personal, p.apaterno_personal, p.amaterno_personal FROM Personal p WHERE p.id_puesto IN (?)" // OBTENER PERSONAL CON LOS PUESTOS TRAIDOS
 
   try {
