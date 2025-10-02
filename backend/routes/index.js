@@ -4453,67 +4453,125 @@ router.get('/comments-disciplina-deportiva', authMiddleware, async (req, res) =>
 
 router.get('/personal-dashboard/:id/:type', authMiddleware, async (req, res) => {
     const { id, type } = req.params;
-    const idPregunta = req.query.id_tipo_pregunta;
     try {
-        const tipoToId = { '360': 5, 'pares': 6, 'jefes': 7, 'subordinado': 4 };
-        let query;
-        let queryParams;
+        const positiveResponses = [1, 5, 6, 9, 10];
+        const tipoToId = { 
+            '360': 5, 
+            'pares': 6, 
+            'jefes': 7, 
+            'subordinado': 4, 
+            'subordinados': 4, 
+            'coordinadores': 3 
+        };
+
+        let positiveQuery, totalQuery, queryParamsPositive, queryParamsTotal;
+
         switch (type.toLowerCase()) {
             case 'materias':
             case 'artes':
             case 'disciplina_deportiva':
             case 'liga_deportiva':
             case 'psicopedagogico':
-                query = `
-                    SELECT AVG(id_respuesta) as generalAverage
+                positiveQuery = `
+                    SELECT COUNT(*) as count
                     FROM Respuesta_Alumno_Docente
-                    WHERE id_personal = ? AND id_pregunta = ?
+                    WHERE id_personal = ? AND id_respuesta IN (?)
                 `;
-                queryParams = [id, idPregunta];
+                totalQuery = `
+                    SELECT COUNT(*) as count
+                    FROM Respuesta_Alumno_Docente
+                    WHERE id_personal = ?
+                `;
+                queryParamsPositive = [id, positiveResponses];
+                queryParamsTotal = [id];
                 break;
+
             case 'ingles':
-                query = `
-                    SELECT AVG(id_respuesta) as generalAverage
+                positiveQuery = `
+                    SELECT COUNT(*) as count
                     FROM Respuesta_Alumno_Docente_Ingles
-                    WHERE id_personal = ? AND id_pregunta = ?
+                    WHERE id_personal = ? AND id_respuesta IN (?)
                 `;
-                queryParams = [id, idPregunta];
+                totalQuery = `
+                    SELECT COUNT(*) as count
+                    FROM Respuesta_Alumno_Docente_Ingles
+                    WHERE id_personal = ?
+                `;
+                queryParamsPositive = [id, positiveResponses];
+                queryParamsTotal = [id];
                 break;
+
             case 'talleres':
-                query = `
-                    SELECT AVG(id_respuesta) as generalAverage
+                positiveQuery = `
+                    SELECT COUNT(*) as count
                     FROM Respuesta_Alumno_Taller
-                    WHERE id_personal = ? AND id_pregunta = ?
+                    WHERE id_personal = ? AND id_respuesta IN (?)
                 `;
-                queryParams = [id, idPregunta];
+                totalQuery = `
+                    SELECT COUNT(*) as count
+                    FROM Respuesta_Alumno_Taller
+                    WHERE id_personal = ?
+                `;
+                queryParamsPositive = [id, positiveResponses];
+                queryParamsTotal = [id];
                 break;
+
             case 'counselors':
-                query = `
-                    SELECT AVG(id_respuesta) as generalAverage
+                positiveQuery = `
+                    SELECT COUNT(*) as count
                     FROM Respuesta_Alumno_Counselor
-                    WHERE id_personal = ? AND id_pregunta = ?
+                    WHERE id_personal = ? AND id_respuesta IN (?)
                 `;
-                queryParams = [id, idPregunta];
+                totalQuery = `
+                    SELECT COUNT(*) as count
+                    FROM Respuesta_Alumno_Counselor
+                    WHERE id_personal = ?
+                `;
+                queryParamsPositive = [id, positiveResponses];
+                queryParamsTotal = [id];
                 break;
+
             case '360':
             case 'pares':
             case 'jefes':
             case 'subordinado':
-                query = `
-                    SELECT AVG(id_respuesta) as generalAverage
+            case 'subordinados':
+            case 'coordinadores':
+                const idTipo = tipoToId[type.toLowerCase()];
+                if (!idTipo) {
+                    console.warn(`[id_personal=${id}, type=${type}] Unsupported tipo_pregunta`);
+                    return res.json({ generalAverage: '0' });
+                }
+                positiveQuery = `
+                    SELECT COUNT(*) as count
                     FROM Respuesta_Personal
-                    WHERE id_personal = ? AND id_pregunta = ? AND id_tipo_pregunta = ?
+                    WHERE id_personal = ? AND id_respuesta IN (?) AND id_tipo_pregunta = ?
                 `;
-                queryParams = [id, idPregunta, tipoToId[type.toLowerCase()]];
+                totalQuery = `
+                    SELECT COUNT(*) as count
+                    FROM Respuesta_Personal
+                    WHERE id_personal = ? AND id_tipo_pregunta = ?
+                `;
+                queryParamsPositive = [id, positiveResponses, idTipo];
+                queryParamsTotal = [id, idTipo];
                 break;
+
             default:
                 console.warn(`[id_personal=${id}, type=${type}] Unsupported evaluation type`);
                 return res.json({ generalAverage: '0' });
         }
 
-        const [results] = await db.query(query, queryParams);
-        const generalAverage = results[0]?.generalAverage ? (parseFloat(results[0].generalAverage) * 100).toFixed(2) : '0';
-        console.log(`[id_personal=${id}, type=${type}, id_pregunta=${idPregunta}, id_tipo_pregunta=${tipoToId[type.toLowerCase()] || 'N/A'}] General average:`, generalAverage);
+        const [positiveResults] = await db.query(positiveQuery, queryParamsPositive);
+        const [totalResults] = await db.query(totalQuery, queryParamsTotal);
+
+        const positive_count = positiveResults[0]?.count || 0;
+        const total_count = totalResults[0]?.count || 0;
+
+        const generalAverage = total_count > 0 
+            ? (positive_count / total_count * 100).toFixed(2) 
+            : '0';
+
+        console.log(`[id_personal=${id}, type=${type}] General average: ${generalAverage} (positive: ${positive_count}, total: ${total_count})`);
         res.json({ generalAverage });
     } catch (error) {
         console.error(`[id_personal=${id}, type=${type}] Error fetching evaluation results:`, {
@@ -4522,9 +4580,14 @@ router.get('/personal-dashboard/:id/:type', authMiddleware, async (req, res) => 
             code: error.code,
             sqlMessage: error.sqlMessage || 'N/A'
         });
-        res.status(500).json({ success: false, message: 'Error fetching evaluation results', error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error fetching evaluation results', 
+            error: error.message 
+        });
     }
 });
+
 
 // FIN RUTAS DASHBOARD DIRECTOR
 

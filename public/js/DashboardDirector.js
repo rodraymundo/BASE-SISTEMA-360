@@ -228,14 +228,17 @@ async function loadTopPersonnel(filterType = '', filterValue = '', sortOrder = '
 async function showPersonnelModal(person) {
     document.getElementById('modalPersonnelName').textContent = `${person.nombre_personal} ${person.apaterno_personal} ${person.amaterno_personal}`;
     document.getElementById('modalPersonnelPuesto').textContent = person.nombre_puesto;
-    document.getElementById('modalPersonnelSubjects').textContent = person.subjects?.join(', ') || 'No aplica';
     document.getElementById('modalPersonnelPhone').textContent = person.telefono_personal || 'No disponible';
     document.getElementById('modalPersonnelBirthDate').textContent = person.fecha_nacimiento_personal || 'No disponible';
     document.getElementById('modalPersonnelPhoto').src = person.img_personal || './assets/img/iconousuario.png';
 
+    // Obtener materias sin duplicados
+    const uniqueSubjects = [...new Set((person.subjects || []).map(s => s.trim()))].join(', ') || 'No aplica';
+    document.getElementById('modalPersonnelSubjects').textContent = uniqueSubjects;
+
+    // Resto del código para botones y modal...
     positiveCommentsBtn.removeEventListener('click', handlePositiveComments);
     improvementAreasBtn.removeEventListener('click', handleImprovementAreas);
-
     positiveCommentsBtn.addEventListener('click', () => handlePositiveComments(person.id_personal));
     improvementAreasBtn.addEventListener('click', () => handleImprovementAreas(person.id_personal));
 

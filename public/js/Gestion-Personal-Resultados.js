@@ -468,75 +468,75 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function mostrarFichaCompleta(id_personal) {
-    try {
-      const modalElement = document.getElementById('perfilModal');
-      if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
+  try {
+    const modalElement = document.getElementById('perfilModal');
+    if (!modalElement) throw new Error('No se encontró el elemento #perfilModal');
 
-      const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
-      const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
-      const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
-      const groupedMaterias = materias.reduce((acc, materia) => {
-        const key = `${materia.nombre_materia}|${materia.grado_materia}`;
-        if (!acc[key]) {
-          acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
-        }
-        acc[key].grupos.push(materia.grupo);
-        return acc;
-      }, {});
-      const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
-      const modalBody = document.querySelector('#perfilModal .modal-body');
-      modalBody.innerHTML = `
-        <div class="text-center">
-          <img src="/assets/img/${img_personal || 'user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
-          <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
-          <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
-        </div>
-        <div class="perfil-details">
-          <h5>Datos Personales</h5>
-          <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
-          <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
-          <h5>Materias Impartidas</h5>
-          ${materiasList.length > 0 ? `
-            <ul class="list-group mb-3">
-              ${materiasList.map(m => `
-                <li class="list-group-item">
-                  <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
-                </li>
-              `).join('')}
-            </ul>
-          ` : '<p class="text-muted">No imparte materias</p>'}
-          <h5>Talleres Asignados</h5>
-          ${talleres.length > 0 ? `
-            <ul class="list-group">
-              ${talleres.map(t => `
-                <li class="list-group-item">${t.nombre_taller}</li>
-              `).join('')}
-            </ul>
-          ` : '<p class="text-muted">No está asignado a talleres</p>'}
-        </div>
-      `;
+    const data = await fetchWithRetry(`/personal-resultados/${id_personal}`, { credentials: 'include' });
+    const { nombre_personal, apaterno_personal, amaterno_personal, telefono_personal, fecha_nacimiento_personal, img_personal, roles_puesto, roles, materias = [], talleres = [] } = data;
+    const fecha = fecha_nacimiento_personal ? new Date(fecha_nacimiento_personal).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : 'No disponible';
+    const groupedMaterias = materias.reduce((acc, materia) => {
+      const key = `${materia.nombre_materia}|${materia.grado_materia}`;
+      if (!acc[key]) {
+        acc[key] = { nombre_materia: materia.nombre_materia, grado_materia: materia.grado_materia, grupos: [] };
+      }
+      acc[key].grupos.push(materia.grupo);
+      return acc;
+    }, {});
+    const materiasList = Object.values(groupedMaterias).sort((a, b) => a.grado_materia === b.grado_materia ? a.nombre_materia.localeCompare(b.nombre_materia) : a.grado_materia - b.grado_materia);
+    const modalBody = document.querySelector('#perfilModal .modal-body');
+    modalBody.innerHTML = `
+      <div class="text-center">
+        <img src="${img_personal || '/assets/img/user.png'}" alt="Foto de ${nombre_personal}" class="perfil-img mb-3">
+        <h4>${nombre_personal} ${apaterno_personal} ${amaterno_personal}</h4>
+        <p class="text-muted">${roles_puesto || roles || 'Sin roles asignados'}</p>
+      </div>
+      <div class="perfil-details">
+        <h5>Datos Personales</h5>
+        <p><strong>Teléfono:</strong> ${telefono_personal || 'No disponible'}</p>
+        <p><strong>Fecha de Nacimiento:</strong> ${fecha}</p>
+        <h5>Materias Impartidas</h5>
+        ${materiasList.length > 0 ? `
+          <ul class="list-group mb-3">
+            ${materiasList.map(m => `
+              <li class="list-group-item">
+                <strong>${m.nombre_materia}</strong> (Grado ${m.grado_materia}, Grupos: ${m.grupos.sort().join(', ')})
+              </li>
+            `).join('')}
+          </ul>
+        ` : '<p class="text-muted">No imparte materias</p>'}
+        <h5>Talleres Asignados</h5>
+        ${talleres.length > 0 ? `
+          <ul class="list-group">
+            ${talleres.map(t => `
+              <li class="list-group-item">${t.nombre_taller}</li>
+            `).join('')}
+          </ul>
+        ` : '<p class="text-muted">No está asignado a talleres</p>'}
+      </div>
+    `;
 
-      const modalFooter = document.querySelector('#perfilModal .modal-footer');
-      const existingDownloadButton = modalFooter.querySelector('.btn-resultados-pdf');
-      if (existingDownloadButton) existingDownloadButton.remove();
-      const downloadButton = document.createElement('button');
-      downloadButton.className = 'btn btn-resultados-pdf';
-      downloadButton.innerHTML = '<i class="fas fa-download"></i> Resultados';
-      downloadButton.addEventListener('click', () => generarPDFResultados(id_personal, data));
-      modalFooter.insertBefore(downloadButton, modalFooter.firstChild);
+    const modalFooter = document.querySelector('#perfilModal .modal-footer');
+    const existingDownloadButton = modalFooter.querySelector('.btn-resultados-pdf');
+    if (existingDownloadButton) existingDownloadButton.remove();
+    const downloadButton = document.createElement('button');
+    downloadButton.className = 'btn btn-resultados-pdf';
+    downloadButton.innerHTML = '<i class="fas fa-download"></i> Resultados';
+    downloadButton.addEventListener('click', () => generarPDFResultados(id_personal, data));
+    modalFooter.insertBefore(downloadButton, modalFooter.firstChild);
 
-      const modal = new bootstrap.Modal(modalElement);
-      modal.show();
-    } catch (error) {
-      console.error('Error en mostrarFichaCompleta:', error);
-      Swal.fire({
-        title: 'Error',
-        text: `No se pudieron cargar los datos del personal: ${error.message}.`,
-        icon: 'error',
-        confirmButtonText: 'Aceptar'
-      });
-    }
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+  } catch (error) {
+    console.error('Error en mostrarFichaCompleta:', error);
+    Swal.fire({
+      title: 'Error',
+      text: `No se pudieron cargar los datos del personal: ${error.message}.`,
+      icon: 'error',
+      confirmButtonText: 'Aceptar'
+    });
   }
+}
 
   async function generarPDFResultados(id_personal, personalData) {
     try {
