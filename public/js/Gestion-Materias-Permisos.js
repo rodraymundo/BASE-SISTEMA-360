@@ -117,50 +117,36 @@ if (!asignacionesHandlerAttached && asignacionesContainer) {
 
     saveBtn.disabled = true;
     const select = row.querySelector('.select-asign-personal');
-    const cancelBtn = row.querySelector('.cancel-asign-btn');
     if (select) select.disabled = true;
-    if (cancelBtn) cancelBtn.disabled = true;
 
     const id_materia = row.dataset.id_materia;
     const id_grado_grupo = row.dataset.id_grado_grupo;
-    const tipo = row.dataset.tipo; // 'ingles'|'arte'|'normal'
+    const tipo = row.dataset.tipo;
     const id_personal_original = row.dataset.id_personal_original || null;
     const id_nivel_ingles_original = row.dataset.id_nivel_ingles || null;
     const id_arte_especialidad_original = row.dataset.id_arte_especialidad || null;
-    const horasOriginal = row.dataset.horas_materia ?? null;
-
     const nuevo_id_personal = select ? select.value : null;
-    const horasInput = row.querySelector('.horas-asignacion-input');
-    const nuevas_horas = horasInput ? horasInput.value : null;
 
     try {
       if (!nuevo_id_personal) {
         throw new Error('Selecciona un profesor válido.');
       }
 
-      // si no cambió persona ni horas -> nada que hacer
-      const sinCambioPersona = String(nuevo_id_personal) === String(id_personal_original);
-      const cambioHoras = (typeof nuevas_horas !== 'undefined' && String(nuevas_horas) !== String(horasOriginal) && nuevas_horas !== '');
-      if (sinCambioPersona && !cambioHoras) {
+      if (String(nuevo_id_personal) === String(id_personal_original)) {
         Swal.fire('Sin cambios', 'No se detectaron cambios en esta asignación.', 'info');
-        throw { silent:true };
+        throw { silent: true };
       }
 
-      // construir body para POST único (backend maneja delete/insert según tipo)
       const body = {
         id_personal: nuevo_id_personal,
         id_grado_grupo: id_grado_grupo
       };
-      if (nuevas_horas !== null && nuevas_horas !== '') body.horas_materia = Number(nuevas_horas);
-
       if (tipo === 'ingles') body.id_nivel_ingles = id_nivel_ingles_original;
       if (tipo === 'arte') body.id_arte_especialidad = id_arte_especialidad_original;
 
-      // token
       const csrfRes = await fetch('/csrf-token', { credentials: 'include' });
       const { csrfToken } = await csrfRes.json();
 
-      // POST único — backend ya hace DELETE previo y INSERT nuevo (según tu ruta)
       const postRes = await fetch(`/materias/${id_materia}/asignaciones`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
@@ -169,32 +155,40 @@ if (!asignacionesHandlerAttached && asignacionesContainer) {
       });
       const postJson = await postRes.json();
       if (!postRes.ok || !postJson.success) {
-        throw new Error(postJson.message || 'No se pudo crear/actualizar la asignación.');
+        throw new Error(postJson.message || 'No se pudo actualizar la asignación.');
       }
-
-      // recargar UI
-      const isArteFlag = (tipo === 'arte');
-      await cargarAsignaciones(id_materia, isArteFlag, id_grado_grupo);
-      await cargarMaterias();
-      mostrarGrupos();
-
-      // re-render fila/modal
-      const materiaObj = (window._materiaMap && window._materiaMap.get(String(id_materia))) || { id_materia, nombre_materia: '' };
-      renderEditableAsignaciones(materiaObj, id_grado_grupo);
 
       Swal.fire('Éxito', postJson.message || 'Asignación actualizada', 'success');
 
-    } catch (err) {
-      if (err && err.silent) {
-        // nada (sin cambios)
+      // --- INICIO DE LA CORRECCIÓN ---
+      // Recargar UI de forma inteligente después de guardar
+      const materiaObj = (window._materiaMap && window._materiaMap.get(String(id_materia))) || { id_materia };
+
+      if (tipo === 'ingles') {
+        // 1. Para Inglés: Volvemos a pedir los niveles actualizados del grupo.
+        const nivelesActualizados = await fetchWithRetry(`/grupos/${id_grado_grupo}/niveles-ingles`, { credentials: 'include' });
+        // 2. Volvemos a renderizar el modal con los datos frescos.
+        renderEditableAsignaciones(materiaObj, id_grado_grupo, nivelesActualizados);
       } else {
+        // Para Arte y materias normales, usamos la lógica existente.
+        const isArteFlag = (tipo === 'arte');
+        await cargarAsignaciones(id_materia, isArteFlag, id_grado_grupo);
+        renderEditableAsignaciones(materiaObj, id_grado_grupo, null); // Pasamos null para niveles
+      }
+      
+      // Actualizar la vista principal fuera del modal (esto ya estaba bien).
+      await cargarMaterias();
+      mostrarGrupos();
+      // --- FIN DE LA CORRECCIÓN ---
+
+    } catch (err) {
+      if (!err.silent) {
         console.error('Error guardando asignación por fila:', err);
         Swal.fire('Error', err.message || 'No se pudo actualizar la asignación.', 'error');
       }
-      // reactivar UI
+      // Reactivar UI en caso de error o sin cambios.
       saveBtn.disabled = false;
       if (select) select.disabled = false;
-      if (cancelBtn) cancelBtn.disabled = false;
     }
   });
 
@@ -366,46 +360,33 @@ let selectedPersonalId = null; // id_personal seleccionado desde la lista
 
 // nueva función: obtiene profesores permitidos (tiempo completo o asimilados)
 async function cargarProfesoresPermitidos() {
-  // detectar ids de roles que coincidan con "tiempo completo" o "asimil"
-  const allowedRoleNames = ['tiempo completo', 'tiempo_completo', 'profesor tiempo completo', 'asimil', 'asimilado', 'profesor asimilado', 'profesor de asimilados'];
+    // Se detectan los roles que incluyen 'profesor', 'tiempo completo', o 'asimilado'
+    const allowedRoleNames = ['profesor', 'tiempo completo', 'asimilado'];
+    const allowedRoleIds = (roles || [])
+        .filter(r => allowedRoleNames.some(needle => (r.nombre_rol || '').toLowerCase().includes(needle)))
+        .map(r => r.id_rol);
 
-  // buscar ids de roles por coincidencia (case-insensitive)
-  const allowedRoleIds = (roles || []).filter(r => {
-    const name = (r.nombre_rol || '').toLowerCase();
-    return allowedRoleNames.some(needle => name.includes(needle));
-  }).map(r => r.id_rol);
+    // Se obtiene el personal por rol en paralelo
+    const arr = await Promise.all(
+        [...new Set(allowedRoleIds)].map(id => fetchWithRetry(`/personal-por-rol/${id}`, { credentials: 'include' }).catch(() => []))
+    );
 
-  // si no encontró roles por nombre, intentar detectar por exacto 'Profesor' (fallback)
-  if (allowedRoleIds.length === 0) {
-    // por si acaso, toma roles que contengan 'profesor'
-    const fallback = (roles || []).filter(r => (r.nombre_rol || '').toLowerCase().includes('profesor')).map(r=>r.id_rol);
-    allowedRoleIds.push(...fallback);
-  }
-
-  // traer personal por rol (paralelo), combinar y deduplicar
-  const arr = await Promise.all(
-    allowedRoleIds.map(id => fetchWithRetry(`/personal-por-rol/${id}`, { credentials: 'include' }).catch(() => []))
-  );
-
-  const combined = [];
-  const seen = new Set();
-  arr.forEach(list => {
-    if (!Array.isArray(list)) return;
-    list.forEach(p => {
-      if (!seen.has(String(p.id_personal))) {
-        seen.add(String(p.id_personal));
-        combined.push(p);
-      }
+    const combined = [];
+    const seen = new Set();
+    arr.forEach(list => {
+        if (!Array.isArray(list)) return;
+        list.forEach(p => {
+            if (!seen.has(String(p.id_personal))) {
+                seen.add(String(p.id_personal));
+                // ✨ CAMBIO: Se crea un nombre formateado para ordenar y mostrar
+                p.displayName = [p.apaterno_personal, p.amaterno_personal, p.nombre_personal].filter(Boolean).join(' ');
+                combined.push(p);
+            }
+        });
     });
-  });
 
-  allowedProfesores = combined.sort((a,b) => {
-    const A = `${a.apaterno_personal||''} ${a.nombre_personal||''}`.toLowerCase();
-    const B = `${b.apaterno_personal||''} ${b.nombre_personal||''}`.toLowerCase();
-    return A < B ? -1 : (A > B ? 1 : 0);
-  });
-
-  renderProfesoresList(''); // mostrar lista inicial
+    // ✨ CAMBIO: Se ordena la lista usando el nuevo 'displayName' (Apellido Paterno, Materno, Nombre)
+    allowedProfesores = combined.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 // render de la lista y buscador
@@ -517,100 +498,134 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function renderEditableAsignaciones(materia, grupoId) {
-  const cont = document.getElementById('asignacionesContainer');
-  if (!cont) return;
+// Reemplaza tu función renderEditableAsignaciones con esta versión:
 
-  const all = Array.isArray(asignaciones) ? asignaciones : [];
-  const filas = all.filter(a => String(a.id_grado_grupo) === String(grupoId));
+function renderEditableAsignaciones(materia, grupoId, nivelesIngles = null) {
+    const cont = document.getElementById('asignacionesContainer');
+    if (!cont) return;
 
-  console.log('Asignaciones filtradas:', filas); // Debug: Verify id_arte_especialidad
+    const tipoMateria = materia.nombre_materia.toLowerCase().includes('inglés') ? 'ingles' : (materia.nombre_materia.toLowerCase().includes('arte') ? 'arte' : 'normal');
 
-  if (!filas.length) {
-    cont.innerHTML = '<div class="text-muted small">Sin asignaciones para este grupo.</div>';
-    return;
-  }
+    let html = '';
 
-  const html = filas.map((a, idx) => {
-    const tipo = a.id_nivel_ingles ? 'ingles' : (a.id_arte_especialidad ? 'arte' : 'normal');
-    const etiqueta = a.nombre_nivel_ingles || a.nombre_arte_especialidad || '';
+    if (tipoMateria === 'ingles') {
+        // Lógica para renderizar los niveles de Inglés
+        if (!nivelesIngles || nivelesIngles.length === 0) {
+            cont.innerHTML = '<div class="text-muted small">No se encontraron niveles de inglés para los alumnos de este grupo.</div>';
+            return;
+        }
+        html = nivelesIngles.map((nivel) => {
+            // Se usa 'displayName' para el texto de la opción, que ya está ordenado
+            const options = (allowedProfesores || []).map(p => {
+                const selected = String(p.id_personal) === String(nivel.id_personal) ? 'selected' : '';
+                return `<option value="${p.id_personal}" ${selected}>${escapeHtml(p.displayName)}</option>`;
+            }).join('');
+            
+            const dataAttrs = `data-id_materia="${materia.id_materia}" data-id_grado_grupo="${grupoId}" data-tipo="ingles" data-id_nivel_ingles="${nivel.id_nivel_ingles}" data-id_personal_original="${nivel.id_personal || ''}"`;
+            
+            return `
+              <div class="mb-2 p-2 border rounded asignacion-row" ${dataAttrs}>
+                <div class="small fw-semibold mb-2">${escapeHtml(nivel.nombre_nivel_ingles)}</div>
+                <div class="d-flex gap-2 align-items-center">
+                  <div style="flex:1;">
+                    <select class="form-select form-select-sm select-asign-personal">
+                      <option value="">-- Seleccionar Profesor --</option>
+                      ${options}
+                    </select>
+                  </div>
+                  <div style="min-width:100px;">
+                    <button class="btn btn-sm btn-danger save-asign-btn" title="Guardar esta asignación">Guardar</button>
+                  </div>
+                </div>
+              </div>`;
+        }).join('');
+    } else {
+        // Lógica para materias de Arte y Normales
+        const filas = asignaciones.filter(a => String(a.id_grado_grupo) === String(grupoId));
+        if (!filas.length) {
+            cont.innerHTML = '<div class="text-muted small">Sin asignaciones para este grupo.</div>';
+            return;
+        }
+        html = filas.map((a) => {
+            const tipo = a.id_arte_especialidad ? 'arte' : 'normal';
+            const etiqueta = a.nombre_arte_especialidad || 'Asignación General';
+            
+            const options = (allowedProfesores || []).map(p => {
+                const selected = String(p.id_personal) === String(a.id_personal) ? 'selected' : '';
+                return `<option value="${p.id_personal}" ${selected}>${escapeHtml(p.displayName)}</option>`;
+            }).join('');
 
-    const options = (allowedProfesores || []).map(p => {
-      const full = [p.nombre_personal, p.apaterno_personal, p.amaterno_personal].filter(Boolean).join(' ');
-      const selected = String(p.id_personal) === String(a.id_personal) ? 'selected' : '';
-      return `<option value="${p.id_personal}" ${selected}>${escapeHtml(full)}</option>`;
-    }).join('');
+            const dataAttrs = `data-id_personal_original="${a.id_personal || ''}" data-id_grado_grupo="${a.id_grado_grupo || ''}" data-id_arte_especialidad="${a.id_arte_especialidad || ''}" data-id_materia="${materia.id_materia}" data-tipo="${tipo}"`;
+            
+            return `
+              <div class="mb-2 p-2 border rounded asignacion-row" ${dataAttrs}>
+                  <div class="small fw-semibold mb-1">${escapeHtml(etiqueta)}</div>
+                  <div class="d-flex gap-2 align-items-center">
+                      <div style="flex:1;">
+                          <select class="form-select form-select-sm select-asign-personal">
+                              <option value="">-- Seleccionar Profesor --</option>
+                              ${options}
+                          </select>
+                      </div>
+                      <div style="min-width:100px;">
+                          <button class="btn btn-sm btn-danger save-asign-btn" title="Guardar esta asignación">Guardar</button>
+                      </div>
+                  </div>
+              </div>`;
+        }).join('');
+    }
 
-    const dataAttrs = [
-      `data-id_personal_original="${a.id_personal ?? ''}"`,
-      `data-id_grado_grupo="${a.id_grado_grupo ?? ''}"`,
-      `data-id_nivel_ingles="${a.id_nivel_ingles ?? ''}"`,
-      `data-id_arte_especialidad="${a.id_arte_especialidad ?? ''}"`
-    ].join(' ');
-
-    return `
-      <div class="mb-2 asignacion-row" ${dataAttrs} data-id_materia="${a.id_materia || materia.id_materia}" data-tipo="${tipo}" data-idx="${idx}">
-        <div class="d-flex gap-2 align-items-center">
-          <div style="flex:1;">
-            <div class="small text-muted">${escapeHtml([a.nombre_personal, a.apaterno_personal, a.amaterno_personal].filter(Boolean).join(' '))}</div>
-            <div class="small fw-semibold">${escapeHtml(materia.nombre_materia)} ${etiqueta ? `· ${escapeHtml(String(etiqueta))}` : ''}</div>
-          </div>
-          <div style="min-width:260px;">
-            <select class="form-select form-select-sm select-asign-personal" data-field-idx="${idx}">
-              ${options}
-            </select>
-          </div>
-          <div style="min-width:140px;">
-            <button class="btn btn-sm btn-danger save-asign-btn" data-idx="${idx}" title="Guardar solo esta asignación">Guardar</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  cont.innerHTML = html;
+    cont.innerHTML = html;
 }
-
 // abrirModalAsignar: ahora bloquea el grupo, prepara lista de profesores permitidos y carga asignación actual
+// Reemplaza tu función existente con esta
 async function abrirModalAsignar(materia, selectedGroupId = null) {
-  // buscar el grupo
+  // 1. Buscar el grupo y configurar el título del modal (sin cambios)
   const g = todosLosGradosGrupos.find(gr => String(gr.id_grado_grupo) === String(selectedGroupId)) || {};
-
   asignarModalTitle.textContent = `Asignar Profesor - ${materia.nombre_materia} - ${g.grado}° ${g.grupo}`;
   document.getElementById('id_materia_asignar').value = materia.id_materia;
 
-  // reset de estado
+  // 2. Reset de estado (sin cambios)
   asignarForm.reset();
   currentAssignment = null;
   selectedPersonalId = null;
   const idPersonalField = document.getElementById('id_personal');
   if (idPersonalField) idPersonalField.value = '';
 
-
-  // Grupo: poblar select con los grupos permitidos y forzar al grupo seleccionado (bloqueado)
-  // poblarSelectDeGrupos usa todosLosGradosGrupos; la llamamos para cargar las opciones
+  // 3. Configurar y deshabilitar el selector de grupo (sin cambios)
   poblarSelectDeGrupos(materia.grado_materia);
   if (selectedGroupId) {
     document.getElementById('id_grado_grupo').value = selectedGroupId;
   }
-  // dejar deshabilitado para que no se pueda cambiar
   document.getElementById('id_grado_grupo').disabled = true;
 
-  const isArte = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('arte');
-  //nivelInglesContainer.style.display = materia.nombre_materia.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes('ingles') ? 'block' : 'none';
-  // Ya no es requerido porque el contenedor está oculto
-  idNivelInglesSelect.required = false;
+  // 4. Identificar el tipo de materia
+  const isIngles = materia.nombre_materia.toLowerCase().includes('inglés');
+  const isArte = materia.nombre_materia.toLowerCase().includes('arte');
 
-  // cargar lista de profesores permitidos y renderizar buscador
+  // Ocultar o mostrar el formulario principal si existe
+  // (Asegúrate de tener un div con id="mainAssignmentFormContent" en tu modal si quieres usar esta línea)
+  const mainFormContent = document.getElementById('mainAssignmentFormContent');
+  if (mainFormContent) {
+    mainFormContent.style.display = isIngles ? 'none' : 'block';
+  }
+  
+  // 5. Cargar la lista de profesores una sola vez
   await cargarProfesoresPermitidos();
 
-  await cargarAsignaciones(materia.id_materia, isArte, selectedGroupId);
+  // 6. Lógica de bifurcación CORRECTA
+  if (isIngles) {
+    // Para Inglés: Llama a la nueva ruta y renderiza por niveles
+    const niveles = await fetchWithRetry(`/grupos/${selectedGroupId}/niveles-ingles`, { credentials: 'include' });
+    renderEditableAsignaciones(materia, selectedGroupId, niveles);
+  } else {
+    // Para Arte o materias normales: Usa la lógica existente
+    await cargarAsignaciones(materia.id_materia, isArte, selectedGroupId);
+    renderEditableAsignaciones(materia, selectedGroupId, null); // Pasamos null para niveles
+  }
 
-  // render editable por fila (nueva función)
-  renderEditableAsignaciones(materia, selectedGroupId);
-
+  // 7. Mostrar el modal
   asignarModal.show();
-
 }
 
 

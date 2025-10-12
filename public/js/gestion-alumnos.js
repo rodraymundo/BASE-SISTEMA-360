@@ -875,6 +875,8 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         const counselor = r.Counselor ?? r.counselor ?? r['Counselor'] ?? r['Counselor Name'] ?? '';
         const grado = r.Grado ?? r.grado ?? '';
         const grupo = r.Grupo ?? r.grupo ?? '';
+        const nivel = r.Nivel ?? r.Nivel_Ingles ?? r.nivel_ingles ?? r['nivel_ingles'] ?? '';
+        const modelo = r.Modelo ?? r.modelo ?? r['Modelo'] ?? '';
 
         // validaciones básicas
         const problems = [];
@@ -882,13 +884,16 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
         if (!apaterno) problems.push('Falta Apellido paterno');
         if (!matricula) problems.push('Falta Matrícula');
         if (!grado || !grupo) problems.push('Falta Grado/Grupo');
+        if (!nivel) problems.push('Falta Nivel de Inglés');
+        if (!modelo) problems.push('Falta Modelo');
+
         // Nota: validación de counselor se hará en el servidor al importar
 
         const valid = problems.length === 0;
 
         return {
           id: idx,
-          raw: { nombre, apaterno, amaterno, matricula, counselor, grado, grupo },
+          raw: { nombre, apaterno, amaterno, matricula, counselor, grado, grupo, nivel, modelo },
           valid,
           message: problems.join('; '),
           include: valid // por defecto incluimos sólo las válidas
@@ -928,6 +933,9 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
           <td class="align-middle">${matricula}</td>
           <td class="align-middle">${counselor || '<span class="text-muted">—</span>'}</td>
           <td class="align-middle">${grado} ${grupo}</td>
+          <td class="align-middle">${r.raw.nivel || '<span class="text-muted">—</span>'}</td>
+          <td class="align-middle">${r.raw.modelo || '<span class="text-muted">—</span>'}</td>
+
           <td class="align-middle">${badge}</td>
         </tr>
       `;
@@ -943,6 +951,8 @@ document.getElementById('btn-nuevo-alumno').addEventListener('click', async () =
               <th>Matrícula</th>
               <th>Counselor</th>
               <th>Grado/Grupo</th>
+              <th>Nivel de Inglés</th>
+              <th>Modelo</th>
               <th>Observaciones</th>
             </tr>
           </thead>
