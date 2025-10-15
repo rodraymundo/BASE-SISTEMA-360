@@ -73,6 +73,7 @@ body.gestion-personal-resultados {
   border-color: #dc3545;
 }
 
+/* CÓDIGO CORREGIDO en .personal-card */
 .personal-card {
   border: 1px solid #dee2e6;
   border-radius: 8px;
@@ -82,9 +83,11 @@ body.gestion-personal-resultados {
   text-align: center;
   transition: transform 0.2s;
 
-  height: 365px;          /* Altura fija */
+  /* height: 365px; */  /* Línea eliminada o comentada */
   display: flex;
   flex-direction: column;
+  justify-content: space-between; /* Añadido opcional para mejor distribución */
+  height: 100%; /* Asegura que todas las tarjetas en una fila tengan la misma altura */
 }
 
 .personal-card:hover {

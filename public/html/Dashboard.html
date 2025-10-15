@@ -136,8 +136,15 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <canvas id="roleEvaluationChart" class="custom-chart"></canvas>
-                    </div>
+    <div class="chart-container position-relative">
+        <canvas id="roleEvaluationChart" class="custom-chart"></canvas>
+        <div id="chartLoading" class="position-absolute top-50 start-50 translate-middle" style="display: none;">
+            <div class="spinner-border text-danger" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    </div>
+</div>
                 </div>
             </div>
         </div>
@@ -145,22 +152,22 @@
 
     <!-- Comments Modal -->
     <div class="modal fade" id="commentsModal" tabindex="-1" aria-labelledby="commentsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="commentsModalLabel"></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentsModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="commentsList" class="comments-container">
+                    <!-- Comments will be populated here -->
                 </div>
-                <div class="modal-body">
-                    <div id="commentsList" class="list-group">
-                        <!-- Comments will be populated here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                </div>
+            </div>
+            <div class="modal-footer">
             </div>
         </div>
     </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="./assets/js/DashboardDirector.js" type="module"></script>

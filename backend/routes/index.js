@@ -7687,8 +7687,7 @@ router.get('/historico-comments-director/:id_personal/:ciclo', async (req, res) 
 
 //FIN RUTAS DE HISTORICO
 
-  //NUEVAS RUTAS 
-  // GET /grupos/:id/materias => materias asignadas al grupo con detalle (incluye arte/ingles aunque no estén en Grupo_Materia)
+//NUEVAS RUTAS 
 router.get('/grupos/:id/materias', authMiddleware, async (req, res) => {
   const { id } = req.params; // id_grado_grupo
   let connection;

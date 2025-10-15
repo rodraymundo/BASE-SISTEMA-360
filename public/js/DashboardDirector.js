@@ -255,10 +255,14 @@ async function showPersonnelModal(person) {
 
 async function renderRoleEvaluationChart(idPersonal) {
     const chartContainer = document.getElementById('roleEvaluationChart');
+    const loading = document.getElementById('chartLoading');
+    
     if (!chartContainer) {
         console.error(`[idPersonal=${idPersonal}] Chart container 'roleEvaluationChart' not found in DOM`);
         return;
     }
+
+    if (loading) loading.style.display = 'block'; // Muestra el spinner al inicio
 
     chartContainer.style.display = 'block';
     chartContainer.width = 400;
@@ -278,6 +282,7 @@ async function renderRoleEvaluationChart(idPersonal) {
         const typesData = await typesRes.json();
         if (!Array.isArray(typesData) || typesData.length === 0) {
             chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay tipos de evaluaciones disponibles.</p>');
+            if (loading) loading.style.display = 'none'; // Oculta spinner
             return;
         }
 
@@ -308,6 +313,7 @@ async function renderRoleEvaluationChart(idPersonal) {
 
         if (evaluations.length === 0 || evaluations.every(e => e.value === 0)) {
             chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">No hay datos de evaluaciones disponibles para este personal.</p>');
+            if (loading) loading.style.display = 'none'; // Oculta spinner
             return;
         }
 
@@ -318,8 +324,8 @@ async function renderRoleEvaluationChart(idPersonal) {
                 datasets: [{
                     label: 'Evaluaciones por Tipo',
                     data: evaluations.map(e => e.value),
-                    backgroundColor: '#36a2eb',
-                    borderColor: '#2b8bc6',
+                    backgroundColor: '#eb3636ff',
+                    borderColor: '#c62b2bff',
                     borderWidth: 1
                 }]
             },
@@ -337,8 +343,11 @@ async function renderRoleEvaluationChart(idPersonal) {
     } catch (error) {
         console.error(`[idPersonal=${idPersonal}] Error rendering chart:`, error);
         chartContainer.insertAdjacentHTML('afterend', '<p class="text-center text-muted">Error al cargar el gráfico de evaluaciones.</p>');
+    } finally {
+        if (loading) loading.style.display = 'none'; // Siempre oculta al final, incluso en error
     }
 }
+
 async function handlePositiveComments(idPersonal) {
     try {
         const res = await fetch(`/comments-director?id_personal=${idPersonal}&type=positive`, { credentials: 'include' });
@@ -377,9 +386,18 @@ function displayComments(title, comments) {
     }
 
     modalTitle.textContent = title;
+    const isPositive = title === 'Comentarios Positivos';
     commentsList.innerHTML = comments.length
-        ? comments.map(c => `<div class="list-group-item">${c.commenter}: ${c.comment}</div>`).join('')
-        : '<div class="list-group-item text-center">No hay comentarios.</div>';
+        ? comments.map(c => `
+            <div class="comment-card ${isPositive ? 'positive' : 'negative'}">
+                <div class="comment-header">
+                    <span class="commenter">${escapeHtml(c.commenter)}</span>
+                    <span class="comment-type">${isPositive ? 'Positivo' : 'Mejora'}</span>
+                </div>
+                <p class="comment-text">${escapeHtml(c.comment)}</p>
+            </div>
+        `).join('')
+        : '<div class="no-comments">No hay comentarios.</div>';
 
     if (commentsModalInstance) {
         commentsModalInstance.dispose();
@@ -439,8 +457,8 @@ function renderCharts(personnel, evaluations, kpiData) {
             datasets: [{
                 label: 'Evaluación',
                 data: evalData,
-                backgroundColor: '#36a2eb',
-                borderColor: '#2b8bc6',
+                backgroundColor: '#eb3636ff',
+                borderColor: '#c62b2bff',
                 borderWidth: 1
             }]
         },

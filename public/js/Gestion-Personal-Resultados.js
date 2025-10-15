@@ -289,20 +289,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // CÓDIGO CORREGIDO en mostrarPersonal
     personalContainer.innerHTML = filtrados.map(p => `
       <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
         <div class="personal-card">
-          <img src="${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
-          <h5>
-            ${p.nombre_personal}
-            ${p.apaterno_personal != null ? p.apaterno_personal : ""}
-            ${p.amaterno_personal != null ? p.amaterno_personal : ""}
-          </h5>
+          
+          <div class="card-content"> 
+            <img src="${p.img_personal || 'user.png'}" alt="Foto de ${p.nombre_personal}">
+            <h5>
+              ${p.nombre_personal}
+              ${p.apaterno_personal != null ? p.apaterno_personal : ""}
+              ${p.amaterno_personal != null ? p.amaterno_personal : ""}
+            </h5>
+            <p>${p.nombre_rol || ''}</p> 
+          </div>
 
-          <div>
+          <div class="card-buttons"> 
             <button class="btn btn-perfil" data-id="${p.id_personal}">Perfil</button>
             <button class="btn btn-resultados" data-id="${p.id_personal}">Resultados</button>
           </div>
+
         </div>
       </div>
     `).join('');
